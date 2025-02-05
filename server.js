@@ -12,8 +12,10 @@ app.get("/", (req, res) => {
 });
 
 // Import routes
-const authRoutes = require("./routes/authRoutes");
-app.use("/api/auth", authRoutes);
+const authRoutes = require("./routes/auth/authSignup");
+const authPassword = require("./routes/auth/authPassword")
+app.use("/auth", authRoutes);
+app.use("/auth/password", authPassword);
 
 // Start the server
 app.listen(PORT, () => {
