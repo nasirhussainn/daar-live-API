@@ -1,4 +1,4 @@
-const firebase = require("../firebase");
+const firebase = require("../config/firebase");
 
 // Simulating Google Sign-In (This would be done by the frontend normally)
 firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider())

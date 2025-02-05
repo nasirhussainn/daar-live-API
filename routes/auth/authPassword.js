@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const crypto = require("crypto");
-const sendEmail = require("../../mailer"); // Import the sendEmail function
+// const sendEmail = require("../../mailer"); // Import the sendEmail function
 
 // Temporary in-memory OTP storage (Use a database in production)
 let otpStore = {};
@@ -24,15 +24,15 @@ router.post("/forgot-password", (req, res) => {
   };
 
   // Send OTP to user's email
-  sendEmail(email, "Password Reset OTP", `Your OTP for password reset is: ${otp}`)
-    .then(() => {
-      res.status(200).json({
-        message: "OTP sent to email successfully. It will expire in 5 minutes.",
-      });
-    })
-    .catch((error) => {
-      res.status(500).json({ message: error.message });
-    });
+  // sendEmail(email, "Password Reset OTP", `Your OTP for password reset is: ${otp}`)
+  //   .then(() => {
+  //     res.status(200).json({
+  //       message: "OTP sent to email successfully. It will expire in 5 minutes.",
+  //     });
+  //   })
+  //   .catch((error) => {
+  //     res.status(500).json({ message: error.message });
+  //   });
 });
 
 // Reset Password API

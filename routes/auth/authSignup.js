@@ -1,28 +1,90 @@
 const express = require("express");
 const router = express.Router();
-const admin = require("../../../firebase"); // Firebase setup
+const bcrypt = require("bcryptjs");
+const User = require("../../models/User");
+const Realtor = require("../../models/Realtor");
+const admin = require("../../config/firebase"); // Firebase setup
+const upload = require("../../middlewares/uploadMiddleware"); // File upload middleware
+const { uploadToCloudinary } = require("../../config/cloudinary");
+const { sendVerificationEmail } = require("../../config/mailer");
+const crypto = require("crypto");
 
-// Manual Signup (Email/Password)
-router.post("/signup", (req, res) => {
-  const { name, email, password, role } = req.body; // role: 'buyer' or 'realtor'
+// Manual Signup with Profile Picture Upload
+router.post("/signup", upload.single("profilePicture"), async (req, res) => {
+  try {
+    const { full_name, email, password, role, business_name, customer_id } = req.body;
 
-  if (!name || !email || !password || !role) {
-    return res.status(400).json({ message: "All fields are required" });
+    // Check if a user already exists with the same email and same role
+    let existingUser = await User.findOne({ email, role });
+    if (existingUser) {
+      return res.status(400).json({ message: `${role} with this email already exists` });
+    }
+
+    // Hash the password before saving
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Upload profile picture to Cloudinary if provided
+    let imageUrl = null;
+    if (req.file) {
+      imageUrl = await uploadToCloudinary(req.file.path);
+    }
+
+    // Generate email verification token (valid for 1 hour)
+    const emailVerificationToken = crypto.randomBytes(32).toString("hex");
+    const emailVerificationTokenExpiry = Date.now() + 3600000; // 1 hour from now
+
+    // Create new user
+    const newUser = new User({
+      full_name,
+      email,
+      password: hashedPassword,
+      role,
+      profile_picture: imageUrl,
+      email_verified: false,
+      email_verification_token: emailVerificationToken,
+      email_verification_token_expiry: emailVerificationTokenExpiry,
+    });
+
+    await newUser.save();
+
+    // If the user is a realtor, create a corresponding Realtor document
+    if (role === "realtor") {
+      const realtorData = {
+        user_id: newUser._id,
+        business_name: business_name,
+        customer_id: customer_id,
+        subscription: {
+          subscription_id: crypto.randomBytes(16).toString("hex"), // Random subscription ID for demo
+          plan_name: "basic", // Default subscription plan
+          start_date: Date.now(),
+          end_date: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year subscription
+          status: "active",
+        },
+      };
+      
+      const newRealtor = new Realtor(realtorData);
+      await newRealtor.save();
+    }
+
+    // Send email verification link
+    const verificationLink = `http://localhost:5000/api/verify-email/${emailVerificationToken}`;
+    await sendVerificationEmail(email, verificationLink);
+
+    return res.status(201).json({
+      message: "User registered successfully. Please verify your email.",
+      user: {
+        full_name: newUser.full_name,
+        email: newUser.email,
+        role: newUser.role,
+        profile_picture: newUser.profile_picture,
+      },
+    });
+  } catch (error) {
+    console.error("Signup error:", error);
+    return res.status(500).json({ message: "Server error. Please try again." });
   }
-
-  // Simulate storing the user in the database
-  const user = {
-    name,
-    email,
-    password, // In reality, password should be hashed and stored securely
-    role,
-  };
-
-  return res.status(201).json({
-    message: "User registered successfully",
-    user,
-  });
 });
+
 
 // Manual Login (Email/Password)
 router.post("/login", (req, res) => {
@@ -45,9 +107,8 @@ router.post("/login", (req, res) => {
   }
 });
 
-// Firebase Sign-Up/Sign-In with Google/Apple
 router.post("/signup/firebase", async (req, res) => {
-  const { idToken, role } = req.body; // ID Token from frontend
+  const { idToken, role } = req.body;
 
   if (!idToken || !role) {
     return res.status(400).json({ message: "ID Token and role are required" });
@@ -58,13 +119,18 @@ router.post("/signup/firebase", async (req, res) => {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     const { uid, email, name, picture } = decodedToken;
 
-    // Simulating user registration (Replace with database logic)
+    // Upload Firebase profile picture to Cloudinary
+    let imageUrl = picture;
+    if (picture) {
+      imageUrl = await uploadToCloudinary(picture);
+    }
+
     const user = {
       uid,
       name: name || "No Name",
       email,
-      picture,
-      role, // 'buyer' or 'realtor'
+      role,
+      profilePicture: imageUrl,
     };
 
     res.status(200).json({
@@ -75,6 +141,7 @@ router.post("/signup/firebase", async (req, res) => {
     res.status(401).json({ message: "Invalid ID Token", error: error.message });
   }
 });
+
 
 // Firebase Login with Google/Apple (using the ID Token)
 router.post("/login/firebase", async (req, res) => {
