@@ -35,5 +35,8 @@ coverage/
 dist/
 build/
 
+# Temporary files
+*.log
+*.bak
 
 serviceAccountKey.json
