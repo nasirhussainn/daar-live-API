@@ -19,9 +19,13 @@ app.get("/", (req, res) => {
 const authSignup = require("./routes/auth/authSignup");
 const authPassword = require("./routes/auth/authPassword")
 const authEmailVerification = require("./routes/auth/authEmailVerification")
+const authLogin = require("./routes/auth/authLogin")
+const authPhoneVerification = require("./routes/auth/authPhoneVerification")
 app.use("/auth", authSignup);
 app.use("/auth", authPassword);
-app.use("/auth", authEmailVerification)
+app.use("/auth", authEmailVerification);
+app.use("/auth", authLogin);
+app.use("/auth", authPhoneVerification);
 // Start the server
 app.listen(PORT, () => {
   console.log(`🚀 Server running at: http://localhost:${PORT}/`);

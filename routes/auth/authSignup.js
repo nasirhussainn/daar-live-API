@@ -87,28 +87,6 @@ router.post("/signup", upload.single("profilePicture"), async (req, res) => {
 });
 
 
-
-// Manual Login (Email/Password)
-router.post("/login", (req, res) => {
-  const { email, password } = req.body;
-
-  if (!email || !password) {
-    return res.status(400).json({ message: "Email and password are required" });
-  }
-
-  // Simulate checking the user's credentials (in reality, you'd check the DB)
-  const user = { email, password, role: "buyer" }; // Example user
-
-  if (user) {
-    return res.status(200).json({
-      message: "Login successful",
-      user,
-    });
-  } else {
-    return res.status(401).json({ message: "Invalid credentials" });
-  }
-});
-
 router.post("/signup/firebase", async (req, res) => {
   const { idToken, role } = req.body;
 
