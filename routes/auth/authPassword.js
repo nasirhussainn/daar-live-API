@@ -1,79 +1,99 @@
+const crypto = require("crypto");
 const express = require("express");
 const router = express.Router();
-const crypto = require("crypto");
-// const sendEmail = require("../../mailer"); // Import the sendEmail function
+const bcrypt = require("bcryptjs"); 
+const User = require("../../models/User"); // Import the User model
+const { sendPasswordResetEmail } = require("../../config/mailer"); // Import the sendVerificationEmail function
 
-// Temporary in-memory OTP storage (Use a database in production)
-let otpStore = {};
+// Forgot Password API
+router.post("/forgot-password", async (req, res) => {
+  const { email, role } = req.body;  // Accept role in the request
 
-// Request OTP API
-router.post("/forgot-password", (req, res) => {
-  const { email } = req.body;
+  try {
+    // Find user by email and role
+    const user = await User.findOne({ email, role });
 
-  if (!email) {
-    return res.status(400).json({ message: "Email is required" });
+    if (!user) {
+      return res.status(400).json({ message: "No user found with this email and role combination." });
+    }
+
+    // Generate password reset token
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const resetTokenExpiry = Date.now() + 120000; // Token valid for 1 hour
+
+    // Update user with reset token and expiry
+    user.password_reset_token = resetToken;
+    user.password_reset_token_expiry = resetTokenExpiry;
+    await user.save();
+
+    // Send password reset email
+    const resetLink = `http://localhost:5000/auth/reset-password/${resetToken}`;
+    // const mailContent = `<p>Click the link below to reset your password:</p><a href="${resetLink}">${resetLink}</a>`;
+
+    // Customize the email content depending on the user role
+    if (user.role === 'realtor') {
+      await sendPasswordResetEmail(email, resetLink);
+    } else {
+      await sendPasswordResetEmail(email, resetLink);
+    }
+
+    return res.status(200).json({ message: "Password reset link sent to your email." });
+  } catch (error) {
+    console.error("Forgot Password Error:", error);
+    return res.status(500).json({ message: "Server error. Please try again." });
   }
-
-  // Generate OTP (6-digit)
-  const otp = crypto.randomInt(100000, 999999).toString();
-
-  // Store OTP with expiry time (5 minutes)
-  otpStore[email] = {
-    otp,
-    expiresAt: Date.now() + 5 * 60 * 1000, // OTP expires in 5 minutes
-  };
-
-  // Send OTP to user's email
-  // sendEmail(email, "Password Reset OTP", `Your OTP for password reset is: ${otp}`)
-  //   .then(() => {
-  //     res.status(200).json({
-  //       message: "OTP sent to email successfully. It will expire in 5 minutes.",
-  //     });
-  //   })
-  //   .catch((error) => {
-  //     res.status(500).json({ message: error.message });
-  //   });
 });
 
+
 // Reset Password API
-router.post("/reset-password", (req, res) => {
-  const { email, otp, newPassword } = req.body;
+router.post("/reset-password/:token", async (req, res) => {
+  const { token } = req.params;
+  const { newPassword } = req.body;  // Accept role in the request
 
-  if (!email || !otp || !newPassword) {
-    return res.status(400).json({ message: "Email, OTP, and new password are required" });
+  try {
+    // Find user by reset token
+    const user = await User.findOne({ password_reset_token: token });
+
+    if (!user) {
+      return res.status(400).json({ message: "Invalid password reset token." });
+    }
+
+    // Check if the token has expired
+    if (user.password_reset_token_expiry < Date.now()) {
+      // If the token has expired, generate a new reset token and send email again
+      const newResetToken = crypto.randomBytes(32).toString("hex");
+      const newResetTokenExpiry = Date.now() + 3600000; // New token valid for 1 hour
+
+      // Update the user's reset token and expiry
+      user.password_reset_token = newResetToken;
+      user.password_reset_token_expiry = newResetTokenExpiry;
+      await user.save();
+
+      // Send the new password reset email
+      const resetLink = `http://localhost:5000/auth/reset-password/${newResetToken}`;
+      // const mailContent = `<p>Your previous password reset token expired. Click the link below to reset your password:</p><a href="${resetLink}">${resetLink}</a>`;
+
+      // Customize the email content depending on the user role
+      await sendPasswordResetEmail(user.email, resetLink);
+     
+      return res.status(400).json({ message: "Your password reset token expired. A new link has been sent to your email." });
+    }
+
+
+    // If the role matches, hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update user's password and clear the reset token
+    user.password = hashedPassword;
+    user.password_reset_token = undefined;
+    user.password_reset_token_expiry = undefined;
+    await user.save();
+
+    return res.status(200).json({ message: "Password has been successfully reset." });
+  } catch (error) {
+    console.error("Reset Password Error:", error);
+    return res.status(500).json({ message: "Server error. Please try again." });
   }
-
-  // Check if OTP exists and is valid
-  const storedOtp = otpStore[email];
-
-  if (!storedOtp) {
-    return res.status(400).json({ message: "OTP not found for this email" });
-  }
-
-  // Check if OTP is expired
-  if (Date.now() > storedOtp.expiresAt) {
-    return res.status(400).json({ message: "OTP has expired" });
-  }
-
-  // Validate OTP
-  if (storedOtp.otp !== otp) {
-    return res.status(400).json({ message: "Invalid OTP" });
-  }
-
-  // Simulate password reset (Replace with database logic)
-  const user = {
-    email,
-    newPassword, // In a real app, hash the password before saving it
-  };
-
-  // Reset the OTP after successful password reset
-  delete otpStore[email];
-
-  // Send confirmation of password reset
-  res.status(200).json({
-    message: "Password has been reset successfully",
-    user,
-  });
 });
 
 module.exports = router;

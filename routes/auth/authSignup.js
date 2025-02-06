@@ -3,9 +3,9 @@ const router = express.Router();
 const bcrypt = require("bcryptjs");
 const User = require("../../models/User");
 const Realtor = require("../../models/Realtor");
-const admin = require("../../config/firebase"); // Firebase setup
-const upload = require("../../middlewares/uploadMiddleware"); // File upload middleware
-const { uploadToCloudinary } = require("../../config/cloudinary");
+const admin = require("../../config/firebase"); 
+const upload = require("../../middlewares/multerConfig"); 
+const uploadToCloudinary  = require("../../config/cloudinary");
 const { sendVerificationEmail } = require("../../config/mailer");
 const crypto = require("crypto");
 
@@ -25,13 +25,14 @@ router.post("/signup", upload.single("profilePicture"), async (req, res) => {
 
     // Upload profile picture to Cloudinary if provided
     let imageUrl = null;
-    if (req.file) {
-      imageUrl = await uploadToCloudinary(req.file.path);
+    if (req.file) { // ✅ Ensure file exists
+      imageUrl = await uploadToCloudinary(req.file.buffer);
     }
 
     // Generate email verification token (valid for 1 hour)
     const emailVerificationToken = crypto.randomBytes(32).toString("hex");
-    const emailVerificationTokenExpiry = Date.now() + 3600000; // 1 hour from now
+    const emailVerificationTokenExpiry = Date.now() + 120000; // 2 minutes from now
+
 
     // Create new user
     const newUser = new User({
@@ -61,13 +62,13 @@ router.post("/signup", upload.single("profilePicture"), async (req, res) => {
           status: "active",
         },
       };
-      
+
       const newRealtor = new Realtor(realtorData);
       await newRealtor.save();
     }
 
     // Send email verification link
-    const verificationLink = `http://localhost:5000/api/verify-email/${emailVerificationToken}`;
+    const verificationLink = `http://localhost:5000/auth/verify-email/${emailVerificationToken}`;
     await sendVerificationEmail(email, verificationLink);
 
     return res.status(201).json({
@@ -84,6 +85,7 @@ router.post("/signup", upload.single("profilePicture"), async (req, res) => {
     return res.status(500).json({ message: "Server error. Please try again." });
   }
 });
+
 
 
 // Manual Login (Email/Password)

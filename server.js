@@ -18,9 +18,10 @@ app.get("/", (req, res) => {
 // Import routes
 const authSignup = require("./routes/auth/authSignup");
 const authPassword = require("./routes/auth/authPassword")
+const authEmailVerification = require("./routes/auth/authEmailVerification")
 app.use("/auth", authSignup);
 app.use("/auth", authPassword);
-
+app.use("/auth", authEmailVerification)
 // Start the server
 app.listen(PORT, () => {
   console.log(`🚀 Server running at: http://localhost:${PORT}/`);

@@ -20,4 +20,16 @@ async function sendVerificationEmail(email, verificationLink) {
   await transporter.sendMail(mailOptions);
 }
 
-module.exports = { sendVerificationEmail };
+async function sendPasswordResetEmail(email, resetLink) {
+  const mailOptions = {
+    from: process.env.EMAIL,
+    to: email,
+    subject: "Password Reset Request",
+    html: `<p>Click the link below to reset your password:</p>
+           <a href="${resetLink}">${resetLink}</a>`,
+  };
+
+  await transporter.sendMail(mailOptions);
+}
+
+module.exports = { sendVerificationEmail, sendPasswordResetEmail };
