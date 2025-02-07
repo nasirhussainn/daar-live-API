@@ -39,4 +39,3 @@ build/
 *.log
 *.bak
 
-serviceAccountKey.json
