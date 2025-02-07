@@ -31,7 +31,7 @@ router.get("/verify-email/:token", async (req, res) => {
       await user.save();
 
       // Send the new verification email
-      const newVerificationLink = `${process.env.BASE_URL}/auth/verify-email/${newEmailVerificationToken}`;
+      const newVerificationLink = `https://daar-live-api.vercel.app/auth/verify-email/${newEmailVerificationToken}`;
       await sendVerificationEmail(user.email, newVerificationLink);
 
       return res.status(400).json({

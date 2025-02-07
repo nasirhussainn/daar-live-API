@@ -85,7 +85,7 @@ router.post("/signup", upload.single("profilePicture"), async (req, res) => {
     }
 
     // Send email verification link
-    const verificationLink = `${process.env.BASE_URL}/auth/verify-email/${emailVerificationToken}`;
+    const verificationLink = `https://daar-live-api.vercel.app/auth/verify-email/${emailVerificationToken}`;
     await sendVerificationEmail(email, verificationLink);
 
     return res.status(201).json({
