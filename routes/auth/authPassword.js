@@ -4,6 +4,7 @@ const router = express.Router();
 const bcrypt = require("bcryptjs"); 
 const User = require("../../models/User"); // Import the User model
 const { sendPasswordResetEmail } = require("../../config/mailer"); // Import the sendVerificationEmail function
+require("dotenv").config();
 
 // Forgot Password API
 router.post("/forgot-password", async (req, res) => {
@@ -27,7 +28,7 @@ router.post("/forgot-password", async (req, res) => {
     await user.save();
 
     // Send password reset email
-    const resetLink = `http://localhost:5000/auth/reset-password/${resetToken}`;
+    const resetLink = `${process.env.BASE_URL}/auth/reset-password/${resetToken}`;
     // const mailContent = `<p>Click the link below to reset your password:</p><a href="${resetLink}">${resetLink}</a>`;
 
     // Customize the email content depending on the user role
@@ -70,7 +71,7 @@ router.post("/reset-password/:token", async (req, res) => {
       await user.save();
 
       // Send the new password reset email
-      const resetLink = `http://localhost:5000/auth/reset-password/${newResetToken}`;
+      const resetLink = `${process.env.BASE_URL}/auth/reset-password/${newResetToken}`;
       // const mailContent = `<p>Your previous password reset token expired. Click the link below to reset your password:</p><a href="${resetLink}">${resetLink}</a>`;
 
       // Customize the email content depending on the user role

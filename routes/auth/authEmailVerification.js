@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 const User = require("../../models/User"); // Import the User model
 const { sendVerificationEmail } = require("../../config/mailer"); // Import the sendVerificationEmail function
+require("dotenv").config();
 
 // Verify email API
 router.get("/verify-email/:token", async (req, res) => {
@@ -30,7 +31,7 @@ router.get("/verify-email/:token", async (req, res) => {
       await user.save();
 
       // Send the new verification email
-      const newVerificationLink = `http://localhost:5000/auth/verify-email/${newEmailVerificationToken}`;
+      const newVerificationLink = `${process.env.BASE_URL}/auth/verify-email/${newEmailVerificationToken}`;
       await sendVerificationEmail(user.email, newVerificationLink);
 
       return res.status(400).json({

@@ -8,6 +8,7 @@ const upload = require("../../middlewares/multerConfig");
 const uploadToCloudinary  = require("../../config/cloudinary");
 const { sendVerificationEmail } = require("../../config/mailer");
 const crypto = require("crypto");
+require("dotenv").config();
 
 // Manual Signup with Profile Picture Upload
 router.post("/signup", upload.single("profilePicture"), async (req, res) => {
@@ -84,7 +85,7 @@ router.post("/signup", upload.single("profilePicture"), async (req, res) => {
     }
 
     // Send email verification link
-    const verificationLink = `http://localhost:5000/auth/verify-email/${emailVerificationToken}`;
+    const verificationLink = `${process.env.BASE_URL}/auth/verify-email/${emailVerificationToken}`;
     await sendVerificationEmail(email, verificationLink);
 
     return res.status(201).json({
