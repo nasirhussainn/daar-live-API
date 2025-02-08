@@ -39,4 +39,4 @@ build/
 *.log
 *.bak
 
-serviceAccountKey.json
+./config/firebaseServiceAccount.json

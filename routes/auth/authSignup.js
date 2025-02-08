@@ -127,11 +127,12 @@ router.post("/signup", upload.single("profilePicture"), async (req, res) => {
 });
 
 
-router.post("/firebase-auth", async (req, res) => {
+router.post("/firebase-signup", async (req, res) => {
+  role = 'buyer';
   const { idToken } = req.body;
-  const role = "buyer"; // Default role is 'buyer'
 
-  if (!idToken || !role) {
+  // Check if the required fields are provided for buyer or realtor
+  if (!idToken || !role ) {
     return res.status(400).json({ message: "Missing required fields." });
   }
 
@@ -140,67 +141,54 @@ router.post("/firebase-auth", async (req, res) => {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     const { uid, email, name, picture } = decodedToken;
 
-    if (role !== "buyer") {
-      return res.status(400).json({ message: "Google/Apple authentication is only available for buyers." });
+    // Ensure role is buyer or realtor
+    if (role !== "buyer" ) {
+      return res.status(400).json({ message: "Continue with Google/Apple is only available for buyers." });
     }
 
-    // Check if user already exists
-    let user = await User.findOne({ email, role });
-
-    if (user) {
-      // ✅ User exists → Log in
-      console.log("Existing: ",user)
-      return res.status(200).json({
-        message: "Login successful",
-        user: {
-          full_name: user.full_name,
-          email: user.email,
-          phone_number: user.phone_number,
-          role: user.role,
-          profile_picture: user.profile_picture,
-          email_verified: user.email_verified,
-          phone_verified: user.phone_verified,
-        },
-      });
-    } else {
-      // ❌ User does NOT exist → Sign up
-      let imageUrl = null;
-      if (picture || req.file) {
-        imageUrl = picture || await uploadToCloudinary(req.file.buffer);
-      }
-
-      const newUser = new User({
-        full_name: name,
-        email,
-        role,
-        profile_picture: imageUrl,
-        phone_number: null,
-        email_verified: true, // Firebase ensures email verification
-        phone_verified: false, // Can be handled via Twilio later
-      });
-
-      await newUser.save();
-      console.log("New: ", newUser)
-
-      return res.status(201).json({
-        message: "User registered successfully",
-        user: {
-          full_name: newUser.full_name,
-          email: newUser.email,
-          phone_number: newUser.phone_number,
-          role: newUser.role,
-          profile_picture: newUser.profile_picture,
-          email_verified: newUser.email_verified,
-          phone_verified: newUser.phone_verified,
-        },
-      });
+    // Check if user already exists with the same email and role
+    let existingUser = await User.findOne({ email, role });
+    if (existingUser) {
+      return res.status(400).json({ message: `${role} with this email already exists, please login instead.` });
     }
+
+    // Upload profile picture to Cloudinary if provided
+    let imageUrl = null;
+    if (picture || req.file) {
+      imageUrl = picture || await uploadToCloudinary(req.file.buffer);
+    }
+
+    // For buyer, just saving basic user info
+    const newUser = new User({
+      full_name: name,
+      email,
+      role,
+      profile_picture: imageUrl,
+      phone_number: null,
+      email_verified: true, // Firebase automatically verifies email
+      phone_verified: false, // This would be handled via Twilio
+    });
+
+    // Save the buyer data
+    await newUser.save();
+
+    // Send response with user details
+    return res.status(201).json({
+      message: "User registered successfully",
+      user: {
+        full_name: newUser.full_name,
+        email: newUser.email,
+        phone_number: newUser.phone_number,
+        role: newUser.role,
+        profile_picture: newUser.profile_picture,
+        email_verified: newUser.email_verified,
+        phone_verified: newUser.phone_verified, 
+      },
+    });
   } catch (error) {
-    console.error("Firebase Authentication Error:", error);
+    console.error("Firebase Signup Error:", error);
     return res.status(500).json({ message: "Server error. Please try again." });
   }
 });
-
-
 
 module.exports = router;
