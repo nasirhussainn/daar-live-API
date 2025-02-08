@@ -13,7 +13,16 @@ require("dotenv").config();
 // Manual Signup with Profile Picture Upload
 router.post("/signup", upload.single("profilePicture"), async (req, res) => {
   try {
-    const { full_name, email, password, role, business_name, customer_id, phone_number } = req.body;
+    const { 
+      full_name, 
+      email, 
+      password, 
+      role, 
+      business_name, 
+      customer_id, 
+      phone_number,
+      subscription // Accept subscription from request body
+    } = req.body;
 
     // Validate required fields
     if (!full_name || !email || !password || !role) {
@@ -65,18 +74,22 @@ router.post("/signup", upload.single("profilePicture"), async (req, res) => {
 
     await newUser.save();
 
-    // If the user is a realtor, create a corresponding Realtor document
+    // If the user is a realtor, create a corresponding Realtor document with subscription data
     if (role === "realtor") {
+      if (!subscription || !subscription.subscription_id || !subscription.plan_name || !subscription.start_date || !subscription.end_date || !subscription.status) {
+        return res.status(400).json({ message: "Complete subscription details are required for realtors." });
+      }
+
       const realtorData = {
         user_id: newUser._id,
-        business_name: business_name,
-        customer_id: customer_id,
+        business_name,
+        customer_id,
         subscription: {
-          subscription_id: crypto.randomBytes(16).toString("hex"),
-          plan_name: "basic",
-          start_date: Date.now(),
-          end_date: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1-year subscription
-          status: "active",
+          subscription_id: subscription.subscription_id,
+          plan_name: subscription.plan_name,
+          start_date: new Date(subscription.start_date),
+          end_date: new Date(subscription.end_date),
+          status: subscription.status,
         },
       };
 
@@ -105,7 +118,6 @@ router.post("/signup", upload.single("profilePicture"), async (req, res) => {
     return res.status(500).json({ message: "Server error. Please try again." });
   }
 });
-
 
 
 router.post("/signup/firebase", async (req, res) => {
