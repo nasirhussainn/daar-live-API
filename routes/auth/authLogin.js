@@ -5,26 +5,34 @@ const User = require('../../models/User'); // User model
 
 const router = express.Router();
 
-// Login API with role handling (Realtor or Buyer)
 router.post('/login', async (req, res) => {
-  const { email, password, role } = req.body;  // Role can also be sent to clarify the login type
+  const { email, password, role } = req.body;
 
   try {
-    // Find the user by email
-    const user = await User.findOne({ email });
-
-    if (!user) {
-      return res.status(400).json({ message: "User not found." });
+    // Validate request
+    if (!email || !password || !role) {
+      return res.status(400).json({ message: "Email, password, and role are required." });
     }
 
-    // Check if the role matches, if provided
-    if (role && user.role !== role) {
-      return res.status(400).json({ message: `You are not a ${role}. Please check your role.` });
+    // Find the user by email and role
+    const user = await User.findOne({ email, role });
+
+    if (!user) {
+      return res.status(400).json({ message: "User not found with this role." });
+    }
+
+    // Check if the user's email is verified
+    if (!user.email_verified) {
+      return res.status(403).json({ message: "Email not verified. Please verify your email before logging in." });
+    }
+
+    // If the user is a realtor, check if the phone number is verified
+    if (role === "realtor" && !user.phone_verified) {
+      return res.status(403).json({ message: "Phone number not verified. Please verify your phone number before logging in." });
     }
 
     // Check if the password matches
     const isPasswordMatch = await bcrypt.compare(password, user.password);
-
     if (!isPasswordMatch) {
       return res.status(400).json({ message: "Invalid password." });
     }
@@ -47,5 +55,6 @@ router.post('/login', async (req, res) => {
     return res.status(500).json({ message: "Server error. Please try again." });
   }
 });
+
 
 module.exports = router;
