@@ -11,11 +11,10 @@ const crypto = require("crypto");
 require("dotenv").config();
 const admin = require("firebase-admin");
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(require("../../config/firebaseServiceAccount.json")),
-  });
-}
+admin.initializeApp({
+  credential: admin.credential.cert(require("../../config/firebaseServiceAccount.json")),
+});
+
 
 // Manual Signup with Profile Picture Upload
 router.post("/signup", upload.single("profilePicture"), async (req, res) => {
@@ -129,16 +128,16 @@ router.post("/signup", upload.single("profilePicture"), async (req, res) => {
 
 router.post("/firebase-signup", async (req, res) => {
   role = 'buyer';
-  const { idToken } = req.body;
+  const { token } = req.body;
 
   // Check if the required fields are provided for buyer or realtor
-  if (!idToken || !role ) {
+  if (!token || !role ) {
     return res.status(400).json({ message: "Missing required fields." });
   }
 
   try {
     // Verify Firebase ID Token
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const decodedToken = await admin.auth().verifyIdToken(token);
     const { uid, email, name, picture } = decodedToken;
 
     // Ensure role is buyer or realtor
