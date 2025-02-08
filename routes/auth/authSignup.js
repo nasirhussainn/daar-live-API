@@ -3,13 +3,13 @@ const router = express.Router();
 const bcrypt = require("bcryptjs");
 const User = require("../../models/User");
 const Realtor = require("../../models/Realtor");
-// const admin = require("../../config/firebase"); 
 const upload = require("../../middlewares/multerConfig"); 
 const uploadToCloudinary  = require("../../config/cloudinary");
 const { sendVerificationEmail } = require("../../config/mailer");
 const crypto = require("crypto");
 require("dotenv").config();
 const admin = require("firebase-admin");
+const { generateToken } = require('../../config/jwt');
 
 admin.initializeApp({
   credential: admin.credential.cert(require("../../config/firebaseServiceAccount.json")),
@@ -127,28 +127,41 @@ router.post("/signup", upload.single("profilePicture"), async (req, res) => {
 
 
 router.post("/firebase-signup", async (req, res) => {
-  role = 'buyer';
-  const { token } = req.body;
+  const role = 'buyer'; // Define role here
+  const { token: firebaseToken } = req.body; // This is the Firebase ID token sent in the request body
 
-  // Check if the required fields are provided for buyer or realtor
-  if (!token || !role ) {
+  // Check if the required fields are provided
+  if (!firebaseToken || !role) {
     return res.status(400).json({ message: "Missing required fields." });
   }
 
   try {
-    // Verify Firebase ID Token
-    const decodedToken = await admin.auth().verifyIdToken(token);
+    // Verify Firebase ID Token to get the user's details
+    const decodedToken = await admin.auth().verifyIdToken(firebaseToken);
     const { uid, email, name, picture } = decodedToken;
 
-    // Ensure role is buyer or realtor
-    if (role !== "buyer" ) {
+    // Ensure the role is 'buyer'
+    if (role !== "buyer") {
       return res.status(400).json({ message: "Continue with Google/Apple is only available for buyers." });
     }
 
-    // Check if user already exists with the same email and role
+    // Check if the user already exists with the same email and role
     let existingUser = await User.findOne({ email, role });
     if (existingUser) {
-      return res.status(400).json({ message: `${role} with this email already exists, please login instead.` });
+      // If user exists, generate JWT token and log the user in
+      const userJwt = generateToken(existingUser); // Generate JWT for session management
+      return res.status(200).json({
+        message: "User already exists, logged in successfully.",
+        token: userJwt, // Send JWT token for authentication
+        user: {
+          full_name: existingUser.full_name,
+          email: existingUser.email,
+          role: existingUser.role,
+          profile_picture: existingUser.profile_picture,
+          email_verified: existingUser.email_verified,
+          phone_verified: existingUser.phone_verified
+        }
+      });
     }
 
     // Upload profile picture to Cloudinary if provided
@@ -157,7 +170,7 @@ router.post("/firebase-signup", async (req, res) => {
       imageUrl = picture || await uploadToCloudinary(req.file.buffer);
     }
 
-    // For buyer, just saving basic user info
+    // For a buyer, save basic user info
     const newUser = new User({
       full_name: name,
       email,
@@ -168,12 +181,16 @@ router.post("/firebase-signup", async (req, res) => {
       phone_verified: false, // This would be handled via Twilio
     });
 
-    // Save the buyer data
+    // Save the new user
     await newUser.save();
 
-    // Send response with user details
+    // Generate JWT token after successful registration and login
+    const userJwt = generateToken(newUser); // Generate JWT for session management
+
+    // Send response with JWT token and user details
     return res.status(201).json({
-      message: "User registered successfully",
+      message: "User registered successfully and logged in.",
+      token: userJwt, // Send JWT token for authentication
       user: {
         full_name: newUser.full_name,
         email: newUser.email,
@@ -181,13 +198,15 @@ router.post("/firebase-signup", async (req, res) => {
         role: newUser.role,
         profile_picture: newUser.profile_picture,
         email_verified: newUser.email_verified,
-        phone_verified: newUser.phone_verified, 
-      },
+        phone_verified: newUser.phone_verified
+      }
     });
   } catch (error) {
-    console.error("Firebase Signup Error:", error);
+    console.error("Firebase Signup and Login Error:", error);
     return res.status(500).json({ message: "Server error. Please try again." });
   }
 });
+
+
 
 module.exports = router;
