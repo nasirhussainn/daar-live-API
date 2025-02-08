@@ -9,6 +9,13 @@ const uploadToCloudinary  = require("../../config/cloudinary");
 const { sendVerificationEmail } = require("../../config/mailer");
 const crypto = require("crypto");
 require("dotenv").config();
+const admin = require("firebase-admin");
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(require("../../config/firebaseServiceAccount.json")),
+  });
+}
 
 // Manual Signup with Profile Picture Upload
 router.post("/signup", upload.single("profilePicture"), async (req, res) => {
@@ -120,11 +127,12 @@ router.post("/signup", upload.single("profilePicture"), async (req, res) => {
 });
 
 
-router.post("/signup/firebase", async (req, res) => {
-  const { idToken, role } = req.body;
+router.post("/firebase-auth", async (req, res) => {
+  const { idToken } = req.body;
+  const role = "buyer"; // Default role is 'buyer'
 
   if (!idToken || !role) {
-    return res.status(400).json({ message: "ID Token and role are required" });
+    return res.status(400).json({ message: "Missing required fields." });
   }
 
   try {
@@ -132,58 +140,67 @@ router.post("/signup/firebase", async (req, res) => {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     const { uid, email, name, picture } = decodedToken;
 
-    // Upload Firebase profile picture to Cloudinary
-    let imageUrl = picture;
-    if (picture) {
-      imageUrl = await uploadToCloudinary(picture);
+    if (role !== "buyer") {
+      return res.status(400).json({ message: "Google/Apple authentication is only available for buyers." });
     }
 
-    const user = {
-      uid,
-      name: name || "No Name",
-      email,
-      role,
-      profilePicture: imageUrl,
-    };
+    // Check if user already exists
+    let user = await User.findOne({ email, role });
 
-    res.status(200).json({
-      message: "User authenticated successfully",
-      user,
-    });
+    if (user) {
+      // ✅ User exists → Log in
+      console.log("Existing: ",user)
+      return res.status(200).json({
+        message: "Login successful",
+        user: {
+          full_name: user.full_name,
+          email: user.email,
+          phone_number: user.phone_number,
+          role: user.role,
+          profile_picture: user.profile_picture,
+          email_verified: user.email_verified,
+          phone_verified: user.phone_verified,
+        },
+      });
+    } else {
+      // ❌ User does NOT exist → Sign up
+      let imageUrl = null;
+      if (picture || req.file) {
+        imageUrl = picture || await uploadToCloudinary(req.file.buffer);
+      }
+
+      const newUser = new User({
+        full_name: name,
+        email,
+        role,
+        profile_picture: imageUrl,
+        phone_number: null,
+        email_verified: true, // Firebase ensures email verification
+        phone_verified: false, // Can be handled via Twilio later
+      });
+
+      await newUser.save();
+      console.log("New: ", newUser)
+
+      return res.status(201).json({
+        message: "User registered successfully",
+        user: {
+          full_name: newUser.full_name,
+          email: newUser.email,
+          phone_number: newUser.phone_number,
+          role: newUser.role,
+          profile_picture: newUser.profile_picture,
+          email_verified: newUser.email_verified,
+          phone_verified: newUser.phone_verified,
+        },
+      });
+    }
   } catch (error) {
-    res.status(401).json({ message: "Invalid ID Token", error: error.message });
+    console.error("Firebase Authentication Error:", error);
+    return res.status(500).json({ message: "Server error. Please try again." });
   }
 });
 
 
-// Firebase Login with Google/Apple (using the ID Token)
-router.post("/login/firebase", async (req, res) => {
-  const { idToken } = req.body; // ID Token from frontend
-
-  if (!idToken) {
-    return res.status(400).json({ message: "ID Token is required" });
-  }
-
-  try {
-    // Verify Firebase ID Token
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
-    const { uid, email, name, picture } = decodedToken;
-
-    // Simulate fetching user from DB (in reality, you'd fetch from DB)
-    const user = {
-      uid,
-      name: name || "No Name",
-      email,
-      picture,
-    };
-
-    res.status(200).json({
-      message: "User authenticated successfully",
-      user,
-    });
-  } catch (error) {
-    res.status(401).json({ message: "Invalid ID Token", error: error.message });
-  }
-});
 
 module.exports = router;
