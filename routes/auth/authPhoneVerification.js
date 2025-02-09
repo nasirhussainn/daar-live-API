@@ -17,7 +17,8 @@ function generateOTP() {
 
 // Send OTP API
 router.post("/send-otp", async (req, res) => {
-  const { email, role } = req.body;
+  role = 'realtor'
+  const { email } = req.body;
 
   try {
     const user = await User.findOne({ email, role });
@@ -50,8 +51,8 @@ router.post("/send-otp", async (req, res) => {
     // Send OTP via Twilio
     await twilioClient.messages.create({
       body: `Your verification OTP is: ${otp}`,
-      messagingServiceSid: messagingServiceSid,
-      to: '+923165392101',
+      from: '+18314003458',
+      to: '+923165392101'
     });
 
     res.json({ message: "OTP sent successfully" });
@@ -63,10 +64,11 @@ router.post("/send-otp", async (req, res) => {
 
 // Resend OTP API
 router.post("/resend-otp", async (req, res) => {
+  role = 'realtor'
   const { email } = req.body;
 
   try {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email, role });
 
     if (!user) return res.status(404).json({ message: "User not found" });
 
@@ -75,34 +77,34 @@ router.post("/resend-otp", async (req, res) => {
       return res.status(403).json({ message: "Phone verification is only for realtors" });
     }
 
-    // Ensure email is verified before resending OTP
+    // Ensure email is verified before sending OTP
     if (!user.email_verified) {
       return res.status(400).json({ message: "Email not verified yet" });
     }
 
-    // Prevent resending OTP too soon (cooldown 1 minute)
+    // Prevent sending OTP if one is already active and not expired
     const now = new Date();
     if (user.phone_otp_expiry && user.phone_otp_expiry > now) {
-      return res.status(400).json({ message: "Wait before requesting a new OTP" });
+      return res.status(400).json({ message: "OTP already sent, please wait before requesting a new one" });
     }
 
-    // Generate and store new OTP with expiry (5 minutes)
+    // Generate and store OTP with expiry (5 minutes)
     const otp = generateOTP();
-    const expiryTime = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
+    const expiryTime = new Date(Date.now() + 5 * 60 * 1000);    // 5 minutes from now
     user.phone_otp = otp;
     user.phone_otp_expiry = expiryTime;
     await user.save();
 
-    // Send new OTP via Twilio
+    // Send OTP via Twilio
     await twilioClient.messages.create({
-      body: `Your new verification OTP is: ${otp}`,
-      from: TWILIO_PHONE_NUMBER,
-      to: user.phone_number,
+      body: `Your New verification OTP is: ${otp}`,
+      from: '+18314003458',
+      to: '+923165392101'
     });
 
     res.json({ message: "New OTP sent successfully" });
   } catch (error) {
-    console.error("Error resending OTP:", error);
+    console.error("Error sending new OTP:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 });
