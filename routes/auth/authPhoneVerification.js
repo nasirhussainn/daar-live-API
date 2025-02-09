@@ -51,7 +51,7 @@ router.post("/send-otp", async (req, res) => {
     // Send OTP via Twilio
     await twilioClient.messages.create({
       body: `Your verification OTP is: ${otp}`,
-      from: '+18314003458',
+      messagingServiceSid: messagingServiceSid,
       to: '+923165392101'
     });
 
