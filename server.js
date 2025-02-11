@@ -38,7 +38,8 @@ const authLogin = require("./routes/auth/authLogin");
 const authPhoneVerification = require("./routes/auth/authPhoneVerification");
 const authSignup = require("./routes/auth/authSignup");
 
-const userGET = require("./routes/userCRUD/getUsers")
+const userGET = require("./routes/userCRUD/getUsers");
+const userUPDATE = require("./routes/userCRUD/updateUsers");
 
 app.use("/auth", [
   authSignup,
@@ -48,8 +49,9 @@ app.use("/auth", [
   authPhoneVerification,
 ]);
 
-app.use("/get-users", [
-  userGET
+app.use("/crud-users", [
+  userGET,
+  userUPDATE,
 ]);
 
 // Start the Server
