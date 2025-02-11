@@ -52,7 +52,7 @@ router.post("/send-otp", async (req, res) => {
     await twilioClient.messages.create({
       body: `Your verification OTP is: ${otp}`,
       messagingServiceSid: messagingServiceSid,
-      to: '+923165392101'
+      to: '+923555033420'
     });
 
     res.json({ message: "OTP sent successfully" });

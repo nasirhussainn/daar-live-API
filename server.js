@@ -38,12 +38,18 @@ const authLogin = require("./routes/auth/authLogin");
 const authPhoneVerification = require("./routes/auth/authPhoneVerification");
 const authSignup = require("./routes/auth/authSignup");
 
+const userGET = require("./routes/userCRUD/getUsers")
+
 app.use("/auth", [
   authSignup,
   authPassword,
   authEmailVerification,
   authLogin,
   authPhoneVerification,
+]);
+
+app.use("/get-users", [
+  userGET
 ]);
 
 // Start the Server
