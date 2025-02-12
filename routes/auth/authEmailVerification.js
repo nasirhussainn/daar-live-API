@@ -5,6 +5,8 @@ const User = require("../../models/User"); // Import the User model
 const { sendVerificationEmail } = require("../../config/mailer"); // Import the sendVerificationEmail function
 require("dotenv").config();
 
+const BASE_URL = process.env.BASE_URL;
+
 // Verify email API
 router.get("/verify-email/:token", async (req, res) => {
   try {
@@ -31,7 +33,7 @@ router.get("/verify-email/:token", async (req, res) => {
       await user.save();
 
       // Send the new verification email
-      const newVerificationLink = `https://daar-live-api.vercel.app/auth/verify-email/${newEmailVerificationToken}`;
+      const newVerificationLink = `${BASE_URL}auth/verify-email/${newEmailVerificationToken}`;
       await sendVerificationEmail(user.email, newVerificationLink);
 
       return res.status(400).json({

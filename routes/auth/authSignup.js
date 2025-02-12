@@ -19,6 +19,7 @@ admin.initializeApp({
 
 // Manual Signup with Profile Picture Upload
 const mongoose = require("mongoose");
+const BASE_URL = process.env.BASE_URL;
 
 router.post("/signup", upload.single("profilePicture"), async (req, res) => {
   const signup_type = "manual";
@@ -114,7 +115,7 @@ router.post("/signup", upload.single("profilePicture"), async (req, res) => {
     session.endSession();
 
     // Send email verification link
-    const verificationLink = `https://daar-live-api.vercel.app/auth/verify-email/${emailVerificationToken}`;
+    const verificationLink = `${BASE_URL}auth/verify-email/${emailVerificationToken}`;
     await sendVerificationEmail(email, verificationLink);
 
     return res.status(201).json({
