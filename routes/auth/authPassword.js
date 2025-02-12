@@ -46,7 +46,7 @@ router.post("/forgot-password/", async (req, res) => {
     await user.save();
 
     // Generate password reset link
-    const resetLink = `${BASE_URL}auth/reset-password-page/${resetToken}`;
+    const resetLink = `https://daar-live-api.vercel.app/auth/reset-password-page/${resetToken}`;
 
     // Send password reset email
     await sendPasswordResetEmail(email, resetLink);
@@ -88,7 +88,7 @@ router.post("/reset-password/:token", async (req, res) => {
       await user.save();
 
       // Send the new password reset email
-      const resetLink = `${BASE_URL}auth/reset-password-page/${newResetToken}`;
+      const resetLink = `https://daar-live-api.vercel.app/auth/reset-password-page/${newResetToken}`;
       // const mailContent = `<p>Your previous password reset token expired. Click the link below to reset your password:</p><a href="${resetLink}">${resetLink}</a>`;
 
       // Customize the email content depending on the user role
