@@ -3,6 +3,39 @@ const router = express.Router();
 const User = require("../../models/User");
 const Realtor = require("../../models/Realtor");
 
+
+router.get("/user-via-token/:login_token", async (req, res) => {
+  try {
+    const { login_token } = req.params;
+
+    if (!login_token) {
+      return res.status(400).json({ message: "Token is not provided." });
+    }
+
+    const user = await User.findOne({ login_token });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    let responseData = { ...user.toObject() }; // Convert Mongoose object to plain JSON
+
+    // If the user is a realtor, fetch realtor details
+    if (user.role === "realtor") {
+      const realtor = await Realtor.findOne({ user_id: user._id });
+
+      if (realtor) {
+        responseData.realtor_details = realtor; // Append realtor details to the response
+      }
+    }
+
+    return res.status(200).json(responseData);
+  } catch (error) {
+    console.error("Error fetching user:", error);
+    return res.status(500).json({ message: "Server error. Please try again." });
+  }
+});
+
 router.get("/user", async (req, res) => {
   try {
     const { email, role } = req.body;
