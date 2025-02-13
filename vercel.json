@@ -6,6 +6,7 @@
     "routes": [
       { "src": "/auth/(.*)", "dest": "server.js" },
       { "src": "/crud-users/(.*)", "dest": "server.js" },
+      { "src": "/property/(.*)", "dest": "server.js" },
       { "src": "/(.*)", "dest": "server.js" }
     ]
   }

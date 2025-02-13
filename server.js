@@ -41,6 +41,8 @@ const authSignup = require("./routes/auth/authSignup");
 const userGET = require("./routes/userCRUD/getUsers");
 const userUPDATE = require("./routes/userCRUD/updateUsers");
 
+const addProperty = require("./routes/property/addProperty");
+
 app.use("/auth", [
   authSignup,
   authPassword,
@@ -53,6 +55,12 @@ app.use("/crud-users", [
   userGET,
   userUPDATE,
 ]);
+
+app.use("/property", [
+  addProperty,
+])
+
+
 
 // Start the Server
 app.listen(PORT, () => {
