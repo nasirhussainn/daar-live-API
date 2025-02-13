@@ -41,6 +41,20 @@ router.post("/login", async (req, res) => {
       });
     }
 
+    if (role === "realtor" && user.account_status !== "active") {
+      if (user.account_status === "pending") {
+        return res.status(403).json({
+          message:
+            "Account is pending. Please wait for approval before logging in.",
+        });
+      } else if (user.account_status === "approved") {
+        return res.status(403).json({
+          message:
+            "Account is approved but not active. Please check your email for activation link.",
+        });
+      }
+    }
+
     // Check if the password matches
     const isPasswordMatch = await bcrypt.compare(password, user.password);
     if (!isPasswordMatch) {
