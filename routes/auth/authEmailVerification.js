@@ -45,7 +45,9 @@ router.get("/verify-email/:token", async (req, res) => {
     user.email_verified = true;
     user.email_verification_token = undefined; // Remove the token after verification
     user.email_verification_token_expiry = undefined; // Clear the expiry date
-
+    if(user.role === 'buyer'){
+      user.account_status = "active"
+    }
     await user.save();
 
     return res.status(200).json({ message: "Email verified successfully!" });

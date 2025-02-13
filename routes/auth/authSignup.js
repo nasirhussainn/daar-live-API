@@ -139,7 +139,6 @@ router.post("/signup", upload.single("profilePicture"), async (req, res) => {
 
 router.post("/firebase-signup", async (req, res) => {
   const role = "buyer"; // Define role here
-  const signup_type = "google";
   const { token: firebaseToken } = req.body; // This is the Firebase ID token sent in the request body
 
   // Check if the required fields are provided
@@ -210,6 +209,7 @@ router.post("/firebase-signup", async (req, res) => {
         profile_picture: imageUrl,
         phone_number: null,
         email_verified: true, // Firebase automatically verifies email
+        account_status: "active",
         phone_verified: false, // This would be handled via Twilio
       });
 

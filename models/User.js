@@ -20,6 +20,11 @@ const userSchema = new Schema(
     phone_otp_expiry: { type: Date }, // Expiry of OTP
     login_token: { type: String }, // OTP for phone verification
     login_token_expiry: { type: Date }, // Expiry of OTP
+    account_status: {
+      type: String,
+      enum: ['pending', 'approved', 'declined', 'active'],
+      default: 'pending',
+    }, 
   },
   { timestamps: true } // Automatically adds `createdAt` and `updatedAt` timestamps
 );
