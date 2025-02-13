@@ -18,7 +18,7 @@ function generateOTP() {
 // Send OTP API
 router.post("/send-otp", async (req, res) => {
   role = 'realtor'
-  const { email } = req.body;
+  const { email, phone_number } = req.body;
 
   try {
     const user = await User.findOne({ email, role });
@@ -28,6 +28,10 @@ router.post("/send-otp", async (req, res) => {
     // Ensure only realtors can verify phone
     if (user.role !== "realtor") {
       return res.status(403).json({ message: "Phone verification is only for realtors" });
+    }
+
+    if(!phone_number){
+      return res.status(400).json({ message: "Phone number is required" });
     }
 
     // Ensure email is verified before sending OTP
@@ -46,6 +50,8 @@ router.post("/send-otp", async (req, res) => {
     const expiryTime = new Date(Date.now() + 5 * 60 * 1000);    // 5 minutes from now
     user.phone_otp = otp;
     user.phone_otp_expiry = expiryTime;
+    user.phone_number = phone_number;
+    
     await user.save();
 
     // Send OTP via Twilio
@@ -65,7 +71,7 @@ router.post("/send-otp", async (req, res) => {
 // Resend OTP API
 router.post("/resend-otp", async (req, res) => {
   role = 'realtor'
-  const { email } = req.body;
+  const { email, phone_number } = req.body;
 
   try {
     const user = await User.findOne({ email, role });
@@ -75,6 +81,10 @@ router.post("/resend-otp", async (req, res) => {
     // Ensure only realtors can verify phone
     if (user.role !== "realtor") {
       return res.status(403).json({ message: "Phone verification is only for realtors" });
+    }
+
+    if(!phone_number){
+      return res.status(400).json({ message: "Phone number is required" });
     }
 
     // Ensure email is verified before sending OTP
@@ -93,21 +103,25 @@ router.post("/resend-otp", async (req, res) => {
     const expiryTime = new Date(Date.now() + 5 * 60 * 1000);    // 5 minutes from now
     user.phone_otp = otp;
     user.phone_otp_expiry = expiryTime;
+    user.phone_number = phone_number;
+    
     await user.save();
 
     // Send OTP via Twilio
     await twilioClient.messages.create({
-      body: `Your New verification OTP is: ${otp}`,
-      from: '+18314003458',
-      to: '+923165392101'
+      body: `Your verification OTP is: ${otp}`,
+      messagingServiceSid: messagingServiceSid,
+      to: '+923555033420'
     });
 
-    res.json({ message: "New OTP sent successfully" });
+    res.json({ message: "OTP sent successfully" });
   } catch (error) {
-    console.error("Error sending new OTP:", error);
+    console.error("Error sending OTP:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
+
 
 router.post("/verify-otp", async (req, res) => {
   const { email, phone_otp } = req.body;

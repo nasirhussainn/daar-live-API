@@ -44,11 +44,6 @@ router.post("/signup", upload.single("profilePicture"), async (req, res) => {
       return res.status(400).json({ message: "Missing required fields." });
     }
 
-    // Ensure phone number is provided for realtors
-    if (role === "realtor" && !phone_number) {
-      return res.status(400).json({ message: "Phone number is required for realtors." });
-    }
-
     // Ensure business details for realtors
     if (role === "realtor" && !business_name) {
       return res.status(400).json({ message: "Business name is required for realtors." });
@@ -78,7 +73,7 @@ router.post("/signup", upload.single("profilePicture"), async (req, res) => {
       full_name,
       email,
       password: hashedPassword,
-      phone_number: phone_number || null, // Set to null if not provided
+      phone_number: phone_number || null,
       role,
       account_type: signup_type,
       profile_picture: imageUrl,
