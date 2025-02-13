@@ -1,13 +1,17 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
 
-const LocationSchema = new mongoose.Schema(
-  {
+// Define the Location schema
+const LocationSchema = new Schema({
     address: { type: String, required: true },
-    latitude: { type: Number, required: true },
-    longitude: { type: Number, required: true },
-    nearbyLocations: [{ type: String }], // e.g., ["Mall", "Hospital", "Metro Station"]
-  },
-  { timestamps: true }
-);
+    city: { type: String, required: true },
+    state: { type: String, required: true },
+    country: { type: String, required: true },
+    postal_code: { type: String },
+    latitude: { type: Number, min: -90, max: 90 },
+    longitude: { type: Number, min: -180, max: 180 },
+    created_at: { type: Date, default: Date.now }
+});
 
-module.exports = mongoose.model("Location", LocationSchema);
+// Create Location model
+module.exports = mongoose.model('Location', LocationSchema);

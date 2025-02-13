@@ -1,29 +1,23 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
 
-const EventSchema = new mongoose.Schema(
-  {
+// Import the Location model for referencing
+const Location = require('./Location');
+
+// Define the Event schema
+const EventSchema = new Schema({
+    host_id: { type: Schema.Types.ObjectId, required: false, ref: 'User' }, // Assuming there's a User model
     title: { type: String, required: true },
-    eventStatus: { type: String, enum: ["upcoming", "ongoing", "completed"], required: true },
-    eventStartDate: { type: Date, required: true },
-    eventEndDate: { type: Date, required: true },
-    eventType: [{ type: String, required: true }], // e.g., ["Concert", "Conference"]
-    eventStartTime: { type: String, required: true }, // e.g., "18:00"
-    eventEndTime: { type: String, required: true }, // e.g., "22:00"
-    country: { type: String, required: true },
-    state: { type: String, required: true },
-    city: { type: String, required: true },
-    location: { type: mongoose.Schema.Types.ObjectId, ref: "Location", required: true },
-    entryType: { type: String, enum: ["free", "paid"], required: true },
-    entryPrice: { type: Number, default: 0 },
     description: { type: String },
-    images: [{ type: String }], // Store image URLs
-    video: { type: String }, // Store video URL
-    noOfDays: { type: Number, required: true },
-    paymentDate: { type: Date },
-    isFeature: { type: Boolean, default: false },
-    allowBooking: { type: Boolean, default: true },
-  },
-  { timestamps: true }
-);
+    event_type: { type: String, required: true },
+    event_subtype: { type: String },
+    location_id: { type: Schema.Types.ObjectId, ref: 'Location', required: true },
+    status: { type: String, enum: ['pending', 'approved', 'declined', 'completed'], default: 'pending' },
+    start_date: { type: Date, required: true },
+    end_date: { type: Date, required: true },
+    created_at: { type: Date, default: Date.now },
+    updated_at: { type: Date, default: Date.now }
+});
 
-module.exports = mongoose.model("Event", EventSchema);
+// Create Event model
+module.exports = mongoose.model('Event', EventSchema);

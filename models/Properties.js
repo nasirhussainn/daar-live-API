@@ -1,36 +1,23 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
 
-const PropertySchema = new mongoose.Schema(
-  {
+// Import the Location model for referencing
+const Location = require('./Location.js');
+
+// Define the Property schema
+const PropertySchema = new Schema({
+    owner_id: { type: Schema.Types.ObjectId, required: false, ref: 'User' }, // Assuming there's a User model
     title: { type: String, required: true },
-    propertyPurpose: { type: String, enum: ["sale", "rent"], required: true },
-    propertyStatus: { type: String, enum: ["available", "sold", "rented"], required: true },
-    propertyDuration: { type: String, required: true }, // e.g., "Monthly", "Yearly"
-    chargePer: { type: String, enum: ["day", "week", "month", "year"], required: true },
-    propertyType: { type: String, required: true }, // e.g., "Apartment", "Villa"
-    propertySubType: { type: String },
-    country: { type: String, required: true },
-    state: { type: String, required: true },
-    city: { type: String, required: true },
-    location: { type: mongoose.Schema.Types.ObjectId, ref: "Location", required: true },
-    areaSize: { type: Number, required: true },
-    price: { type: Number, required: true },
-    bedrooms: { type: Number, required: true },
-    bathrooms: { type: Number, required: true },
-    amenities: [{ type: String }], // e.g., ["Swimming Pool", "Gym"]
     description: { type: String },
-    securityDeposit: { type: Number },
-    isAvailable: { type: Boolean, default: true },
-    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    realtorId: { type: mongoose.Schema.Types.ObjectId, ref: "Realtor", required: true },
-    images: [{ type: String }], // Store image URLs instead of XFile
-    video: { type: String }, // Store video URL
-    noOfDays: { type: Number },
-    paymentDate: { type: Date },
-    isFeature: { type: Boolean, default: false },
-    allowBooking: { type: Boolean, default: true },
-  },
-  { timestamps: true }
-);
+    property_for: { type: String, enum: ['sell', 'rent'], required: true },
+    property_type: { type: String, required: true },
+    property_subtype: { type: String },
+    price: { type: Number, required: true },
+    location_id: { type: Schema.Types.ObjectId, ref: 'Location', required: true },
+    status: { type: String, enum: ['pending', 'approved', 'declined', 'rented', 'sold out'], default: 'pending' },
+    created_at: { type: Date, default: Date.now },
+    updated_at: { type: Date, default: Date.now }
+});
 
-module.exports = mongoose.model("Property", PropertySchema);
+// Create Property model
+module.exports = mongoose.model('Property', PropertySchema);
