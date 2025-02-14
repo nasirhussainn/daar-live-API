@@ -23,6 +23,7 @@ const BASE_URL = process.env.BASE_URL;
 
 router.post("/signup", upload.single("profilePicture"), async (req, res) => {
   const signup_type = "manual";
+  const phone_issue = null;
   const session = await mongoose.startSession(); // Start a session for transaction
 
   try {
@@ -44,6 +45,10 @@ router.post("/signup", upload.single("profilePicture"), async (req, res) => {
       return res.status(400).json({ message: "Missing required fields." });
     }
 
+    if(role !== 'buyer'){
+      phone_issue = false;
+    }
+ 
     // Ensure business details for realtors
     if (role === "realtor" && !business_name) {
       return res.status(400).json({ message: "Business name is required for realtors." });
@@ -80,7 +85,7 @@ router.post("/signup", upload.single("profilePicture"), async (req, res) => {
       email_verified: false,
       email_verification_token: emailVerificationToken,
       email_verification_token_expiry: emailVerificationTokenExpiry,
-      phone_verified: false,
+      phone_verified: phone_issue,
     });
 
     await newUser.save({ session }); // Save user within transaction

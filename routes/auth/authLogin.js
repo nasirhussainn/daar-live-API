@@ -34,13 +34,6 @@ router.post("/login", async (req, res) => {
     }
 
     // If the user is a realtor, check if the phone number is verified
-    if (role === "realtor" && !user.phone_verified) {
-      return res.status(403).json({
-        message:
-          "Phone number not verified. Please verify your phone number before logging in.",
-      });
-    }
-
     if (role === "realtor" && user.account_status !== "active") {
       if (user.account_status === "pending") {
         return res.status(403).json({
@@ -82,7 +75,11 @@ router.post("/login", async (req, res) => {
         full_name: user.full_name,
         role: user.role,
       },
+      ...(role === "realtor" && !user.phone_verified && {
+        warning: "Phone number not verified. Please verify your phone number.",
+      }),
     });
+    
   } catch (error) {
     console.error("Login Error:", error);
     return res.status(500).json({ message: "Server error. Please try again." });
