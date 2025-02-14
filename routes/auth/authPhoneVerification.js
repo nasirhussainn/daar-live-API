@@ -133,8 +133,6 @@ router.post("/resend-otp", async (req, res) => {
   }
 });
 
-
-
 router.post("/verify-otp", async (req, res) => {
   const { email, phone_otp } = req.body;
 

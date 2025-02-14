@@ -23,7 +23,7 @@ const BASE_URL = process.env.BASE_URL;
 
 router.post("/signup", upload.single("profilePicture"), async (req, res) => {
   const signup_type = "manual";
-  const phone_issue = null;
+  let phone_issue = null;
   const session = await mongoose.startSession(); // Start a session for transaction
 
   try {
@@ -34,10 +34,10 @@ router.post("/signup", upload.single("profilePicture"), async (req, res) => {
       email,
       password,
       role,
-      business_name, // Required for realtors
-      phone_number, // Required for realtors
-      customer_id, // Optional
-      subscription, // Optional
+      business_name, 
+      phone_number, 
+      customer_id,
+      subscription, 
     } = req.body;
 
     // Validate required fields
