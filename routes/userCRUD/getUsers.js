@@ -36,6 +36,37 @@ router.get("/user-via-token/:login_token", async (req, res) => {
   }
 });
 
+router.get("/user-via-id/:_id", async (req, res) => {
+  try {
+    const { _id } = req.params; // Get _id from URL parameters
+
+    if (!_id) {
+      return res.status(400).json({ message: "User ID (_id) is required." });
+    }
+
+    const user = await User.findById(_id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    let responseData = user.toObject(); // Convert Mongoose document to plain JSON
+
+    // If the user is a realtor, fetch realtor details
+    if (user.role === "realtor") {
+      const realtor = await Realtor.findOne({ user_id: _id });
+      if (realtor) {
+        responseData.realtor_details = realtor.toObject(); // Append realtor details
+      }
+    }
+
+    return res.status(200).json(responseData);
+  } catch (error) {
+    console.error("Error fetching user:", error);
+    return res.status(500).json({ message: "Server error. Please try again." });
+  }
+});
+
 router.get("/user", async (req, res) => {
   try {
     const { email, role } = req.body;
