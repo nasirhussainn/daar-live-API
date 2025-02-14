@@ -17,7 +17,7 @@ function generateOTP() {
 
 // Send OTP API
 router.post("/send-otp", async (req, res) => {
-  role = 'realtor'
+  role = "realtor";
   const { email, phone_number } = req.body;
 
   try {
@@ -30,8 +30,14 @@ router.post("/send-otp", async (req, res) => {
       return res.status(403).json({ message: "Phone verification is only for realtors" });
     }
 
-    if(!phone_number){
+    if (!phone_number) {
       return res.status(400).json({ message: "Phone number is required" });
+    }
+
+    // Check if phone number is already in use by another realtor
+    const existingUser = await User.findOne({ phone_number, role, email: { $ne: email } });
+    if (existingUser) {
+      return res.status(400).json({ message: "Phone number is already in use by another realtor" });
     }
 
     // Ensure email is verified before sending OTP
@@ -47,18 +53,18 @@ router.post("/send-otp", async (req, res) => {
 
     // Generate and store OTP with expiry (5 minutes)
     const otp = generateOTP();
-    const expiryTime = new Date(Date.now() + 5 * 60 * 1000);    // 5 minutes from now
+    const expiryTime = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
     user.phone_otp = otp;
     user.phone_otp_expiry = expiryTime;
     user.phone_number = phone_number;
-    
+
     await user.save();
 
     // Send OTP via Twilio
     await twilioClient.messages.create({
       body: `Your verification OTP is: ${otp}`,
       messagingServiceSid: messagingServiceSid,
-      to: '+923555033420'
+      to: '+923165392101', 
     });
 
     res.json({ message: "OTP sent successfully" });
@@ -85,6 +91,12 @@ router.post("/resend-otp", async (req, res) => {
 
     if(!phone_number){
       return res.status(400).json({ message: "Phone number is required" });
+    }
+
+    // Check if phone number is already in use by another realtor
+    const existingUser = await User.findOne({ phone_number, role, email: { $ne: email } });
+    if (existingUser) {
+      return res.status(400).json({ message: "Phone number is already in use by another realtor" });
     }
 
     // Ensure email is verified before sending OTP
