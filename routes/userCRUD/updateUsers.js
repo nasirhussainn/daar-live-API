@@ -3,8 +3,8 @@ const router = express.Router();
 const bcrypt = require("bcryptjs");
 const User = require("../../models/User");
 const Realtor = require("../../models/Realtor");
-const upload = require("../../middlewares/multerConfig"); 
-const uploadToCloudinary  = require("../../config/cloudinary");
+const { upload } = require("../../middlewares/multerConfig"); 
+const { uploadToCloudinary }  = require("../../config/cloudinary");
 
 router.put("/update", upload.single("profilePicture"), async (req, res) => {
   try {

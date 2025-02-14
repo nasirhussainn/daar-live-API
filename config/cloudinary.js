@@ -34,4 +34,33 @@ const uploadToCloudinary = async (buffer) => {
   });
 };
 
-module.exports = uploadToCloudinary;
+// Upload multiple files (images or videos) to Cloudinary
+const uploadMultipleToCloudinary = async (files) => {
+  const folderName = "uploaded_properties_daar_live"; // Folder specific to the property
+
+  const mediaUrls = {
+    images: [],
+    videos: [],
+  };
+
+  // Loop through the files and upload them to Cloudinary
+  for (const file of files) {
+    const { buffer, fieldname } = file;
+
+    // If it's an image
+    if (fieldname === 'images') {
+      const imageUrl = await uploadToCloudinary(buffer, folderName);
+      mediaUrls.images.push(imageUrl);
+    }
+
+    // If it's a video
+    if (fieldname === 'videos') {
+      const videoUrl = await uploadToCloudinary(buffer, folderName);
+      mediaUrls.videos.push(videoUrl);
+    }
+  }
+
+  return mediaUrls; // Return the URLs for images and videos
+};
+
+module.exports = { uploadToCloudinary, uploadMultipleToCloudinary };
