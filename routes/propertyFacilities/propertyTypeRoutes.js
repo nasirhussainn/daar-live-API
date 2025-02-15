@@ -16,7 +16,7 @@ router.get("/property-types", getAllPropertyTypes);
 router.get("/property-types/:id", getPropertyTypeById);
 router.put("/property-types/:id", updatePropertyType);
 router.delete("/property-types/:id", deletePropertyType);
-router.put("/property-types/deactive/:id", deactivatePropertyType);
-router.put("/property-types/reactive/:id", reactivatePropertyType);
+router.put("/property-types/deactivate/:id", deactivatePropertyType);
+router.put("/property-types/reactivate/:id", reactivatePropertyType);
 
 module.exports = router;
