@@ -134,9 +134,9 @@ exports.deactivatePropertyType = async (req, res) => {
         await propertyType.save();
 
         // Check if subtypes exist before deactivating
-        const subtypesExist = await PropertySubtype.exists({ property_type: id });
+        const subtypesExist = await PropertySubType.exists({ property_type: id });
         if (subtypesExist) {
-            await PropertySubtype.updateMany({ property_type: id }, { is_active: false });
+            await PropertySubType.updateMany({ property_type: id }, { is_active: false });
         }
 
         res.status(200).json({ message: "Property type and related subtypes deactivated successfully." });
@@ -161,9 +161,9 @@ exports.reactivatePropertyType = async (req, res) => {
         await propertyType.save();
 
         // Check if subtypes exist before reactivating
-        const subtypesExist = await PropertySubtype.exists({ property_type: id });
+        const subtypesExist = await PropertySubType.exists({ property_type: id });
         if (subtypesExist) {
-            await PropertySubtype.updateMany({ property_type: id }, { is_active: true });
+            await PropertySubType.updateMany({ property_type: id }, { is_active: true });
         }
 
         res.status(200).json({ message: "Property type and related subtypes reactivated successfully." });

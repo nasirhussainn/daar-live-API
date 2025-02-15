@@ -6,6 +6,10 @@ const EventSchema = new mongoose.Schema({
     required: true,
     unique: true,
     trim: true
+  },
+  is_active: {
+    type: Boolean,
+    default: true, // By default, subtypes are also active
   }
 }, { timestamps: true });
 

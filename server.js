@@ -45,6 +45,8 @@ const addProperty = require("./routes/property/addProperty");
 
 const propertyTypeRoutes = require("./routes/propertyFacilities/propertyTypeRoutes");
 const propertySubtypeRoutes = require("./routes/propertyFacilities/propertySubtypeRoutes")
+const eventTypeRoutes = require("./routes/propertyFacilities/eventTypeRoutes") 
+const amenitiesRoutes =  require("./routes/propertyFacilities/amenitiesRoutes") 
 
 app.use("/auth", [
   authSignup,
@@ -66,6 +68,7 @@ app.use("/property", [
 app.use("/property-facilities", [
   propertyTypeRoutes,
   propertySubtypeRoutes,
+  eventTypeRoutes
 ]);
 
 
