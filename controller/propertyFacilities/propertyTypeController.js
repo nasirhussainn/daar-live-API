@@ -133,10 +133,13 @@ exports.deactivatePropertyType = async (req, res) => {
         propertyType.is_active = false;
         await propertyType.save();
 
-        // Deactivate all related subtypes
-        await PropertySubtype.updateMany({ property_type: id }, { is_active: false });
+        // Check if subtypes exist before deactivating
+        const subtypesExist = await PropertySubtype.exists({ property_type: id });
+        if (subtypesExist) {
+            await PropertySubtype.updateMany({ property_type: id }, { is_active: false });
+        }
 
-        res.status(200).json({ message: "Property type and its subtypes deactivated successfully." });
+        res.status(200).json({ message: "Property type and related subtypes deactivated successfully." });
 
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -157,15 +160,19 @@ exports.reactivatePropertyType = async (req, res) => {
         propertyType.is_active = true;
         await propertyType.save();
 
-        // Reactivate all related subtypes
-        await PropertySubtype.updateMany({ property_type: id }, { is_active: true });
+        // Check if subtypes exist before reactivating
+        const subtypesExist = await PropertySubtype.exists({ property_type: id });
+        if (subtypesExist) {
+            await PropertySubtype.updateMany({ property_type: id }, { is_active: true });
+        }
 
-        res.status(200).json({ message: "Property type and its subtypes reactivated successfully." });
+        res.status(200).json({ message: "Property type and related subtypes reactivated successfully." });
 
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 };
+
 
 
 
