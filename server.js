@@ -68,7 +68,8 @@ app.use("/property", [
 app.use("/property-facilities", [
   propertyTypeRoutes,
   propertySubtypeRoutes,
-  eventTypeRoutes
+  eventTypeRoutes,
+  amenitiesRoutes
 ]);
 
 
