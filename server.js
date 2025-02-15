@@ -44,6 +44,7 @@ const userUPDATE = require("./routes/userCRUD/updateUsers");
 const addProperty = require("./routes/property/addProperty");
 
 const propertyTypeRoutes = require("./routes/propertyFacilities/propertyTypeRoutes");
+const propertySubtypeRoutes = require("./routes/propertyFacilities/propertySubtypeRoutes")
 
 app.use("/auth", [
   authSignup,
@@ -64,6 +65,7 @@ app.use("/property", [
 
 app.use("/property-facilities", [
   propertyTypeRoutes,
+  propertySubtypeRoutes,
 ]);
 
 
