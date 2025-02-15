@@ -38,7 +38,7 @@ router.get("/user-via-token/:login_token", async (req, res) => {
 
 router.get("/user-via-id/:_id", async (req, res) => {
   try {
-    const { _id } = req.params; // Get _id from URL parameters
+    const { _id } = req.params; 
 
     if (!_id) {
       return res.status(400).json({ message: "User ID (_id) is required." });
