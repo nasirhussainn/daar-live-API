@@ -1,32 +1,29 @@
 const mongoose = require("mongoose");
 
-const PropertySubtypeSchema = new mongoose.Schema({
+const PropertyTypeSchema = new mongoose.Schema(
+  {
     name: {
       type: String,
       required: true,
-      trim: true
-    },
-    property_type: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "PropertyType",
-      required: true
+      unique: true,
+      trim: true,
     },
     property_for: {
-      type: String,
+      type: [String],
       enum: ["rent", "sell"],
-      required: true
+      required: true,
     },
-    property_duration: {
-      type: String, // Only required if "rent" is selected
+    allowed_durations: {
+      type: [String],
       enum: ["short_term", "long_term"],
-      required: function () {
-        return this.property_for === "rent";
-      }
+      default: [],
     },
     is_active: {
       type: Boolean,
-      default: true // Default active, admin can deactivate
-    }
-}, { timestamps: true });
+      default: true, // By default, all property types are active
+    },
+  },
+  { timestamps: true }
+);
 
-module.exports = mongoose.model("PropertySubtype", PropertySubtypeSchema);
+module.exports = mongoose.model("PropertyType", PropertyTypeSchema);
