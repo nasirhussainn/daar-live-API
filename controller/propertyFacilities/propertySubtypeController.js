@@ -12,38 +12,21 @@ exports.createPropertySubtype = async (req, res) => {
             return res.status(400).json({ error: "Invalid property_type ID" });
         }
 
-        // Ensure property_for is valid for the given PropertyType
-        if (!propertyType.property_for.includes(property_for)) {
+        // Ensure property_for matches the parent PropertyType
+        if (propertyType.property_for[0] !== property_for) {
             return res.status(400).json({ error: "property_for must match the PropertyType's property_for" });
         }
 
-        // 🚨 Check if property_type supports both "sell" and "rent", then subtype must have only one.
-        if (propertyType.property_for.includes("sell") && propertyType.property_for.includes("rent")) {
-            if (property_for !== "sell" && property_for !== "rent") {
-                return res.status(400).json({ error: "Subtype must be either 'sell' or 'rent', not both." });
-            }
-        }
-
-        // Handle property_duration based on property_type's property_for
-        if (propertyType.property_for.includes("sell") && propertyType.property_for.includes("rent")) {
-            // property_duration is required only if 'rent' is chosen
-            if (property_for === "rent" && !property_duration) {
-                return res.status(400).json({ error: "property_duration is required when property_for is 'rent'" });
-            } else if (property_for === "sell") {
-                property_duration = null;
-            }
-        } else if (propertyType.property_for.includes("sell")) {
+        // Handle property_duration validation based on PropertyType
+        if (propertyType.property_for[0] === "sell") {
             property_duration = null; // Ensure duration is null for selling
-        } else if (propertyType.property_for.includes("rent")) {
-            // 🚨 If property_for is 'rent' and property_type allows multiple durations, subtype must have only one.
-            if (Array.isArray(propertyType.allowed_durations)) {
-                if (propertyType.allowed_durations.length > 1) {
-                    if (!property_duration || !propertyType.allowed_durations.includes(property_duration)) {
-                        return res.status(400).json({ error: "Invalid property_duration for this property type. Subtype must have only one." });
-                    }
-                }
-            } else {
-                property_duration = propertyType.allowed_durations; // Auto-assign if only one option exists
+        } else if (propertyType.property_for[0] === "rent") {
+            // Ensure property_duration is set and matches allowed durations
+            if (!property_duration) {
+                return res.status(400).json({ error: "property_duration is required when property_for is 'rent'" });
+            }
+            if (propertyType.allowed_durations[0] !== property_duration) {
+                return res.status(400).json({ error: "Invalid property_duration. It must match the parent PropertyType's allowed_durations" });
             }
         }
 
@@ -62,7 +45,6 @@ exports.createPropertySubtype = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
-
 
 // ✅ Get all PropertySubtypes
 exports.getAllPropertySubtypes = async (req, res) => {
@@ -90,7 +72,7 @@ exports.getPropertySubtypeById = async (req, res) => {
 exports.updatePropertySubtype = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, property_type, property_for, property_duration } = req.body;
+        let { name, property_type, property_for, property_duration } = req.body;
 
         // Ensure PropertySubtype exists
         const existingSubtype = await PropertySubtype.findById(id);
@@ -98,24 +80,41 @@ exports.updatePropertySubtype = async (req, res) => {
             return res.status(404).json({ error: "PropertySubtype not found" });
         }
 
-        // Ensure PropertyType exists
+        // Ensure PropertyType exists if updating property_type
         if (property_type) {
             const propertyType = await PropertyType.findById(property_type);
             if (!propertyType) {
                 return res.status(400).json({ error: "Invalid property_type ID" });
             }
 
-            // Ensure property_for matches PropertyType's property_for
-            if (!propertyType.property_for.includes(property_for)) {
+            // Ensure property_for matches the parent PropertyType
+            if (propertyType.property_for[0] !== property_for) {
                 return res.status(400).json({ error: "property_for must match the PropertyType's property_for" });
+            }
+
+            // Handle property_duration validation based on PropertyType
+            if (propertyType.property_for[0] === "sell") {
+                property_duration = null; // Ensure duration is null for selling
+            } else if (propertyType.property_for[0] === "rent") {
+                // Ensure property_duration is set and matches allowed durations
+                if (!property_duration) {
+                    return res.status(400).json({ error: "property_duration is required when property_for is 'rent'" });
+                }
+                if (propertyType.allowed_durations[0] !== property_duration) {
+                    return res.status(400).json({ error: "Invalid property_duration. It must match the parent PropertyType's allowed_durations" });
+                }
             }
         }
 
-        // Ensure property_duration is required if 'rent' is selected
-        if (property_for === "rent" && !property_duration) {
-            return res.status(400).json({ error: "property_duration is required when property_for is 'rent'" });
+        // ✅ Check if a subtype with the same name and property_type already exists (excluding the current one)
+        if (name && property_type) {
+            const existingSubtypeWithName = await PropertySubtype.findOne({ name, property_type, _id: { $ne: id } });
+            if (existingSubtypeWithName) {
+                return res.status(400).json({ error: "A PropertySubtype with this name already exists for the given PropertyType." });
+            }
         }
 
+        // Update PropertySubtype
         const updatedSubtype = await PropertySubtype.findByIdAndUpdate(
             id,
             { name, property_type, property_for, property_duration },
@@ -127,6 +126,7 @@ exports.updatePropertySubtype = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
 
 // ✅ Delete PropertySubtype by ID
 exports.deletePropertySubtype = async (req, res) => {

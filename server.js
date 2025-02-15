@@ -41,7 +41,7 @@ const authSignup = require("./routes/auth/authSignup");
 const userGET = require("./routes/userCRUD/getUsers");
 const userUPDATE = require("./routes/userCRUD/updateUsers");
 
-const addProperty = require("./routes/property/addProperty");
+const addProperty = require("./routes/property/propertyRoutes");
 
 const propertyTypeRoutes = require("./routes/propertyFacilities/propertyTypeRoutes");
 const propertySubtypeRoutes = require("./routes/propertyFacilities/propertySubtypeRoutes")
@@ -61,15 +61,15 @@ app.use("/crud-users", [
   userUPDATE,
 ]);
 
-app.use("/property", [
-  addProperty,
-]);
-
 app.use("/property-facilities", [
   propertyTypeRoutes,
   propertySubtypeRoutes,
   eventTypeRoutes,
   amenitiesRoutes
+]);
+
+app.use("/property", [
+  addProperty,
 ]);
 
 
