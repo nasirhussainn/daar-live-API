@@ -28,6 +28,7 @@ const PropertySchema = new Schema({
 
     // Location reference
     location: { type: Schema.Types.ObjectId, ref: 'Location', required: true },
+    media: [{ type: Schema.Types.ObjectId, ref: 'Media' }],
 
     area_size: { type: String, required: true }, // Area size of the property
     price: { type: Number, required: true }, // Price of the property

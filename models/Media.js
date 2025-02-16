@@ -7,18 +7,8 @@ const Event = require('./Events');
 
 // Define the Media schema
 const MediaSchema = new Schema({
-    entity: {
-        type: Schema.Types.ObjectId,
-        required: true,
-        refPath: 'entity_type' // Dynamically refer to either Property or Event
-    },
-    entity_type: { 
-        type: String, 
-        enum: ['property', 'event'], 
-        required: true 
-    },
-    images: { type: [String], required: false }, // Array of image URLs
-    videos: { type: [String], required: false }, // Array of video URLs
+    images: { type: [String], required: true }, 
+    videos: { type: [String], required: false }, 
     created_at: { type: Date, default: Date.now }
 });
 

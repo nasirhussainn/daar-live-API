@@ -12,6 +12,7 @@ const EventSchema = new Schema({
     event_type: { type: String, required: true },
     event_subtype: { type: String },
     location_id: { type: Schema.Types.ObjectId, ref: 'Location', required: true },
+    media: [{ type: Schema.Types.ObjectId, ref: 'Media' }],
     status: { type: String, enum: ['pending', 'approved', 'declined', 'completed'], default: 'pending' },
     start_date: { type: Date, required: true },
     end_date: { type: Date, required: true },
