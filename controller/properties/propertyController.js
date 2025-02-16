@@ -195,6 +195,44 @@ exports.getPropertyById = async (req, res) => {
   }
 };
 
+exports.getAllPropertiesByOwnerId = async (req, res) => {
+  try {
+    const { owner_id } = req.params;
+
+    // Fetch properties that belong to the given owner_id
+    const properties = await Property.find({ owner_id })
+      .populate("owner_id") // Fetch owner details
+      .populate("location") // Fetch location details
+      .populate("media") // Fetch media details
+      .populate("property_type") // Fetch property type details
+      .populate("property_subtype"); // Fetch property subtype details
+
+    if (!properties.length) {
+      return res.status(404).json({ message: "No properties found for this owner" });
+    }
+
+    // Fetch amenities details for each property
+    const propertiesWithAmenities = await Promise.all(
+      properties.map(async (property) => {
+        const amenitiesDetails = await Amenities.find({
+          _id: { $in: property.amenities },
+        });
+
+        return {
+          ...property.toObject(),
+          amenities: amenitiesDetails, // Replace IDs with actual amenities details
+        };
+      })
+    );
+
+    res.status(200).json(propertiesWithAmenities);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error fetching properties", error: error.message });
+  }
+};
+
+
 exports.deleteProperty = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();

@@ -91,13 +91,11 @@ exports.addEvent = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
-    res
-      .status(201)
-      .json({
-        message: "Event added successfully!",
-        event: savedEvent,
-        mediaUrls,
-      });
+    res.status(201).json({
+      message: "Event added successfully!",
+      event: savedEvent,
+      mediaUrls,
+    });
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
@@ -145,6 +143,30 @@ exports.getEventById = async (req, res) => {
     res
       .status(500)
       .json({ message: "Error fetching event", error: error.message });
+  }
+};
+
+exports.getAllEventsByHostId = async (req, res) => {
+  try {
+    const { host_id } = req.params;
+
+    // Fetch events where host_id matches
+    const events = await Event.find({ host_id })
+      .populate("host_id")
+      .populate("event_type")
+      .populate("location")
+      .populate("media");
+
+    if (!events.length) {
+      return res.status(404).json({ message: "No events found for this host" });
+    }
+
+    res.status(200).json(events);
+  } catch (error) {
+    console.error(error);
+    res
+      .status(500)
+      .json({ message: "Error fetching events", error: error.message });
   }
 };
 

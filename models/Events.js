@@ -30,7 +30,7 @@ const EventSchema = new Schema({
     entry_price: { type: Number },
 
     location: { type: Schema.Types.ObjectId, ref: 'Location', required: true },
-    media: [{ type: Schema.Types.ObjectId, ref: 'Media' }],  
+    media: { type: Schema.Types.ObjectId, ref: 'Media', required: false },
     
     no_of_days: { type: Number },
     payment_date: { type: Date },
