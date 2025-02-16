@@ -41,12 +41,13 @@ const authSignup = require("./routes/auth/authSignup");
 const userGET = require("./routes/userCRUD/getUsers");
 const userUPDATE = require("./routes/userCRUD/updateUsers");
 
-const addProperty = require("./routes/property/propertyRoutes");
-
 const propertyTypeRoutes = require("./routes/propertyFacilities/propertyTypeRoutes");
 const propertySubtypeRoutes = require("./routes/propertyFacilities/propertySubtypeRoutes")
 const eventTypeRoutes = require("./routes/propertyFacilities/eventTypeRoutes") 
 const amenitiesRoutes =  require("./routes/propertyFacilities/amenitiesRoutes") 
+
+const propertyRoutes = require("./routes/property/propertyRoutes");
+const eventRoutes = require("./routes/event/eventRoutes")
 
 app.use("/auth", [
   authSignup,
@@ -69,8 +70,12 @@ app.use("/property-facilities", [
 ]);
 
 app.use("/property", [
-  addProperty,
+  propertyRoutes,
 ]);
+
+app.use("/event", [
+  eventRoutes
+])
 
 
 
