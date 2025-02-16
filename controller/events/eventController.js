@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const Event = require("../../models/Event");
+const Event = require("../../models/Events");
 const Location = require("../../models/Location");
 const Media = require("../../models/Media");
 const EventType = require("../../models/admin/EventType");
