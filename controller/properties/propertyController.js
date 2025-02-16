@@ -16,25 +16,37 @@ exports.addProperty = async (req, res) => {
       owner_id,
       title,
       description,
-      property_for,
+      property_purpose,
+      property_duration,
       property_type,
       property_subtype,
       price,
+      country,
+      state,
+      city,
       location,
-      area_size, 
-      bedrooms, 
+      area_size,
+      bedrooms,
       bathrooms,
+      charge_per,
+      security_deposit,
+      no_of_days,
+      payment_date,
+      transaction_price,
+      is_feature,
     } = req.body;
 
-    // Step 2: Validate property_subtype against property_for
+    console.log(req.body);
+
+    // Step 2: Validate property_subtype against property_purpose
     const subType = await PropertySubtype.findById(property_subtype);
     if (!subType) {
       return res.status(400).json({ message: "Invalid property subtype" });
     }
 
-    if (subType.property_for !== property_for) {
+    if (subType.property_for !== property_purpose) {
       return res.status(400).json({
-        message: `Selected property subtype does not match property_for: ${property_for}`,
+        message: `Selected property subtype does not match property_purpose: ${property_purpose}`,
       });
     }
 
@@ -57,11 +69,18 @@ exports.addProperty = async (req, res) => {
         .json({ message: "One or more amenities are invalid" });
     }
 
-    // Step 4: Create a new Location
-    const locationData = new Location(location);
+    const nearbyLocationsArray = Array.isArray(
+      req.body.location?.nearbyLocations
+    )
+      ? req.body.location.nearbyLocations
+      : JSON.parse(req.body.location?.nearbyLocations || "[]");
+    const locationData = new Location({
+      ...req.body.location,
+      nearbyLocations: nearbyLocationsArray, // Save nearby locations directly
+    });
     const savedLocation = await locationData.save({ session });
 
-    // Step 5: Handle Media uploadMultiple for the Property
+    // Step 4: Handle Media uploadMultiple for the Property
     let mediaUrls = { images: [], videos: [] };
 
     if (req.files && (req.files.images || req.files.videos)) {
@@ -79,32 +98,58 @@ exports.addProperty = async (req, res) => {
         });
       }
 
-      const folderName = "uploaded_properties_daar_live"; 
+      const folderName = "uploaded_properties_daar_live";
       mediaUrls = await uploadMultipleToCloudinary(mediaFiles, folderName);
     }
 
-    // Step 6: Create a new Media record
+    // Step 5: Create a new Media record
     const mediaData = new Media({
       images: mediaUrls.images,
       videos: mediaUrls.videos,
     });
     const savedMedia = await mediaData.save({ session });
 
+    // Step 6: Set `property_status`, `allow_booking`, and `created_by`
+    let property_status = "pending";
+    let allow_booking = true;
+    let created_by = owner_id ? "realtor" : "admin";
+
+    if (property_purpose === "sell") {
+      allow_booking = false; // If purpose is "sell", disable booking
+    }
+
+    if (is_feature === "true" || is_feature === true) {
+      property_status = "approved"; // If featured, set status to approved
+    }
+
     // Step 7: Create a new Property
     const propertyData = new Property({
       owner_id,
       title,
       description,
-      property_for,
+      property_purpose,
+      property_duration,
       property_type,
       property_subtype,
       price,
-      location: savedLocation._id, // Associate property with the saved location
-      media: savedMedia._id, // Associate property with the saved media
-      amenities: validAmenities.map((a) => a._id), // Store only valid amenity IDs
+      country,
+      state,
+      city,
+      location: savedLocation ? savedLocation._id : null,
+      media: savedMedia ? savedMedia._id : null, // Only set if media exists
       area_size,
       bedrooms,
       bathrooms,
+      amenities: validAmenities.map((a) => a._id),
+      charge_per,
+      security_deposit,
+      no_of_days,
+      payment_date,
+      transaction_price,
+      is_feature,
+      allow_booking,
+      property_status,
+      created_by,
     });
 
     const savedProperty = await propertyData.save({ session });
@@ -174,10 +219,11 @@ exports.getAllProperties = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Error fetching properties", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching properties", error: error.message });
   }
 };
-
 
 exports.getPropertyById = async (req, res) => {
   try {
@@ -188,7 +234,7 @@ exports.getPropertyById = async (req, res) => {
       .populate("location") // Fetch location details
       .populate("media")
       .populate("property_type") // Fetch property type details
-      .populate("property_subtype") // Fetch property subtype details
+      .populate("property_subtype"); // Fetch property subtype details
 
     if (!property) {
       return res.status(404).json({ message: "Property not found" });
@@ -201,7 +247,7 @@ exports.getPropertyById = async (req, res) => {
 
     res.status(200).json({
       ...property.toObject(),
-      amenities: amenitiesDetails, 
+      amenities: amenitiesDetails,
     });
   } catch (error) {
     console.error(error);
@@ -234,7 +280,9 @@ exports.getAllPropertiesByOwnerId = async (req, res) => {
       .limit(limit);
 
     if (!properties.length) {
-      return res.status(404).json({ message: "No properties found for this owner" });
+      return res
+        .status(404)
+        .json({ message: "No properties found for this owner" });
     }
 
     // Fetch amenities details for each property
@@ -259,10 +307,11 @@ exports.getAllPropertiesByOwnerId = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Error fetching properties", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching properties", error: error.message });
   }
 };
-
 
 exports.deleteProperty = async (req, res) => {
   const session = await mongoose.startSession();
@@ -283,7 +332,10 @@ exports.deleteProperty = async (req, res) => {
     }
 
     // Step 3: Delete associated Media (if exists)
-    await Media.deleteMany({ entity: property._id, entity_type: "property" }, { session });
+    await Media.deleteMany(
+      { entity: property._id, entity_type: "property" },
+      { session }
+    );
 
     // Step 4: Delete the property itself
     await Property.findByIdAndDelete(id, { session });
@@ -296,9 +348,10 @@ exports.deleteProperty = async (req, res) => {
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
-    
+
     console.error(error);
-    res.status(500).json({ message: "Error deleting property", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error deleting property", error: error.message });
   }
 };
-

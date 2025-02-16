@@ -1,53 +1,56 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
-// Import related models
-const Location = require('./Location.js');
-const PropertyType = require('./admin/PropertyType.js');
-const PropertySubtype = require('./admin/PropertySubtype.js');
-const Media = require('./Media.js');
-const Amenities = require('./admin/Amenities.js');
-
 // Define the Property schema
 const PropertySchema = new Schema({
     owner_id: { type: Schema.Types.ObjectId, ref: 'User', required: false }, // Assuming there's a User model
+
     title: { type: String, required: true },
     description: { type: String },
-    
-    property_for: { type: String, enum: ['sell', 'rent'], required: true },
+
+    property_purpose: { type: String, enum: ['sell', 'rent'], required: true },
+    property_duration: { type: String, enum: ['short_term', 'long_term'], required: true }, // Added
 
     property_status: { 
         type: String, 
-        enum: ['pending', 'approved', 'declined', 'rented', 'sold out'], 
+        enum: ['pending', 'approved', 'active', 'rented', 'sold', 'disapproved'], 
         default: 'pending' 
-    }, // Approval status
+    }, 
 
-    charge_per: { type: String }, // Charge per time unit (e.g., per month)
-    property_type: { type: Schema.Types.ObjectId, ref: 'PropertyType', required: true }, // Reference PropertyType
-    property_subtype: { type: Schema.Types.ObjectId, ref: 'PropertySubtype', required: true }, // Reference PropertySubtype
+    charge_per: { type: String }, 
+    
+    property_type: { type: Schema.Types.ObjectId, ref: 'PropertyType', required: true },
+    property_subtype: { type: Schema.Types.ObjectId, ref: 'PropertySubtype', required: true },
 
-    // Location reference
+    // Location fields
+    country: { type: String, required: true },
+    state: { type: String, required: true },
+    city: { type: String, required: true },
+
     location: { type: Schema.Types.ObjectId, ref: 'Location', required: true },
-    media: [{ type: Schema.Types.ObjectId, ref: 'Media' }],
-
-    area_size: { type: String, required: true }, // Area size of the property
-    price: { type: Number, required: true }, // Price of the property
-    bedrooms: { type: Number, required: true }, // Number of bedrooms
-    bathrooms: { type: Number, required: true }, // Number of bathrooms
-
-    amenities: [{ type: Schema.Types.ObjectId, ref: 'Amenities' }],
-
-    security_deposit: { type: Number }, // Security deposit amount
-    is_available: { type: Boolean, default: true }, // Availability status
-
-    // Media reference (images & videos stored in Media model)
     media: { type: Schema.Types.ObjectId, ref: 'Media', required: false },
 
-    no_of_days: { type: Number, required: false }, // Number of days applicable for rent
-    payment_date: { type: Date, required: false }, // Payment date
+    area_size: { type: String, required: true }, // Changed from String to Number
+    price: { type: String, required: true },
 
-    is_feature: { type: Boolean, default: false }, // Whether the property is featured
-    allow_booking: { type: Boolean, default: true }, // Whether booking is allowed
+    bedrooms: { type: Number, required: true },
+    bathrooms: { type: Number, required: true },
+
+    amenities: [{ type: Schema.Types.ObjectId, ref: 'Amenities' }], // List of amenities
+
+    security_deposit: { type: String, required: true }, // Changed to match request field name
+
+    is_available: { type: Boolean, default: true },
+    is_feature: { type: Boolean, default: false }, // Fixed naming consistency
+
+    allow_booking: { type: Boolean, default: true },
+
+    no_of_days: { type: Number, required: true }, // Changed to `required: true`
+    payment_date: { type: String, required: false },
+
+    transaction_price: { type: String, required: true }, // Added missing field
+
+    created_by: { type: String, enum: ['admin', 'realtor'], required: true }, // Track who created it
 
     created_at: { type: Date, default: Date.now },
     updated_at: { type: Date, default: Date.now }
