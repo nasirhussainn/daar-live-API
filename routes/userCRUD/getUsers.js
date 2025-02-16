@@ -101,13 +101,23 @@ router.get("/user", async (req, res) => {
 
 router.get("/buyers", async (req, res) => {
   try {
-    const buyers = await User.find({ role: "buyer" });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10; // Default to 10 buyers per page
+    const skip = (page - 1) * limit;
 
-    if (buyers.length === 0) {
+    const buyers = await User.find({ role: "buyer" }).skip(skip).limit(limit);
+    const totalBuyers = await User.countDocuments({ role: "buyer" });
+
+    if (!buyers.length) {
       return res.status(404).json({ message: "No buyers found." });
     }
 
-    return res.status(200).json(buyers);
+    return res.status(200).json({
+      totalPages: Math.ceil(totalBuyers / limit),
+      currentPage: page,
+      totalBuyers,
+      buyers,
+    });
   } catch (error) {
     console.error("Error fetching buyers:", error);
     return res.status(500).json({ message: "Server error. Please try again." });
@@ -116,30 +126,38 @@ router.get("/buyers", async (req, res) => {
 
 router.get("/realtors", async (req, res) => {
   try {
-    // Find all users with role "realtor"
-    const realtors = await User.find({ role: "realtor" });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10; // Default to 10 realtors per page
+    const skip = (page - 1) * limit;
 
-    if (!realtors.length) {
-      return res.status(404).json({ message: "No realtors found." });
-    }
+    const realtors = await User.find({ role: "realtor" }).skip(skip).limit(limit);
+    const totalRealtors = await User.countDocuments({ role: "realtor" });
 
-    // Fetch realtor details for each user
     const realtorData = await Promise.all(
       realtors.map(async (user) => {
         const realtorDetails = await Realtor.findOne({ user_id: user._id });
-
         return {
-          ...user.toObject(), // Convert Mongoose object to plain JSON
-          realtor_details: realtorDetails || null, // Include realtor details if available
+          ...user.toObject(),
+          realtor_details: realtorDetails || null,
         };
       })
     );
 
-    return res.status(200).json(realtorData);
+    if (!realtorData.length) {
+      return res.status(404).json({ message: "No realtors found." });
+    }
+
+    return res.status(200).json({
+      totalPages: Math.ceil(totalRealtors / limit),
+      currentPage: page,
+      totalRealtors,
+      realtors: realtorData,
+    });
   } catch (error) {
     console.error("Error fetching realtors:", error);
     return res.status(500).json({ message: "Server error. Please try again." });
   }
 });
+
 
 module.exports = router;
