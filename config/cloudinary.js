@@ -35,8 +35,7 @@ const uploadToCloudinary = async (buffer) => {
 };
 
 // Upload multiple files (images or videos) to Cloudinary
-const uploadMultipleToCloudinary = async (files) => {
-  const folderName = "uploaded_properties_daar_live"; // Folder specific to the property
+const uploadMultipleToCloudinary = async (files, folderName) => {
 
   const mediaUrls = {
     images: [],

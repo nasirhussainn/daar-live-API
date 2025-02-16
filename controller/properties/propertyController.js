@@ -79,7 +79,8 @@ exports.addProperty = async (req, res) => {
         });
       }
 
-      mediaUrls = await uploadMultipleToCloudinary(mediaFiles);
+      const folderName = "uploaded_properties_daar_live"; 
+      mediaUrls = await uploadMultipleToCloudinary(mediaFiles, folderName);
     }
 
     // Step 6: Create a new Media record
