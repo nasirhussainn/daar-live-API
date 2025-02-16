@@ -133,12 +133,24 @@ exports.addProperty = async (req, res) => {
 
 exports.getAllProperties = async (req, res) => {
   try {
+    let { page, limit } = req.query;
+    page = parseInt(page) || 1; // Default page = 1
+    limit = parseInt(limit) || 10; // Default limit = 10
+
+    const skip = (page - 1) * limit;
+
+    // Fetch total count (for frontend pagination)
+    const totalProperties = await Property.countDocuments();
+
+    // Fetch properties with pagination
     const properties = await Property.find()
       .populate("owner_id")
       .populate("location") // Fetch location details
       .populate("media")
       .populate("property_type") // Fetch property type details
       .populate("property_subtype") // Fetch property subtype details
+      .skip(skip)
+      .limit(limit);
 
     // Fetch amenities details for each property
     const propertiesWithAmenities = await Promise.all(
@@ -154,14 +166,18 @@ exports.getAllProperties = async (req, res) => {
       })
     );
 
-    res.status(200).json(propertiesWithAmenities);
+    res.status(200).json({
+      totalProperties,
+      currentPage: page,
+      totalPages: Math.ceil(totalProperties / limit),
+      properties: propertiesWithAmenities,
+    });
   } catch (error) {
     console.error(error);
-    res
-      .status(500)
-      .json({ message: "Error fetching properties", error: error.message });
+    res.status(500).json({ message: "Error fetching properties", error: error.message });
   }
 };
+
 
 exports.getPropertyById = async (req, res) => {
   try {
@@ -198,14 +214,24 @@ exports.getPropertyById = async (req, res) => {
 exports.getAllPropertiesByOwnerId = async (req, res) => {
   try {
     const { owner_id } = req.params;
+    let { page, limit } = req.query;
 
-    // Fetch properties that belong to the given owner_id
+    page = parseInt(page) || 1; // Default page = 1
+    limit = parseInt(limit) || 10; // Default limit = 10
+    const skip = (page - 1) * limit;
+
+    // Fetch total property count for pagination
+    const totalProperties = await Property.countDocuments({ owner_id });
+
+    // Fetch paginated properties that belong to the given owner_id
     const properties = await Property.find({ owner_id })
       .populate("owner_id") // Fetch owner details
       .populate("location") // Fetch location details
       .populate("media") // Fetch media details
       .populate("property_type") // Fetch property type details
-      .populate("property_subtype"); // Fetch property subtype details
+      .populate("property_subtype") // Fetch property subtype details
+      .skip(skip)
+      .limit(limit);
 
     if (!properties.length) {
       return res.status(404).json({ message: "No properties found for this owner" });
@@ -225,7 +251,12 @@ exports.getAllPropertiesByOwnerId = async (req, res) => {
       })
     );
 
-    res.status(200).json(propertiesWithAmenities);
+    res.status(200).json({
+      totalProperties,
+      currentPage: page,
+      totalPages: Math.ceil(totalProperties / limit),
+      properties: propertiesWithAmenities,
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Error fetching properties", error: error.message });

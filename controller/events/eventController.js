@@ -107,21 +107,41 @@ exports.addEvent = async (req, res) => {
 };
 
 exports.getAllEvents = async (req, res) => {
-  try {
-    const events = await Event.find()
-      .populate("host_id")
-      .populate("event_type")
-      .populate("location")
-      .populate("media");
-
-    res.status(200).json(events);
-  } catch (error) {
-    console.error(error);
-    res
-      .status(500)
-      .json({ message: "Error fetching events", error: error.message });
-  }
-};
+    try {
+      let { page, limit } = req.query;
+  
+      page = parseInt(page) || 1; // Default page = 1
+      limit = parseInt(limit) || 10; // Default limit = 10
+      const skip = (page - 1) * limit;
+  
+      // Fetch total event count for pagination
+      const totalEvents = await Event.countDocuments();
+  
+      // Fetch paginated events
+      const events = await Event.find()
+        .populate("host_id")
+        .populate("event_type")
+        .populate("location")
+        .populate("media")
+        .skip(skip)
+        .limit(limit);
+  
+      if (!events.length) {
+        return res.status(404).json({ message: "No events found" });
+      }
+  
+      res.status(200).json({
+        totalEvents,
+        currentPage: page,
+        totalPages: Math.ceil(totalEvents / limit),
+        events,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Error fetching events", error: error.message });
+    }
+  };
+  
 
 exports.getEventById = async (req, res) => {
   try {
@@ -147,28 +167,42 @@ exports.getEventById = async (req, res) => {
 };
 
 exports.getAllEventsByHostId = async (req, res) => {
-  try {
-    const { host_id } = req.params;
-
-    // Fetch events where host_id matches
-    const events = await Event.find({ host_id })
-      .populate("host_id")
-      .populate("event_type")
-      .populate("location")
-      .populate("media");
-
-    if (!events.length) {
-      return res.status(404).json({ message: "No events found for this host" });
+    try {
+      const { host_id } = req.params;
+      let { page, limit } = req.query;
+  
+      page = parseInt(page) || 1; // Default page = 1
+      limit = parseInt(limit) || 10; // Default limit = 10
+      const skip = (page - 1) * limit;
+  
+      // Fetch total event count for this host
+      const totalEvents = await Event.countDocuments({ host_id });
+  
+      // Fetch paginated events for the given host_id
+      const events = await Event.find({ host_id })
+        .populate("host_id")
+        .populate("event_type")
+        .populate("location")
+        .populate("media")
+        .skip(skip)
+        .limit(limit);
+  
+      if (!events.length) {
+        return res.status(404).json({ message: "No events found for this host" });
+      }
+  
+      res.status(200).json({
+        totalEvents,
+        currentPage: page,
+        totalPages: Math.ceil(totalEvents / limit),
+        events,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Error fetching events", error: error.message });
     }
-
-    res.status(200).json(events);
-  } catch (error) {
-    console.error(error);
-    res
-      .status(500)
-      .json({ message: "Error fetching events", error: error.message });
-  }
-};
+  };
+  
 
 exports.deleteEvent = async (req, res) => {
   const session = await mongoose.startSession();
