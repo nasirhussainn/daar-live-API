@@ -27,8 +27,8 @@ const PropertySchema = new Schema({
     state: { type: String },
     city: { type: String },
 
-    location: { type: Schema.Types.ObjectId, ref: 'Location', required: true },
-    media: { type: Schema.Types.ObjectId, ref: 'Media', required: false },
+    location: { type: Schema.Types.ObjectId, ref: 'Location' },
+    media: { type: Schema.Types.ObjectId, ref: 'Media' },
 
     area_size: { type: String, required: true }, // Changed from String to Number
     price: { type: String, required: true },
@@ -38,7 +38,7 @@ const PropertySchema = new Schema({
 
     amenities: [{ type: Schema.Types.ObjectId, ref: 'Amenities' }], // List of amenities
 
-    security_deposit: { type: String, required: true }, // Changed to match request field name
+    security_deposit: { type: String }, // Changed to match request field name
 
     is_available: { type: Boolean, default: true },
     is_feature: { type: Boolean, default: false }, // Fixed naming consistency

@@ -19,11 +19,11 @@ const EventSchema = new Schema({
     start_time: { type: String, required: true },  
     end_time: { type: String, required: true },  
 
-    entry_type: { type: String, required: true },
+    entry_type: { type: String },
     entry_price: { type: String },
 
-    location: { type: Schema.Types.ObjectId, ref: 'Location', required: true },
-    media: { type: Schema.Types.ObjectId, ref: 'Media', required: false },
+    location: { type: Schema.Types.ObjectId, ref: 'Location' },
+    media: { type: Schema.Types.ObjectId, ref: 'Media' },
     
     country: { type: String },
     state: { type: String },
