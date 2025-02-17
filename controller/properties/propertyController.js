@@ -76,7 +76,7 @@ exports.addProperty = async (req, res) => {
       : JSON.parse(req.body.location?.nearbyLocations || "[]");
     const locationData = new Location({
       ...req.body.location,
-      nearbyLocations: nearbyLocationsArray, // Save nearby locations directly
+      nearbyLocations: nearbyLocationsArray, 
     });
     const savedLocation = await locationData.save({ session });
 

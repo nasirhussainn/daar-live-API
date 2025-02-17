@@ -20,18 +20,18 @@ const EventSchema = new Schema({
     end_time: { type: String, required: true },  
 
     entry_type: { type: String, required: true },
-    entry_price: { type: Number },
+    entry_price: { type: String },
 
     location: { type: Schema.Types.ObjectId, ref: 'Location', required: true },
     media: { type: Schema.Types.ObjectId, ref: 'Media', required: false },
     
-    country: { type: String, required: true },
-    state: { type: String, required: true },
-    city: { type: String, required: true },
+    country: { type: String },
+    state: { type: String },
+    city: { type: String },
 
-    no_of_days: { type: Number },
+    no_of_days: { type: String },
     payment_date: { type: String },
-    transaction_price: { type: Number }, // Added field for transaction price when featured
+    transaction_price: { type: String }, // Added field for transaction price when featured
 
     is_feature: { type: Boolean, default: false },  
     allow_booking: { type: Boolean, default: true },  

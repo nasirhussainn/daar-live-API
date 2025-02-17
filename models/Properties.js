@@ -9,7 +9,7 @@ const PropertySchema = new Schema({
     description: { type: String },
 
     property_purpose: { type: String, enum: ['sell', 'rent'], required: true },
-    property_duration: { type: String, enum: ['short_term', 'long_term'], required: true }, // Added
+    property_duration: { type: String }, 
 
     property_status: { 
         type: String, 
@@ -23,9 +23,9 @@ const PropertySchema = new Schema({
     property_subtype: { type: Schema.Types.ObjectId, ref: 'PropertySubtype', required: true },
 
     // Location fields
-    country: { type: String, required: true },
-    state: { type: String, required: true },
-    city: { type: String, required: true },
+    country: { type: String },
+    state: { type: String },
+    city: { type: String },
 
     location: { type: Schema.Types.ObjectId, ref: 'Location', required: true },
     media: { type: Schema.Types.ObjectId, ref: 'Media', required: false },
@@ -45,10 +45,10 @@ const PropertySchema = new Schema({
 
     allow_booking: { type: Boolean, default: true },
 
-    no_of_days: { type: Number, required: true }, // Changed to `required: true`
+    no_of_days: { type: String, required: false }, // Changed to `required: true`
     payment_date: { type: String, required: false },
 
-    transaction_price: { type: String, required: true }, // Added missing field
+    transaction_price: { type: String, required: false }, // Added missing field
 
     created_by: { type: String, enum: ['admin', 'realtor'], required: true }, // Track who created it
 
