@@ -52,6 +52,8 @@ const PropertySchema = new Schema({
 
     created_by: { type: String, enum: ['admin', 'realtor'], required: true }, // Track who created it
 
+    avg_rating: { type: Number, default: 0 },
+
     created_at: { type: Date, default: Date.now },
     updated_at: { type: Date, default: Date.now }
 });

@@ -8,6 +8,7 @@
       { "src": "/crud-users/(.*)", "dest": "server.js" },
       { "src": "/property/(.*)", "dest": "server.js" },
       { "src": "/event/(.*)", "dest": "server.js" },
+      { "src": "/review/(.*)", "dest": "server.js" },
       { "src": "/property-facilites/(.*)", "dest": "server.js" },
       { "src": "/(.*)", "dest": "server.js" }
     ]

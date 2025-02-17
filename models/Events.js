@@ -38,6 +38,8 @@ const EventSchema = new Schema({
 
     created_by: { type: String, enum: ['realtor', 'admin'], required: true }, // Added field to track creator
 
+    avg_rating: { type: Number, default: 0 },
+    
     created_at: { type: Date, default: Date.now },
     updated_at: { type: Date, default: Date.now }
 });

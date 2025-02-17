@@ -4,6 +4,7 @@ const { Schema } = mongoose;
 const realtorSchema = new Schema({
   user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   business_name: { type: String , required: true },
+  avg_rating: { type: Number, default: 0 },
   customer_id: { type: String },
   subscription: { // Embedded subscription details
     subscription_id: { type: String },

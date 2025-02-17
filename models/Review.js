@@ -6,7 +6,7 @@ const ReviewSchema = new Schema(
     review_for: {
       type: Schema.Types.ObjectId,
       required: true,
-      refPath: 'review_for_type', // Dynamic reference
+      refPath: 'review_for_type', 
     },
     review_for_type: {
       type: String,
