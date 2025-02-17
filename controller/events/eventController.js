@@ -4,6 +4,7 @@ const Location = require("../../models/Location");
 const Media = require("../../models/Media");
 const EventType = require("../../models/admin/EventType");
 const { uploadMultipleToCloudinary } = require("../../config/cloudinary");
+const FeaturedEntity = require("../../models/FeaturedEntity");
 
 exports.addEvent = async (req, res) => {
   const session = await mongoose.startSession();
@@ -35,6 +36,7 @@ exports.addEvent = async (req, res) => {
       ? req.body.event_type
       : JSON.parse(req.body.event_type || "[]");
 
+    // Step 1: Validate event types
     const validEventTypes = await EventType.find({
       _id: {
         $in: eventTypesArray.map((id) =>
@@ -49,6 +51,7 @@ exports.addEvent = async (req, res) => {
         .json({ message: "One or more event types are invalid" });
     }
 
+    // Step 2: Validate location and nearby locations
     const nearbyLocationsArray = Array.isArray(
       req.body.location?.nearbyLocations
     )
@@ -56,11 +59,11 @@ exports.addEvent = async (req, res) => {
       : JSON.parse(req.body.location?.nearbyLocations || "[]");
     const locationData = new Location({
       ...req.body.location,
-      nearbyLocations: nearbyLocationsArray, // Save nearby locations directly
+      nearbyLocations: nearbyLocationsArray,
     });
     const savedLocation = await locationData.save({ session });
 
-    // Handle media upload
+    // Step 3: Handle media uploads
     let mediaUrls = { images: [], videos: [] };
     let savedMedia = null;
 
@@ -68,21 +71,21 @@ exports.addEvent = async (req, res) => {
       const mediaFiles = [];
 
       if (req.files.images) {
-        req.files.images.forEach((img) =>
-          mediaFiles.push({ buffer: img.buffer, fieldname: "images" })
-        );
+        req.files.images.forEach((img) => {
+          mediaFiles.push({ buffer: img.buffer, fieldname: "images" });
+        });
       }
 
       if (req.files.videos) {
-        req.files.videos.forEach((vid) =>
-          mediaFiles.push({ buffer: vid.buffer, fieldname: "videos" })
-        );
+        req.files.videos.forEach((vid) => {
+          mediaFiles.push({ buffer: vid.buffer, fieldname: "videos" });
+        });
       }
 
       const folderName = "event_media_uploads";
       mediaUrls = await uploadMultipleToCloudinary(mediaFiles, folderName);
 
-      // Save media only if there are images or videos
+      // Save media if there are images or videos
       if (mediaUrls.images.length || mediaUrls.videos.length) {
         const mediaData = new Media({
           images: mediaUrls.images,
@@ -92,14 +95,20 @@ exports.addEvent = async (req, res) => {
       }
     }
 
-    // Create event
+    // Step 4: Set `created_by`, `allow_booking`, and `is_feature`
     let created_by = host_id ? "realtor" : "admin";
+    let event_status = "pending";
 
+    if (is_feature === "true" || is_feature === true) {
+      event_status = "approved"; // Set status to approved if it's featured
+    }
+
+    // Step 5: Create the event data
     const eventData = new Event({
       host_id,
       title,
       description,
-      event_type: validEventTypes.map((a) => a._id), // Array of event types
+      event_type: validEventTypes.map((a) => a._id),
       start_date,
       end_date,
       start_time,
@@ -117,21 +126,44 @@ exports.addEvent = async (req, res) => {
       is_feature,
       allow_booking,
       created_by,
+      event_status, // Store the event status
     });
 
     const savedEvent = await eventData.save({ session });
 
+    // Step 6: If the event is featured, create a FeaturedEntity record
+    let featureEntity;
+    if (is_feature === "true" || is_feature === true) {
+      featureEntity = new FeaturedEntity({
+        transaction_price,
+        payment_date,
+        no_of_days,
+        is_active: true,
+        event_id: savedEvent._id,
+        entity_type: "event", // Indicates this is an event
+      });
+      const savedFeaturedEntity = await featureEntity.save({ session });
+
+      // Update the Event with the reference to the FeaturedEntity
+      savedEvent.feature_details = savedFeaturedEntity._id;
+      await savedEvent.save({ session });
+    }
+
+    // Commit the transaction
     await session.commitTransaction();
     session.endSession();
 
+    // Return success response
     res.status(201).json({
       message: "Event added successfully!",
       event: savedEvent,
       mediaUrls,
     });
   } catch (error) {
+    // If any error occurs, roll back the transaction
     await session.abortTransaction();
     session.endSession();
+
     console.error(error);
     res
       .status(500)
@@ -156,6 +188,7 @@ exports.getAllEvents = async (req, res) => {
       .populate("event_type")
       .populate("location")
       .populate("media")
+      .populate("feature_details")
       .skip(skip)
       .limit(limit);
 
@@ -185,7 +218,8 @@ exports.getEventById = async (req, res) => {
       .populate("host_id")
       .populate("event_type")
       .populate("location")
-      .populate("media");
+      .populate("media")
+      .populate("feature_details");
 
     if (!event) {
       return res.status(404).json({ message: "Event not found" });
@@ -218,6 +252,7 @@ exports.getAllEventsByHostId = async (req, res) => {
       .populate("event_type")
       .populate("location")
       .populate("media")
+      .populate("feature_details")
       .skip(skip)
       .limit(limit);
 

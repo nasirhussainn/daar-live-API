@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
+const FeaturedEntity = require('./FeaturedEntity'); // Import the new model
 
 const EventSchema = new Schema({
     host_id: { type: Schema.Types.ObjectId, ref: 'User', required: false }, // Assuming there's a User model
@@ -7,12 +8,6 @@ const EventSchema = new Schema({
     description: { type: String, required: true },
 
     event_type: [{ type: Schema.Types.ObjectId, ref: 'EventType', required: true }], // Changed to an array
-
-    // status: { 
-    //     type: String, 
-    //     enum: ['pending', 'confirmed', 'canceled'], // Updated to match JSON
-    //     default: 'pending' 
-    // },
 
     start_date: { type: Date, required: true },
     end_date: { type: Date, required: true },
@@ -24,14 +19,11 @@ const EventSchema = new Schema({
 
     location: { type: Schema.Types.ObjectId, ref: 'Location' },
     media: { type: Schema.Types.ObjectId, ref: 'Media' },
+    feature_details: { type: Schema.Types.ObjectId, ref: "FeaturedEntity" },
     
     country: { type: String },
     state: { type: String },
     city: { type: String },
-
-    no_of_days: { type: String },
-    payment_date: { type: String },
-    transaction_price: { type: String }, // Added field for transaction price when featured
 
     is_feature: { type: Boolean, default: false },  
     allow_booking: { type: Boolean, default: true },  
@@ -39,7 +31,7 @@ const EventSchema = new Schema({
     created_by: { type: String, enum: ['realtor', 'admin'], required: true }, // Added field to track creator
 
     avg_rating: { type: Number, default: 0 },
-    
+
     created_at: { type: Date, default: Date.now },
     updated_at: { type: Date, default: Date.now }
 });

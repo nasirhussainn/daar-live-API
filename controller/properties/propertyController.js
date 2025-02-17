@@ -4,6 +4,7 @@ const Location = require("../../models/Location");
 const Media = require("../../models/Media");
 const Amenities = require("../../models/admin/Amenities");
 const PropertySubtype = require("../../models/admin/PropertySubtype");
+const FeaturedEntity = require("../../models/FeaturedEntity");
 const { uploadMultipleToCloudinary } = require("../../config/cloudinary"); // Import cloudinary helper
 
 exports.addProperty = async (req, res) => {
@@ -76,7 +77,7 @@ exports.addProperty = async (req, res) => {
       : JSON.parse(req.body.location?.nearbyLocations || "[]");
     const locationData = new Location({
       ...req.body.location,
-      nearbyLocations: nearbyLocationsArray, 
+      nearbyLocations: nearbyLocationsArray,
     });
     const savedLocation = await locationData.save({ session });
 
@@ -154,11 +155,30 @@ exports.addProperty = async (req, res) => {
 
     const savedProperty = await propertyData.save({ session });
 
+    // Step 8: If the property is featured, create a FeaturedEntity record and update the Property with `feature_details`
+    let featureEntity;
+    if (is_feature === "true" || is_feature === true) {
+      // Create FeaturedEntity record
+      featureEntity = new FeaturedEntity({
+        transaction_price,
+        payment_date,
+        no_of_days,
+        is_active: true,
+        property_id: savedProperty._id,
+        entity_type: "property", // This indicates it's a property
+      });
+      const savedFeaturedEntity = await featureEntity.save({ session });
+
+      // Update the Property with the reference to the FeaturedEntity
+      savedProperty.feature_details = savedFeaturedEntity._id;
+      await savedProperty.save({ session });
+    }
+
     // Commit the transaction
     await session.commitTransaction();
     session.endSession();
 
-    // Step 8: Return success response
+    // Step 9: Return success response
     res.status(201).json({
       message: "Property added successfully!",
       property: savedProperty,
@@ -176,6 +196,7 @@ exports.addProperty = async (req, res) => {
   }
 };
 
+
 exports.getAllProperties = async (req, res) => {
   try {
     let { page, limit } = req.query;
@@ -192,6 +213,7 @@ exports.getAllProperties = async (req, res) => {
       .populate("owner_id")
       .populate("location") // Fetch location details
       .populate("media")
+      .populate("feature_details")
       .populate("property_type") // Fetch property type details
       .populate("property_subtype") // Fetch property subtype details
       .skip(skip)
@@ -233,6 +255,7 @@ exports.getPropertyById = async (req, res) => {
       .populate("owner_id")
       .populate("location") // Fetch location details
       .populate("media")
+      .populate("feature_details")
       .populate("property_type") // Fetch property type details
       .populate("property_subtype"); // Fetch property subtype details
 
@@ -273,7 +296,8 @@ exports.getAllPropertiesByOwnerId = async (req, res) => {
     const properties = await Property.find({ owner_id })
       .populate("owner_id") // Fetch owner details
       .populate("location") // Fetch location details
-      .populate("media") // Fetch media details
+      .populate("media")
+      .populate("feature_details") 
       .populate("property_type") // Fetch property type details
       .populate("property_subtype") // Fetch property subtype details
       .skip(skip)
