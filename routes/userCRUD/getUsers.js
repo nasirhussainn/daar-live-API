@@ -3,7 +3,6 @@ const router = express.Router();
 const User = require("../../models/User");
 const Realtor = require("../../models/Realtor");
 
-
 router.get("/user-via-token/:login_token", async (req, res) => {
   try {
     const { login_token } = req.params;

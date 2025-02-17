@@ -36,7 +36,6 @@ router.post("/signup", upload.single("profilePicture"), async (req, res) => {
       role,
       business_name, 
       phone_number, 
-      customer_id,
       subscription, 
     } = req.body;
 
@@ -95,16 +94,6 @@ router.post("/signup", upload.single("profilePicture"), async (req, res) => {
       const newRealtor = new Realtor({
         user_id: newUser._id,
         business_name, // Required
-        customer_id: customer_id || null, // Optional
-        subscription: subscription
-          ? {
-              subscription_id: subscription.subscription_id || null,
-              plan_name: subscription.plan_name || null,
-              start_date: subscription.start_date ? new Date(subscription.start_date) : null,
-              end_date: subscription.end_date ? new Date(subscription.end_date) : null,
-              status: subscription.status || "pending",
-            }
-          : null, // Optional: If no subscription provided, keep it null
       });
 
       await newRealtor.save({ session }); // Save realtor within transaction
