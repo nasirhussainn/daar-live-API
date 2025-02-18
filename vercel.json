@@ -11,6 +11,7 @@
       { "src": "/review/(.*)", "dest": "server.js" },
       { "src": "/realtor/(.*)", "dest": "server.js" },
       { "src": "/property-facilites/(.*)", "dest": "server.js" },
+      { "src": "/admin-settings/(.*)", "dest": "server.js" },
       { "src": "/(.*)", "dest": "server.js" }
     ]
   }

@@ -11,8 +11,8 @@ app.use(cors({ origin: "*" }));
 
 // Set Security Headers
 app.use((req, res, next) => {
-  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+  res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
   next();
 });
 
@@ -42,14 +42,16 @@ const userGET = require("./routes/userCRUD/getUsers");
 const userUPDATE = require("./routes/userCRUD/updateUsers");
 
 const propertyTypeRoutes = require("./routes/propertyFacilities/propertyTypeRoutes");
-const propertySubtypeRoutes = require("./routes/propertyFacilities/propertySubtypeRoutes")
-const eventTypeRoutes = require("./routes/propertyFacilities/eventTypeRoutes") 
-const amenitiesRoutes =  require("./routes/propertyFacilities/amenitiesRoutes") 
+const propertySubtypeRoutes = require("./routes/propertyFacilities/propertySubtypeRoutes");
+const eventTypeRoutes = require("./routes/propertyFacilities/eventTypeRoutes");
+const amenitiesRoutes = require("./routes/propertyFacilities/amenitiesRoutes");
 
 const propertyRoutes = require("./routes/property/propertyRoutes");
-const eventRoutes = require("./routes/event/eventRoutes")
-const reviewRoutes = require("./routes/review/reviewRoutes")
-const subscriptionRoute = require("./routes/subscription/subscriptionRoute")
+const eventRoutes = require("./routes/event/eventRoutes");
+const reviewRoutes = require("./routes/review/reviewRoutes");
+const subscriptionRoute = require("./routes/subscription/subscriptionRoute");
+
+const adminSettingRoute = require("./routes/admin/adminSettingRoutes");
 
 app.use("/auth", [
   authSignup,
@@ -59,37 +61,24 @@ app.use("/auth", [
   authPhoneVerification,
 ]);
 
-app.use("/crud-users", [
-  userGET,
-  userUPDATE,
-
-]);
+app.use("/crud-users", [userGET, userUPDATE]);
 
 app.use("/property-facilities", [
   propertyTypeRoutes,
   propertySubtypeRoutes,
   eventTypeRoutes,
-  amenitiesRoutes
+  amenitiesRoutes,
 ]);
 
-app.use("/property", [
-  propertyRoutes,
-]);
+app.use("/property", [propertyRoutes]);
 
-app.use("/event", [
-  eventRoutes
-])
+app.use("/event", [eventRoutes]);
 
-app.use("/review", [
-  reviewRoutes
-])
+app.use("/review", [reviewRoutes]);
 
-app.use("/realtor", [
-  subscriptionRoute
-  ])
+app.use("/realtor", [subscriptionRoute]);
 
-
-
+app.use("/admin-settings", [adminSettingRoute]);
 
 // Start the Server
 app.listen(PORT, () => {
