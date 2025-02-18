@@ -26,6 +26,7 @@ exports.addEvent = async (req, res) => {
       state,
       city,
       no_of_days,
+      transaction_id,
       payment_date,
       transaction_price, // New field
       is_feature,
@@ -135,6 +136,7 @@ exports.addEvent = async (req, res) => {
     let featureEntity;
     if (is_feature === "true" || is_feature === true) {
       featureEntity = new FeaturedEntity({
+        transaction_id,
         transaction_price,
         payment_date,
         no_of_days,

@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const FeaturedEntitySchema = new Schema({
+  transaction_id: { type: String},
   transaction_price: { type: String },
   payment_date: { type: String },
   no_of_days: { type: Number }, 

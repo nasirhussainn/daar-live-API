@@ -32,6 +32,7 @@ exports.addProperty = async (req, res) => {
       charge_per,
       security_deposit,
       no_of_days,
+      transaction_id,
       payment_date,
       transaction_price,
       is_feature,
@@ -160,6 +161,7 @@ exports.addProperty = async (req, res) => {
     if (is_feature === "true" || is_feature === true) {
       // Create FeaturedEntity record
       featureEntity = new FeaturedEntity({
+        transaction_id,
         transaction_price,
         payment_date,
         no_of_days,
