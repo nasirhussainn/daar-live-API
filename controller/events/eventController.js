@@ -33,6 +33,10 @@ exports.addEvent = async (req, res) => {
       allow_booking,
     } = req.body;
 
+    if (entry_type === 'paid' && (!entry_price || entry_price == 0)) {
+      return res.status(400).json({ message: "Entry price cannot be zero or empty for paid events" });
+    }
+
     const eventTypesArray = Array.isArray(req.body.event_type)
       ? req.body.event_type
       : JSON.parse(req.body.event_type || "[]");
@@ -98,12 +102,6 @@ exports.addEvent = async (req, res) => {
 
     // Step 4: Set `created_by`, `allow_booking`, and `is_feature`
     let created_by = host_id ? "realtor" : "admin";
-    let event_status = "pending";
-
-    if (is_feature === "true" || is_feature === true) {
-      event_status = "approved"; // Set status to approved if it's featured
-    }
-
     // Step 5: Create the event data
     const eventData = new Event({
       host_id,
@@ -127,7 +125,6 @@ exports.addEvent = async (req, res) => {
       is_feature,
       allow_booking,
       created_by,
-      event_status, // Store the event status
     });
 
     const savedEvent = await eventData.save({ session });

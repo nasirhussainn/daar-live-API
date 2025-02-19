@@ -8,13 +8,14 @@ const EventSchema = new Schema({
     description: { type: String, required: true },
 
     event_type: [{ type: Schema.Types.ObjectId, ref: 'EventType', required: true }], // Changed to an array
+    status: { type: String, enum: ['upcoming', 'completed', 'live'], required: true, default: 'upcoming' },
 
     start_date: { type: Date, required: true },
     end_date: { type: Date, required: true },
     start_time: { type: String, required: true },  
     end_time: { type: String, required: true },  
 
-    entry_type: { type: String },
+    entry_type: { type: String, enum:['free', 'paid'] },
     entry_price: { type: String },
 
     location: { type: Schema.Types.ObjectId, ref: 'Location' },
