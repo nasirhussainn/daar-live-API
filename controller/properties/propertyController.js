@@ -156,24 +156,38 @@ exports.addProperty = async (req, res) => {
 
     const savedProperty = await propertyData.save({ session });
 
-    // Step 8: If the property is featured, create a FeaturedEntity record and update the Property with `feature_details`
+    // Step 8: If the property is featured, try creating a FeaturedEntity
     let featureEntity;
-    if (is_feature === "true" || is_feature === true) {
-      // Create FeaturedEntity record
-      featureEntity = new FeaturedEntity({
-        transaction_id,
-        transaction_price,
-        payment_date,
-        no_of_days,
-        is_active: true,
-        property_id: savedProperty._id,
-        entity_type: "property", // This indicates it's a property
-      });
-      const savedFeaturedEntity = await featureEntity.save({ session });
+    let featureMessage = null;
 
-      // Update the Property with the reference to the FeaturedEntity
-      savedProperty.feature_details = savedFeaturedEntity._id;
-      await savedProperty.save({ session });
+    if (is_feature === "true" || is_feature === true) {
+      try {
+        featureEntity = new FeaturedEntity({
+          transaction_id,
+          transaction_price,
+          payment_date,
+          no_of_days,
+          is_active: true,
+          property_id: savedProperty._id,
+          entity_type: "property", // This indicates it's a property
+        });
+
+        const savedFeaturedEntity = await featureEntity.save({ session });
+
+        // Update the Property with the reference to the FeaturedEntity
+        savedProperty.feature_details = savedFeaturedEntity._id;
+        savedProperty.is_featured = true; // Mark as featured
+        await savedProperty.save({ session });
+      } catch (featureError) {
+        console.error("Error adding FeaturedEntity:", featureError.message);
+
+        // Rollback is_featured to false since feature process failed
+        savedProperty.is_featured = false;
+        await savedProperty.save({ session });
+
+        featureMessage =
+          "Property was added successfully but could not be featured. You can request a feature again.";
+      }
     }
 
     // Commit the transaction
@@ -182,7 +196,9 @@ exports.addProperty = async (req, res) => {
 
     // Step 9: Return success response
     res.status(201).json({
-      message: "Property added successfully!",
+      message:
+        "Property added successfully!" +
+        (featureMessage ? ` ${featureMessage}` : ""),
       property: savedProperty,
       mediaUrls: mediaUrls, // Return the media URLs in response
     });
@@ -197,7 +213,6 @@ exports.addProperty = async (req, res) => {
       .json({ message: "Error adding property", error: error.message });
   }
 };
-
 
 exports.getAllProperties = async (req, res) => {
   try {
@@ -299,7 +314,7 @@ exports.getAllPropertiesByOwnerId = async (req, res) => {
       .populate("owner_id") // Fetch owner details
       .populate("location") // Fetch location details
       .populate("media")
-      .populate("feature_details") 
+      .populate("feature_details")
       .populate("property_type") // Fetch property type details
       .populate("property_subtype") // Fetch property subtype details
       .skip(skip)
@@ -379,5 +394,77 @@ exports.deleteProperty = async (req, res) => {
     res
       .status(500)
       .json({ message: "Error deleting property", error: error.message });
+  }
+};
+
+exports.featureProperty = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const {
+      property_id,
+      transaction_id,
+      transaction_price,
+      payment_date,
+      no_of_days,
+    } = req.body;
+
+    // Validate required fields
+    if (
+      !property_id ||
+      !transaction_id ||
+      !transaction_price ||
+      !payment_date ||
+      !no_of_days
+    ) {
+      return res.status(400).json({ message: "All fields are required." });
+    }
+
+    // Find property
+    const property = await Property.findById(property_id).session(session);
+    if (!property) {
+      return res.status(404).json({ message: "Property not found." });
+    }
+
+    // Check if property is already featured
+    if (property.feature_details) {
+      return res.status(400).json({ message: "Property is already featured." });
+    }
+
+    // Create new FeaturedEntity
+    const featureEntity = new FeaturedEntity({
+      transaction_id,
+      transaction_price,
+      payment_date,
+      no_of_days,
+      is_active: true,
+      property_id,
+      entity_type: "property",
+    });
+
+    const savedFeatureEntity = await featureEntity.save({ session });
+
+    // Update the Property with the FeaturedEntity reference
+    property.feature_details = savedFeatureEntity._id;
+    property.is_feature = true;
+    await property.save({ session });
+
+    // Commit transaction
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({
+      message: "Property has been successfully featured.",
+      feature_details: savedFeatureEntity,
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+
+    console.error(error);
+    res
+      .status(500)
+      .json({ message: "Error featuring property", error: error.message });
   }
 };
