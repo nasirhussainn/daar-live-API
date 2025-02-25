@@ -52,6 +52,7 @@ const reviewRoutes = require("./routes/review/reviewRoutes");
 const subscriptionRoute = require("./routes/subscription/subscriptionRoute");
 
 const adminSettingRoute = require("./routes/admin/adminSettingRoutes");
+const admin = require("./routes/admin/adminRoutes");
 
 app.use("/auth", [
   authSignup,
@@ -79,6 +80,8 @@ app.use("/review", [reviewRoutes]);
 app.use("/realtor", [subscriptionRoute]);
 
 app.use("/admin-settings", [adminSettingRoute]);
+app.use("/admin", [admin])
+
 
 // Start the Server
 app.listen(PORT, () => {
