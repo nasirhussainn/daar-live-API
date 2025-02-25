@@ -21,6 +21,7 @@
   "homepage": "https://github.com/nasirhussainn/daar-live-API#readme",
   "description": "",
   "dependencies": {
+    "axios": "^1.7.9",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.20.3",
     "cloudinary": "^2.5.1",

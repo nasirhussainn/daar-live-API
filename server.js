@@ -54,6 +54,8 @@ const subscriptionRoute = require("./routes/subscription/subscriptionRoute");
 const adminSettingRoute = require("./routes/admin/adminSettingRoutes");
 const admin = require("./routes/admin/adminRoutes");
 
+const locationRoute = require('./routes/location');
+
 app.use("/auth", [
   authSignup,
   authPassword,
@@ -82,7 +84,7 @@ app.use("/realtor", [subscriptionRoute]);
 app.use("/admin-settings", [adminSettingRoute]);
 app.use("/admin", [admin])
 
-
+app.use("/location-search", locationRoute);
 // Start the Server
 app.listen(PORT, () => {
   console.log(`🚀 Server running at: http://localhost:${PORT}/`);
