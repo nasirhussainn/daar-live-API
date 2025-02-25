@@ -22,7 +22,7 @@ exports.createAmenity = async (req, res) => {
 // ✅ Get all active Amenities
 exports.getAllAmenities = async (req, res) => {
     try {
-        const amenities = await Amenity.find({ is_active: true });
+        const amenities = await Amenity.find();
         res.status(200).json(amenities);
     } catch (error) {
         res.status(500).json({ error: error.message });

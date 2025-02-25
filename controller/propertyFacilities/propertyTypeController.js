@@ -55,7 +55,6 @@ exports.getAllPropertyTypes = async (req, res) => {
       propertyTypes.map(async (propertyType) => {
         const subtypes = await PropertySubType.find({
           property_type: propertyType._id,
-          is_active: true,
         }).lean();
         return { ...propertyType, propertySubtypes: subtypes };
       })

@@ -49,7 +49,7 @@ exports.createPropertySubtype = async (req, res) => {
 // ✅ Get all PropertySubtypes
 exports.getAllPropertySubtypes = async (req, res) => {
     try {
-        const subtypes = await PropertySubtype.find({ is_active: true });
+        const subtypes = await PropertySubtype.find();
         res.status(200).json(subtypes);
     } catch (error) {
         res.status(500).json({ error: error.message });

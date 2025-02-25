@@ -22,7 +22,7 @@ exports.createEventType = async (req, res) => {
 // ✅ Get all active EventTypes
 exports.getAllEventTypes = async (req, res) => {
     try {
-        const eventTypes = await EventType.find({ is_active: true });
+        const eventTypes = await EventType.find();
         res.status(200).json(eventTypes);
     } catch (error) {
         res.status(500).json({ error: error.message });
