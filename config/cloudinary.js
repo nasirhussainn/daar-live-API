@@ -62,4 +62,25 @@ const uploadMultipleToCloudinary = async (files, folderName) => {
   return mediaUrls; // Return the URLs for images and videos
 };
 
-module.exports = { uploadToCloudinary, uploadMultipleToCloudinary };
+// Upload function
+const uploadToCloudinaryChat = async (buffer, folderName = "uploads") => {
+  return new Promise((resolve, reject) => {
+    let stream = cloudinary.uploader.upload_stream(
+      { resource_type: "auto", folder: folderName },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result.secure_url);
+      }
+    );
+    streamifier.createReadStream(buffer).pipe(stream);
+  });
+};
+
+// Separate function for chat media uploads
+const uploadChatMedia = async (buffer, messageType) => {
+  let folderName = messageType === "image" ? "chat_images" : messageType === "voice" ? "chat_voice" : "chat_media";
+  return uploadToCloudinaryChat(buffer, folderName);
+};
+
+
+module.exports = { uploadToCloudinary, uploadMultipleToCloudinary, uploadChatMedia, uploadToCloudinaryChat };
