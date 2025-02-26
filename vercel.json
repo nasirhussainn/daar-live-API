@@ -14,6 +14,7 @@
       { "src": "/admin-settings/(.*)", "dest": "server.js" },
       { "src": "/admin/(.*)", "dest": "server.js"},
       { "src": "/location-search/(.*)", "dest": "server.js" },
+      { "src": "/plan/(.*)", "dest": "server.js" },
       { "src": "/(.*)", "dest": "server.js" }
     ]
   }

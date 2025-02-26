@@ -55,6 +55,7 @@ const adminSettingRoute = require("./routes/admin/adminSettingRoutes");
 const admin = require("./routes/admin/adminRoutes");
 
 const locationRoute = require('./routes/location');
+const subscriptionPlanRoutes = require('./routes/subscription/subscriptionPlanRoutes');
 
 app.use("/auth", [
   authSignup,
@@ -85,6 +86,9 @@ app.use("/admin-settings", [adminSettingRoute]);
 app.use("/admin", [admin])
 
 app.use("/location-search", locationRoute);
+
+app.use("/plan", subscriptionPlanRoutes);
+
 // Start the Server
 app.listen(PORT, () => {
   console.log(`🚀 Server running at: http://localhost:${PORT}/`);
