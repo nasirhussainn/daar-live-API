@@ -48,7 +48,7 @@ exports.createPropertyType = async (req, res) => {
 // ✅ Get all PropertyTypes with their PropertySubtypes
 exports.getAllPropertyTypes = async (req, res) => {
   try {
-    const propertyTypes = await PropertyType.find({ is_active: true }).lean();
+    const propertyTypes = await PropertyType.find().lean();
 
     // Fetch and attach PropertySubtypes for each PropertyType
     const propertyTypesWithSubtypes = await Promise.all(
