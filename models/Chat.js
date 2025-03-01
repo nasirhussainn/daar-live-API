@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const MessageSchema = new mongoose.Schema({
   senderId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  messageType: { type: String, enum: ["text", "image", "voice"], required: true },
+  // messageType: { type: String, enum: ["text", "image", "voice"], required: true },
   text: { type: String, default: "" },
   mediaUrl: { type: String, default: null },
   timestamp: { type: Date, default: Date.now },

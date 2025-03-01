@@ -351,3 +351,75 @@ exports.updateEvent = async (req, res) => {
       .json({ message: "Error updating event", error: error.message });
   }
 };
+
+exports.featureEvent = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const {
+      event_id,
+      transaction_id,
+      transaction_price,
+      payment_date,
+      no_of_days,
+    } = req.body;
+
+    // Validate required fields
+    if (
+      !event_id ||
+      !transaction_id ||
+      !transaction_price ||
+      !payment_date ||
+      !no_of_days
+    ) {
+      return res.status(400).json({ message: "All fields are required." });
+    }
+
+    // Find property
+    const event = await Event.findById(event_id).session(session);
+    if (!event) {
+      return res.status(404).json({ message: "Event not found." });
+    }
+
+    // Check if property is already featured
+    if (event.feature_details) {
+      return res.status(400).json({ message: "Event is already featured." });
+    }
+
+    // Create new FeaturedEntity
+    const featureEntity = new FeaturedEntity({
+      transaction_id,
+      transaction_price,
+      payment_date,
+      no_of_days,
+      is_active: true,
+      property_id,
+      entity_type: "event",
+    });
+
+    const savedFeatureEntity = await featureEntity.save({ session });
+
+    // Update the Property with the FeaturedEntity reference
+    event.feature_details = savedFeatureEntity._id;
+    event.is_feature = true;
+    await event.save({ session });
+
+    // Commit transaction
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({
+      message: "Event has been successfully featured.",
+      feature_details: savedFeatureEntity,
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+
+    console.error(error);
+    res
+      .status(500)
+      .json({ message: "Error featuring event", error: error.message });
+  }
+};

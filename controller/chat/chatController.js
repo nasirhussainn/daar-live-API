@@ -4,11 +4,12 @@ const { uploadChatMedia } = require("../../config/cloudinary"); // Utility for m
 
 exports.sendMessage = async (req, res, next, io) => {
   try {
-    const { propertyId, senderId, messageType, text } = req.body;
+    const { propertyId, senderId, text } = req.body;
     let mediaUrl = null;
 
     // Upload media if file is present
     if (req.file) {
+      messageType = "image"
       mediaUrl = await uploadChatMedia(req.file.buffer, messageType);
     }
 
@@ -43,7 +44,6 @@ exports.sendMessage = async (req, res, next, io) => {
     // Create the new message
     const message = {
       senderId,
-      messageType,
       text,
       mediaUrl,
       timestamp: new Date(),

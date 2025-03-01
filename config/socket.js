@@ -4,19 +4,7 @@ let io = null;
 
 function initializeSocket(server) {
   if (!io) {
-    const allowedOrigins = [
-      "https://whale-app-4nsg6.ondigitalocean.app/", // Your frontend domain
-      "https://daar-live-api.vercel.app/",
-      "http://localhost:8080",
-      "http://localhost:5000", // Local development
-    ];
-
-    io = new Server(server, {
-      cors: {
-        origin: allowedOrigins, // Allow only these domains
-        methods: ["GET", "POST"], // Allowed HTTP methods
-      },
-    });
+    io = new Server(server, { cors: { origin: "*" } });
 
     io.on("connection", (socket) => {
       console.log(`🔌 New client connected: ${socket.id}`);
@@ -40,6 +28,26 @@ function initializeSocket(server) {
           console.log(`📢 User joined chat room: ${roomId}`);
         } catch (error) {
           console.error("❌ Error joining chat:", error.message);
+        }
+      });
+
+      // Listen for a message event
+      socket.on("sendMessage", (data) => {
+        try {
+          const { chatId, senderId, message } = data;
+
+          // Validate input
+          if (!chatId || !senderId || !message) {
+            console.log("⚠️ Invalid data received for sending message");
+            return;
+          }
+
+          // Broadcast the message to the room
+          const roomId = `chat:${chatId}`;
+          io.to(roomId).emit("newMessage", { senderId, message });
+          console.log(`📩 Message sent to room: ${roomId}`);
+        } catch (error) {
+          console.error("❌ Error sending message:", error.message);
         }
       });
 
