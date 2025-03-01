@@ -20,17 +20,22 @@ exports.sendMessage = async (req, res, next, io) => {
 
     const realtorId = property.owner_id; // Realtor ID (owner of the property)
 
+    // Determine the other participant
+    const otherParticipant = senderId === realtorId ? property.participants[0] : realtorId;
+
+    // console.log(`${senderId} and ${otherParticipant} are chatting`);
+
     // Check if a chat already exists between the user and realtor for this property
     let chat = await Chat.findOne({
       propertyId,
-      participants: { $all: [senderId, realtorId] },
+      participants: { $all: [senderId, otherParticipant] },
     });
 
     // If no chat exists, create a new one
     if (!chat) {
       chat = new Chat({
         propertyId,
-        participants: [senderId, realtorId],
+        participants: [senderId, otherParticipant],
         messages: [],
       });
     }
@@ -49,7 +54,8 @@ exports.sendMessage = async (req, res, next, io) => {
     await chat.save();
 
     // Emit the message to the Socket.IO room for this chat
-    const roomId = `chat:${propertyId}:${senderId}:${realtorId}`; // Unique room ID for this chat
+    const roomId = `chat:${chat._id}`; // Unique room ID for this chat
+    console.log(`Room for chatting: ${roomId}`);
     io.to(roomId).emit("newMessage", { chatId: chat._id, message });
 
     // Respond to the client

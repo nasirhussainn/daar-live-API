@@ -2,8 +2,8 @@ const express = require("express");
 const connectDB = require("./config/db");
 const cors = require("cors");
 const { getAuth } = require("firebase-admin/auth");
-// const { initializeSocket } = require("./config/socket"); 
-// const redisSubscriber = require("./config/redisSubscriber");
+const { initializeSocket } = require("./config/socket"); 
+const redisSubscriber = require("./config/redisSubscriber");
 const http = require("http");
 
 const app = express();
@@ -32,7 +32,7 @@ connectDB().catch((err) => {
 const server = http.createServer(app);
 
 // Initialize Socket.io
-// const io = initializeSocket(server);
+const io = initializeSocket(server);
 
 // Welcome Route
 app.get("/", (req, res) => {
@@ -65,7 +65,7 @@ const admin = require("./routes/admin/adminRoutes");
 const locationRoute = require('./routes/location');
 const subscriptionPlanRoutes = require('./routes/subscription/subscriptionPlanRoutes');
 
-// const chatRoutes = require("./routes/chat/chatRoutes")(io);
+const chatRoutes = require("./routes/chat/chatRoutes")(io);
 
 app.use("/auth", [
   authSignup,
@@ -99,8 +99,8 @@ app.use("/location-search", locationRoute);
 
 app.use("/plan", subscriptionPlanRoutes);
 
-// app.use("/chat", chatRoutes);
-// redisSubscriber(io);
+app.use("/chat", chatRoutes);
+redisSubscriber(io);
 
 // Start the Server
 server.listen(PORT, () => {

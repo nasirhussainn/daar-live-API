@@ -12,13 +12,19 @@ function initializeSocket(server) {
       // Join a chat room
       socket.on("joinChat", (data) => {
         try {
-          const { propertyId, senderId, realtorId } = data;
-          if (!propertyId || !senderId || !realtorId) {
+          console.log(`HI`)
+          // Parse the JSON string if `data` is a string
+          const payload = typeof data === "string" ? JSON.parse(data) : data;
+          const { chatId } = payload;
+      
+          // Validate input
+          if (!chatId) {
             console.log("⚠️ Invalid data received for joining chat");
             return;
           }
-
-          const roomId = `chat:${propertyId}:${senderId}:${realtorId}`;
+      
+          // Create a unique room ID
+          const roomId = `chat:${chatId}`;
           socket.join(roomId);
           console.log(`📢 User joined chat room: ${roomId}`);
         } catch (error) {
