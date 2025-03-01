@@ -28,13 +28,17 @@ exports.addEvent = async (req, res) => {
       no_of_days,
       transaction_id,
       payment_date,
-      transaction_price, // New field
+      transaction_price,
       is_feature,
       allow_booking,
     } = req.body;
 
-    if (entry_type === 'paid' && (!entry_price || entry_price == 0)) {
-      return res.status(400).json({ message: "Entry price cannot be zero or empty for paid events" });
+    if (entry_type === "paid" && (!entry_price || entry_price == 0)) {
+      return res
+        .status(400)
+        .json({
+          message: "Entry price cannot be zero or empty for paid events",
+        });
     }
 
     const eventTypesArray = Array.isArray(req.body.event_type)
@@ -131,21 +135,36 @@ exports.addEvent = async (req, res) => {
 
     // Step 6: If the event is featured, create a FeaturedEntity record
     let featureEntity;
-    if (is_feature === "true" || is_feature === true) {
-      featureEntity = new FeaturedEntity({
-        transaction_id,
-        transaction_price,
-        payment_date,
-        no_of_days,
-        is_active: true,
-        event_id: savedEvent._id,
-        entity_type: "event", // Indicates this is an event
-      });
-      const savedFeaturedEntity = await featureEntity.save({ session });
+    let featureMessage = null;
 
-      // Update the Event with the reference to the FeaturedEntity
-      savedEvent.feature_details = savedFeaturedEntity._id;
-      await savedEvent.save({ session });
+    if (is_feature === "true" || is_feature === true) {
+      try {
+        featureEntity = new FeaturedEntity({
+          transaction_id,
+          transaction_price,
+          payment_date,
+          no_of_days,
+          is_active: true,
+          event_id: savedEvent._id,
+          entity_type: "event", // Indicates this is an event
+        });
+
+        const savedFeaturedEntity = await featureEntity.save({ session });
+
+        // Update the Event with the reference to the FeaturedEntity
+        savedEvent.feature_details = savedFeaturedEntity._id;
+        savedEvent.is_featured = true; // Mark as featured
+        await savedEvent.save({ session });
+      } catch (featureError) {
+        console.error("Error adding FeaturedEntity:", featureError.message);
+
+        // Rollback is_featured to false since feature process failed
+        savedEvent.is_featured = false;
+        await savedEvent.save({ session });
+
+        featureMessage =
+          "Event was added successfully but could not be featured. You can request a feature again.";
+      }
     }
 
     // Commit the transaction
@@ -154,9 +173,11 @@ exports.addEvent = async (req, res) => {
 
     // Return success response
     res.status(201).json({
-      message: "Event added successfully!",
+      message:
+        "Property added successfully!" +
+        (featureMessage ? ` ${featureMessage}` : ""),
       event: savedEvent,
-      mediaUrls,
+      mediaUrls: mediaUrls,
     });
   } catch (error) {
     // If any error occurs, roll back the transaction

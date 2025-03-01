@@ -2,6 +2,9 @@ const express = require("express");
 const connectDB = require("./config/db");
 const cors = require("cors");
 const { getAuth } = require("firebase-admin/auth");
+// const { initializeSocket } = require("./config/socket"); 
+// const redisSubscriber = require("./config/redisSubscriber");
+const http = require("http");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -25,6 +28,11 @@ connectDB().catch((err) => {
   console.error("MongoDB connection error:", err);
   process.exit(1); // Exit if connection fails
 });
+
+const server = http.createServer(app);
+
+// Initialize Socket.io
+// const io = initializeSocket(server);
 
 // Welcome Route
 app.get("/", (req, res) => {
@@ -57,7 +65,7 @@ const admin = require("./routes/admin/adminRoutes");
 const locationRoute = require('./routes/location');
 const subscriptionPlanRoutes = require('./routes/subscription/subscriptionPlanRoutes');
 
-const chatRoutes = require("./routes/chat/chatRoutes");
+// const chatRoutes = require("./routes/chat/chatRoutes")(io);
 
 app.use("/auth", [
   authSignup,
@@ -91,9 +99,11 @@ app.use("/location-search", locationRoute);
 
 app.use("/plan", subscriptionPlanRoutes);
 
-app.use("/chat", [chatRoutes])
+// app.use("/chat", chatRoutes);
+// redisSubscriber(io);
 
 // Start the Server
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Server running at: http://localhost:${PORT}/`);
 });
+
