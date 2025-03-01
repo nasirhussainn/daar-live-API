@@ -3,7 +3,7 @@ const connectDB = require("./config/db");
 const cors = require("cors");
 const { getAuth } = require("firebase-admin/auth");
 const { initializeSocket } = require("./config/socket"); 
-const redisSubscriber = require("./config/redisSubscriber");
+// const redisSubscriber = require("./config/redisSubscriber");
 const http = require("http");
 
 const app = express();
@@ -100,7 +100,7 @@ app.use("/location-search", locationRoute);
 app.use("/plan", subscriptionPlanRoutes);
 
 app.use("/chat", chatRoutes);
-redisSubscriber(io);
+// redisSubscriber(io);
 
 // Start the Server
 server.listen(PORT, () => {

@@ -15,6 +15,7 @@
       { "src": "/admin/(.*)", "dest": "server.js"},
       { "src": "/location-search/(.*)", "dest": "server.js" },
       { "src": "/plan/(.*)", "dest": "server.js" },
+      { "src": "/chat/(.*)", "dest": "server.js" },
       { "src": "/(.*)", "dest": "server.js" }
     ]
   }
