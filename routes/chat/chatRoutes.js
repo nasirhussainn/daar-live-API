@@ -10,7 +10,7 @@ module.exports = (io) => {
 
   router.get("/viaChat/:chatId", getChatById);
 
-  router.get("/:participantId", getChatsByParticipant);
+  router.get("/viaUser/:participantId", getChatsByParticipant);
 
   return router;
 };
