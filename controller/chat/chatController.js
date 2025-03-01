@@ -66,23 +66,6 @@ exports.sendMessage = async (req, res, next, io) => {
   }
 };
 
-
-// Get All Chats for a Property
-exports.getChatsByProperty = async (req, res) => {
-  try {
-    const { propertyId } = req.params;
-    const chats = await Chat.find({ propertyId }).populate(
-      "participants",
-      "name email"
-    );
-    res.status(200).json(chats);
-  } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error fetching chats", error: error.message });
-  }
-};
-
 // Get Chat by ID
 exports.getChatById = async (req, res) => {
   try {
@@ -96,5 +79,29 @@ exports.getChatById = async (req, res) => {
     res
       .status(500)
       .json({ message: "Error fetching chat", error: error.message });
+  }
+};
+
+// Get all chats for a participant (user or realtor)
+exports.getChatsByParticipant = async (req, res) => {
+  try {
+    const participantId = req.params.participantId;
+
+    // Find all chats where the participant is involved
+    const chats = await Chat.find({
+      participants: participantId,
+    })
+      .populate("participants", "full_name email") // Populate participant details
+      .populate("messages.senderId", "full_name email") // Populate sender details
+      .populate("propertyId", "title description"); // Populate property details
+
+    if (!chats || chats.length === 0) {
+      return res.status(404).json({ message: "No chats found for this participant" });
+    }
+
+    res.status(200).json(chats);
+  } catch (error) {
+    console.error("Error fetching chats:", error);
+    res.status(500).json({ message: "Error fetching chats", error: error.message });
   }
 };

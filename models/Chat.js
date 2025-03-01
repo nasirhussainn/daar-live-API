@@ -9,7 +9,7 @@ const MessageSchema = new mongoose.Schema({
 });
 
 const ChatSchema = new mongoose.Schema({
-  propertyId: { type: mongoose.Schema.Types.ObjectId, ref: "Properties", required: true },
+  propertyId: { type: mongoose.Schema.Types.ObjectId, ref: "Property", required: true },
   participants: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   messages: [MessageSchema],
 }, { timestamps: true });

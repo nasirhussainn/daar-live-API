@@ -1,5 +1,5 @@
 const express = require("express");
-const { sendMessage, getChatsByProperty, getChatById } = require("../../controller/chat/chatController");
+const { sendMessage, getChatById, getChatsByParticipant } = require("../../controller/chat/chatController");
 const { upload } = require("../../middlewares/multerConfig");
 
 module.exports = (io) => {
@@ -7,8 +7,10 @@ module.exports = (io) => {
 
   // Pass io to controller properly
   router.post("/send", upload.single("media"), (req, res, next) => sendMessage(req, res, next, io));
-  router.get("/property/:propertyId", getChatsByProperty);
-  router.get("/:chatId", getChatById);
+
+  router.get("/viaChat/:chatId", getChatById);
+
+  router.get("/:participantId", getChatsByParticipant);
 
   return router;
 };
