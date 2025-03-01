@@ -4,7 +4,19 @@ let io = null;
 
 function initializeSocket(server) {
   if (!io) {
-    io = new Server(server, { cors: { origin: "*" } });
+    const allowedOrigins = [
+      "https://whale-app-4nsg6.ondigitalocean.app/", // Your frontend domain
+      "https://daar-live-api.vercel.app/",
+      "http://localhost:8080",
+      "http://localhost:5000", // Local development
+    ];
+
+    io = new Server(server, {
+      cors: {
+        origin: allowedOrigins, // Allow only these domains
+        methods: ["GET", "POST"], // Allowed HTTP methods
+      },
+    });
 
     io.on("connection", (socket) => {
       console.log(`🔌 New client connected: ${socket.id}`);
@@ -12,17 +24,16 @@ function initializeSocket(server) {
       // Join a chat room
       socket.on("joinChat", (data) => {
         try {
-          console.log(`HI`)
           // Parse the JSON string if `data` is a string
           const payload = typeof data === "string" ? JSON.parse(data) : data;
           const { chatId } = payload;
-      
+
           // Validate input
           if (!chatId) {
             console.log("⚠️ Invalid data received for joining chat");
             return;
           }
-      
+
           // Create a unique room ID
           const roomId = `chat:${chatId}`;
           socket.join(roomId);
