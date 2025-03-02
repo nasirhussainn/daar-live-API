@@ -216,17 +216,23 @@ exports.addProperty = async (req, res) => {
 
 exports.getAllProperties = async (req, res) => {
   try {
-    let { page, limit } = req.query;
+    let { page, limit, featured } = req.query;
     page = parseInt(page) || 1; // Default page = 1
     limit = parseInt(limit) || 10; // Default limit = 10
 
     const skip = (page - 1) * limit;
 
-    // Fetch total count (for frontend pagination)
-    const totalProperties = await Property.countDocuments();
+    // Build query object
+    const query = {};
+    if (featured === "true") {
+      query.is_feature = true;
+    }
 
-    // Fetch properties with pagination
-    const properties = await Property.find()
+    // Fetch total count (for frontend pagination)
+    const totalProperties = await Property.countDocuments(query);
+
+    // Fetch properties with pagination & filter
+    const properties = await Property.find(query)
       .populate("owner_id")
       .populate("location") // Fetch location details
       .populate("media")
@@ -263,6 +269,7 @@ exports.getAllProperties = async (req, res) => {
       .json({ message: "Error fetching properties", error: error.message });
   }
 };
+
 
 exports.getPropertyById = async (req, res) => {
   try {
@@ -491,7 +498,9 @@ exports.updateProperty = async (req, res) => {
 
     // Validate property_subtype (if updating)
     if (updateFields.property_subtype) {
-      const subType = await PropertySubtype.findById(updateFields.property_subtype);
+      const subType = await PropertySubtype.findById(
+        updateFields.property_subtype
+      );
       if (!subType || subType.property_for !== updateFields.property_purpose) {
         return res.status(400).json({
           message: `Invalid property subtype for the selected property_purpose: ${updateFields.property_purpose}`,
@@ -506,11 +515,17 @@ exports.updateProperty = async (req, res) => {
         : JSON.parse(updateFields.amenities);
 
       const validAmenities = await Amenities.find({
-        _id: { $in: amenitiesArray.map((id) => mongoose.Types.ObjectId.createFromHexString(id)) },
+        _id: {
+          $in: amenitiesArray.map((id) =>
+            mongoose.Types.ObjectId.createFromHexString(id)
+          ),
+        },
       });
 
       if (validAmenities.length !== amenitiesArray.length) {
-        return res.status(400).json({ message: "One or more amenities are invalid" });
+        return res
+          .status(400)
+          .json({ message: "One or more amenities are invalid" });
       }
 
       updateFields.amenities = validAmenities.map((a) => a._id);
@@ -518,7 +533,9 @@ exports.updateProperty = async (req, res) => {
 
     // Handle location update (if provided)
     if (updateFields.location) {
-      const nearbyLocationsArray = Array.isArray(updateFields.location?.nearbyLocations)
+      const nearbyLocationsArray = Array.isArray(
+        updateFields.location?.nearbyLocations
+      )
         ? updateFields.location.nearbyLocations
         : JSON.parse(updateFields.location?.nearbyLocations || "[]");
 
@@ -548,7 +565,10 @@ exports.updateProperty = async (req, res) => {
       }
 
       const folderName = "uploaded_properties_daar_live";
-      const mediaUrls = await uploadMultipleToCloudinary(mediaFiles, folderName);
+      const mediaUrls = await uploadMultipleToCloudinary(
+        mediaFiles,
+        folderName
+      );
 
       // Update media record
       if (existingProperty.media) {
@@ -568,11 +588,14 @@ exports.updateProperty = async (req, res) => {
 
     // Handle is_feature update
     if (updateFields.is_feature !== undefined) {
-      updateFields.is_featured = updateFields.is_feature === "true" || updateFields.is_feature === true;
+      updateFields.is_featured =
+        updateFields.is_feature === "true" || updateFields.is_feature === true;
 
       if (updateFields.is_featured) {
         // Create or update FeaturedEntity
-        let featureEntity = await FeaturedEntity.findOne({ property_id: propertyId });
+        let featureEntity = await FeaturedEntity.findOne({
+          property_id: propertyId,
+        });
 
         if (!featureEntity) {
           featureEntity = new FeaturedEntity({
@@ -613,6 +636,8 @@ exports.updateProperty = async (req, res) => {
     await session.abortTransaction();
     session.endSession();
     console.error(error);
-    res.status(500).json({ message: "Error updating property", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error updating property", error: error.message });
   }
 };
