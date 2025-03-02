@@ -67,6 +67,8 @@ const subscriptionPlanRoutes = require('./routes/subscription/subscriptionPlanRo
 
 const chatRoutes = require("./routes/chat/chatRoutes")(io);
 
+const contactUsRoutes = require("./routes/admin/contactUsRoutes");
+
 app.use("/auth", [
   authSignup,
   authPassword,
@@ -100,6 +102,8 @@ app.use("/location-search", locationRoute);
 app.use("/plan", subscriptionPlanRoutes);
 
 app.use("/chat", chatRoutes);
+
+app.use("/contact-admin", contactUsRoutes);
 // redisSubscriber(io);
 
 // Start the Server

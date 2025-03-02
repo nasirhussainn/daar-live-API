@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
 const subscriptionSchema = new Schema({
+  price_id: { type: String },
   realtor_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Realtor', required: true }, // Link to the Realtor model
   subscription_id: { type: String, required: true }, // Unique subscription ID
   customer_id: { type: String, required: true }, // Unique customer ID for the subscription
