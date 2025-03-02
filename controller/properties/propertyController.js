@@ -468,3 +468,151 @@ exports.featureProperty = async (req, res) => {
       .json({ message: "Error featuring property", error: error.message });
   }
 };
+
+exports.updateProperty = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { propertyId } = req.params;
+    if (!propertyId) {
+      return res.status(400).json({ message: "Property ID is required" });
+    }
+
+    let updateFields = { ...req.body }; // Only update provided fields
+
+    // Check if property exists
+    const existingProperty = await Property.findById(propertyId).populate(
+      "media location"
+    );
+    if (!existingProperty) {
+      return res.status(404).json({ message: "Property not found" });
+    }
+
+    // Validate property_subtype (if updating)
+    if (updateFields.property_subtype) {
+      const subType = await PropertySubtype.findById(updateFields.property_subtype);
+      if (!subType || subType.property_for !== updateFields.property_purpose) {
+        return res.status(400).json({
+          message: `Invalid property subtype for the selected property_purpose: ${updateFields.property_purpose}`,
+        });
+      }
+    }
+
+    // Validate amenities (if updating)
+    if (updateFields.amenities) {
+      const amenitiesArray = Array.isArray(updateFields.amenities)
+        ? updateFields.amenities
+        : JSON.parse(updateFields.amenities);
+
+      const validAmenities = await Amenities.find({
+        _id: { $in: amenitiesArray.map((id) => mongoose.Types.ObjectId.createFromHexString(id)) },
+      });
+
+      if (validAmenities.length !== amenitiesArray.length) {
+        return res.status(400).json({ message: "One or more amenities are invalid" });
+      }
+
+      updateFields.amenities = validAmenities.map((a) => a._id);
+    }
+
+    // Handle location update (if provided)
+    if (updateFields.location) {
+      const nearbyLocationsArray = Array.isArray(updateFields.location?.nearbyLocations)
+        ? updateFields.location.nearbyLocations
+        : JSON.parse(updateFields.location?.nearbyLocations || "[]");
+
+      const locationData = new Location({
+        ...updateFields.location,
+        nearbyLocations: nearbyLocationsArray,
+      });
+
+      const savedLocation = await locationData.save({ session });
+      updateFields.location = savedLocation._id;
+    }
+
+    // Handle media update (if provided)
+    if (req.files && (req.files.images || req.files.videos)) {
+      let mediaFiles = [];
+
+      if (req.files.images) {
+        req.files.images.forEach((img) => {
+          mediaFiles.push({ buffer: img.buffer, fieldname: "images" });
+        });
+      }
+
+      if (req.files.videos) {
+        req.files.videos.forEach((vid) => {
+          mediaFiles.push({ buffer: vid.buffer, fieldname: "videos" });
+        });
+      }
+
+      const folderName = "uploaded_properties_daar_live";
+      const mediaUrls = await uploadMultipleToCloudinary(mediaFiles, folderName);
+
+      // Update media record
+      if (existingProperty.media) {
+        await Media.findByIdAndUpdate(existingProperty.media._id, {
+          images: mediaUrls.images,
+          videos: mediaUrls.videos,
+        });
+      } else {
+        const newMedia = new Media({
+          images: mediaUrls.images,
+          videos: mediaUrls.videos,
+        });
+        const savedMedia = await newMedia.save({ session });
+        updateFields.media = savedMedia._id;
+      }
+    }
+
+    // Handle is_feature update
+    if (updateFields.is_feature !== undefined) {
+      updateFields.is_featured = updateFields.is_feature === "true" || updateFields.is_feature === true;
+
+      if (updateFields.is_featured) {
+        // Create or update FeaturedEntity
+        let featureEntity = await FeaturedEntity.findOne({ property_id: propertyId });
+
+        if (!featureEntity) {
+          featureEntity = new FeaturedEntity({
+            transaction_id: updateFields.transaction_id,
+            transaction_price: updateFields.transaction_price,
+            payment_date: updateFields.payment_date,
+            no_of_days: updateFields.no_of_days,
+            is_active: true,
+            property_id: propertyId,
+            entity_type: "property",
+          });
+
+          await featureEntity.save({ session });
+        }
+
+        updateFields.feature_details = featureEntity._id;
+      } else {
+        // If unfeatured, remove reference
+        updateFields.feature_details = null;
+      }
+    }
+
+    // Update the property with only provided fields
+    const updatedProperty = await Property.findByIdAndUpdate(
+      propertyId,
+      { $set: updateFields },
+      { new: true, session }
+    );
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({
+      message: "Property updated successfully",
+      property: updatedProperty,
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error(error);
+    res.status(500).json({ message: "Error updating property", error: error.message });
+  }
+};
