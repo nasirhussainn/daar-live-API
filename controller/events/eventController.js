@@ -193,17 +193,23 @@ exports.addEvent = async (req, res) => {
 
 exports.getAllEvents = async (req, res) => {
   try {
-    let { page, limit } = req.query;
+    let { page, limit, featured } = req.query;
 
     page = parseInt(page) || 1; // Default page = 1
     limit = parseInt(limit) || 10; // Default limit = 10
     const skip = (page - 1) * limit;
 
-    // Fetch total event count for pagination
-    const totalEvents = await Event.countDocuments();
+    // Build query object
+    const query = {};
+    if (featured === "true") {
+      query.is_feature = true;
+    }
 
-    // Fetch paginated events
-    const events = await Event.find()
+    // Fetch total event count for pagination
+    const totalEvents = await Event.countDocuments(query);
+
+    // Fetch paginated events with optional featured filter
+    const events = await Event.find(query)
       .populate("host_id")
       .populate("event_type")
       .populate("location")
@@ -229,6 +235,7 @@ exports.getAllEvents = async (req, res) => {
       .json({ message: "Error fetching events", error: error.message });
   }
 };
+
 
 exports.getEventById = async (req, res) => {
   try {
