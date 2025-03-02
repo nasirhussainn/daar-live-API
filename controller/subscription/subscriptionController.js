@@ -4,7 +4,7 @@ const Realtor = require('../../models/Realtor');
 // 📌 Controller to subscribe a realtor
 const subscribeRealtor = async (req, res) => {
   try {
-    const { realtor_id, customer_id, plan_name, start_date, end_date } = req.body;
+    const { realtor_id, subscription_id, customer_id, plan_name, start_date, end_date } = req.body;
 
     // Check if the realtor exists
     const realtor = await Realtor.findById(realtor_id);
@@ -26,6 +26,7 @@ const subscribeRealtor = async (req, res) => {
     // Create a new subscription
     const subscription = new Subscription({
       realtor_id,
+      subscription_id,
       customer_id,
       plan_name,
       start_date,
