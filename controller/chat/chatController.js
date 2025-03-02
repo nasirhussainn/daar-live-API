@@ -87,21 +87,59 @@ exports.getChatsByParticipant = async (req, res) => {
   try {
     const participantId = req.params.participantId;
 
-    // Find all chats where the participant is involved
+    // Fetch chats where the participant is involved
     const chats = await Chat.find({
       participants: participantId,
     })
-      .populate("participants", "full_name email") // Populate participant details
-      .populate("messages.senderId", "full_name email") // Populate sender details
-      .populate("propertyId", "title description"); // Populate property details
+      .populate("participants", "full_name profile_picture email") // Populate user details
+      .populate({
+        path: "messages.senderId",
+        select: "full_name email",
+      }) // Populate sender details
+      .select("participants propertyId messages createdAt updatedAt"); // Select only required fields
 
     if (!chats || chats.length === 0) {
       return res.status(404).json({ message: "No chats found for this participant" });
     }
 
-    res.status(200).json(chats);
+    // Format response
+    const formattedChats = chats.map((chat) => {
+      // Ensure we have exactly 2 participants
+      if (!chat.participants || chat.participants.length !== 2) {
+        console.warn(`Chat ${chat._id} has invalid participants:`, chat.participants);
+        return null; // Skip invalid chats
+      }
+
+      // Determine sender & receiver
+      const isUserFirst = chat.participants[0]._id.toString() === participantId;
+      const sender = chat.participants[isUserFirst ? 0 : 1];
+      const receiver = chat.participants[isUserFirst ? 1 : 0];
+
+      if (!receiver) {
+        console.warn(`Chat ${chat._id} is missing a receiver`);
+        return null;
+      }
+
+      // Get last message (if available)
+      const lastMessage = chat.messages.length > 0 ? chat.messages[chat.messages.length - 1] : null;
+
+      return {
+        chat_id: chat._id,
+        sender_id: sender._id,
+        receiver_id: receiver._id,
+        property_id: chat.propertyId._id, // We assume propertyId always exists
+        last_message: lastMessage ? (lastMessage.text || lastMessage.mediaUrl) : null,
+        receiver_name: receiver.full_name,
+        receiver_profilePic: receiver.profile_picture,
+        last_message_time: lastMessage ? lastMessage.timestamp : chat.updatedAt,
+      };
+    }).filter(chat => chat !== null); // Remove invalid entries
+
+    res.status(200).json(formattedChats);
   } catch (error) {
     console.error("Error fetching chats:", error);
     res.status(500).json({ message: "Error fetching chats", error: error.message });
   }
 };
+
+
