@@ -73,6 +73,19 @@ const getAllSubscriptions = async (req, res) => {
   }
 };
 
+const getAllSubscriptionsFull = async (req, res) => {
+  try {
+    const subscriptions = await Subscription.find()
+      .populate('realtor_id', 'business_name')
+      .populate('plan_id'); // Include subscription plan details
+
+    res.status(200).json(subscriptions);
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
+
 // 📌 Controller to get active subscriptions for a specific realtor (with plan details)
 const getRealtorSubscriptions = async (req, res) => {
   try {
@@ -113,7 +126,7 @@ const cancelSubscription = async (req, res) => {
     }
 
     // Update the status to 'inactive'
-    subscription.status = 'inactive';
+    subscription.status = 'canceled';
     await subscription.save();
 
     // Check if the realtor has any other active subscriptions
@@ -139,4 +152,5 @@ module.exports = {
   getAllSubscriptions,
   getRealtorSubscriptions,
   cancelSubscription,
+  getAllSubscriptionsFull
 };
