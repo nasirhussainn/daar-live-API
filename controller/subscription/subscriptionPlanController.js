@@ -3,9 +3,9 @@ const SubscriptionPlan = require('../../models/admin/SubscriptionPlan');
 // Create a new subscription plan (SuperAdmin Only)
 exports.createPlan = async (req, res) => {
     try {
-        const { name, duration, price, details } = req.body;
+        const { name, duration, price, details, price_id } = req.body;
 
-        const plan = new SubscriptionPlan({ name, duration, price, details });
+        const plan = new SubscriptionPlan({ name, duration, price, details, price_id });
         await plan.save();
 
         res.status(201).json({ message: "Subscription Plan Created", plan });

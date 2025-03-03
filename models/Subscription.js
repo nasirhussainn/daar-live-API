@@ -2,16 +2,16 @@ const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
 const subscriptionSchema = new Schema({
-  price_id: { type: String },
-  realtor_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Realtor', required: true }, // Link to the Realtor model
-  subscription_id: { type: String, required: true }, // Unique subscription ID
-  customer_id: { type: String, required: true }, // Unique customer ID for the subscription
-  plan_name: { type: String, required: true }, // Name of the subscription plan
-  start_date: { type: Date, required: true }, // Subscription start date
-  end_date: { type: Date, required: true }, // Subscription end date
-  status: { type: String, enum: ['active', 'inactive', 'pending', 'changed'], default: 'active' }, // Subscription status
-  created_at: { type: Date, default: Date.now }, // Timestamp of subscription creation
-  updated_at: { type: Date, default: Date.now }, // Timestamp of last update
+  price_id: { type: String, required: true },
+  realtor_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Realtor', required: true }, 
+  subscription_id: { type: String, required: true }, 
+  customer_id: { type: String, required: true }, 
+  plan_id: { type: mongoose.Schema.Types.ObjectId, ref: 'SubscriptionPlan', required: true }, 
+  start_date: { type: Date, required: true }, 
+  end_date: { type: Date, required: true },
+  status: { type: String, enum: ['active', 'inactive', 'pending', 'canceled'], default: 'active' }, 
+  created_at: { type: Date, default: Date.now }, 
+  updated_at: { type: Date, default: Date.now }, 
 });
 
 const Subscription = mongoose.model('Subscription', subscriptionSchema);
