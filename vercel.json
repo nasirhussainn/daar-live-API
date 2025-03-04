@@ -17,6 +17,7 @@
       { "src": "/plan/(.*)", "dest": "server.js" },
       { "src": "/chat/(.*)", "dest": "server.js" },
       { "src": "/contact-admin/(.*)", "dest": "server.js" },
+      { "src": "/approval/(.*)", "dest": "server.js" },
       { "src": "/(.*)", "dest": "server.js" }
     ]
   }

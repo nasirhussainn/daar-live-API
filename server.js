@@ -69,6 +69,8 @@ const chatRoutes = require("./routes/chat/chatRoutes")(io);
 
 const contactUsRoutes = require("./routes/admin/contactUsRoutes");
 
+const approvalRoutes = require("./routes/admin/approvalRoutes")
+
 app.use("/auth", [
   authSignup,
   authPassword,
@@ -105,6 +107,8 @@ app.use("/chat", chatRoutes);
 
 app.use("/contact-admin", contactUsRoutes);
 // redisSubscriber(io);
+
+app.use("/approval", approvalRoutes);
 
 // Start the Server
 server.listen(PORT, () => {
