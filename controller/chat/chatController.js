@@ -7,7 +7,6 @@ exports.sendMessage = async (req, res, next, io) => {
     const { chatId, propertyId, senderId, text } = req.body;
     let mediaUrl = null;
 
-    // Upload media if file is present
     if (req.file) {
       const messageType = "image";
       mediaUrl = await uploadChatMedia(req.file.buffer, messageType);
@@ -15,30 +14,30 @@ exports.sendMessage = async (req, res, next, io) => {
 
     let chat;
 
-    // If chatId is provided, fetch the existing chat
     if (chatId) {
       chat = await Chat.findById(chatId);
     } else {
-      // Find the property and its realtor (owner)
       const property = await Property.findById(propertyId);
       if (!property) {
         return res.status(404).json({ message: "Property not found" });
       }
 
-      const realtorId = property.owner_id; // Realtor ID (owner of the property)
+      const realtorId = property.owner_id;
 
-      // Check if a chat already exists between the user and realtor for this property
       chat = await Chat.findOne({
         propertyId,
         participants: { $all: [senderId, realtorId] },
       });
 
-      // If no chat exists, create a new one
       if (!chat) {
         chat = new Chat({
           propertyId,
           participants: [senderId, realtorId],
           messages: [],
+          unreadCount: new Map([
+            [senderId, 0],
+            [realtorId, 0],
+          ]),
         });
       }
     }
@@ -47,7 +46,6 @@ exports.sendMessage = async (req, res, next, io) => {
       return res.status(404).json({ message: "Chat not found" });
     }
 
-    // Create the new message
     const message = {
       senderId,
       text,
@@ -55,113 +53,116 @@ exports.sendMessage = async (req, res, next, io) => {
       timestamp: new Date(),
     };
 
-    // Add the message to the chat and save it
     chat.messages.push(message);
+
+    // ✅ Correctly update unread count for the receiver
+    chat.participants.forEach((participant) => {
+      console.log(`${participant}`)
+      if (participant.toString() !== senderId) {
+        console.log(`The sender: ${participant}`)
+        const currentUnreadCount = chat.unreadCount.get(participant.toString()) || 0;
+        chat.unreadCount.set(participant.toString(), currentUnreadCount + 1);
+      }
+    });
+
     await chat.save();
 
-    // Emit the message to the correct Socket.IO room
-    const roomId = `chat:${chat._id}`; // Unique room ID for this chat
-    io.to(roomId).emit("newMessage", { chatId: chat._id, message });
+    io.to(`chat:${chat._id}`).emit("newMessage", { chatId: chat._id, message });
 
-    // Respond to the client
     res.status(200).json({ message: "Message sent", chat });
   } catch (error) {
     console.error("Error sending message:", error);
-    res
-      .status(500)
-      .json({ message: "Error sending message", error: error.message });
+    res.status(500).json({ message: "Error sending message", error: error.message });
   }
 };
 
+
+
 // Get Chat by ID
 exports.getChatById = async (req, res) => {
+  const { chatId, userId } = req.params;
   try {
-    const chat = await Chat.findById(req.params.chatId).populate(
+    const chat = await Chat.findById(chatId).populate(
       "messages.senderId",
       "name email"
     );
+
     if (!chat) return res.status(404).json({ message: "Chat not found" });
+
+    let updated = false;
+
+    // Reset unread count for the user
+    if (chat.unreadCount.has(userId)) {
+      chat.unreadCount.set(userId, 0);
+      updated = true;
+    }
+
+    if (updated) await chat.save(); // Save only if changes were made
+
     res.status(200).json(chat);
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error fetching chat", error: error.message });
+    res.status(500).json({ message: "Error fetching chat", error: error.message });
   }
 };
+
+
 
 // Get all chats for a participant (user or realtor)
 exports.getChatsByParticipant = async (req, res) => {
   try {
     const participantId = req.params.participantId;
 
-    // Fetch chats where the participant is involved
     const chats = await Chat.find({
       participants: participantId,
     })
-      .populate("participants", "full_name profile_picture email") // Populate user details
+      .populate("participants", "full_name profile_picture email")
       .populate({
         path: "messages.senderId",
         select: "full_name email",
-      }) // Populate sender details
-      .select("participants propertyId messages createdAt updatedAt"); // Select only required fields
+      })
+      .select("participants propertyId messages createdAt updatedAt unreadCount");
 
     if (!chats || chats.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No chats found for this participant" });
+      return res.status(404).json({ message: "No chats found for this participant" });
     }
 
-    // Format response
     const formattedChats = chats
       .map((chat) => {
-        // Ensure we have exactly 2 participants
         if (!chat.participants || chat.participants.length !== 2) {
-          console.warn(
-            `Chat ${chat._id} has invalid participants:`,
-            chat.participants
-          );
-          return null; // Skip invalid chats
+          console.warn(`Chat ${chat._id} has invalid participants:`, chat.participants);
+          return null;
         }
 
-        // Determine sender & receiver
-        const isUserFirst =
-          chat.participants[0]._id.toString() === participantId;
-        const sender = chat.participants[isUserFirst ? 0 : 1];
-        const receiver = chat.participants[isUserFirst ? 1 : 0];
-
+        // Determine the other participant (receiver)
+        const receiver = chat.participants.find((p) => p._id.toString() !== participantId);
         if (!receiver) {
           console.warn(`Chat ${chat._id} is missing a receiver`);
           return null;
         }
 
-        // Get last message (if available)
-        const lastMessage =
-          chat.messages.length > 0
-            ? chat.messages[chat.messages.length - 1]
-            : null;
+        const lastMessage = chat.messages.length > 0 ? chat.messages[chat.messages.length - 1] : null;
+
+        // ✅ Correct unread count fetching
+        const unreadCount = chat.unreadCount?.get(participantId) || 0;
 
         return {
           chat_id: chat._id,
-          sender_id: sender._id,
+          sender_id: participantId,
           receiver_id: receiver._id,
-          property_id: chat.propertyId._id, // We assume propertyId always exists
-          last_message: lastMessage
-            ? lastMessage.text || lastMessage.mediaUrl
-            : null,
+          property_id: chat.propertyId?._id || null,
+          last_message: lastMessage ? lastMessage.text || lastMessage.mediaUrl : null,
           receiver_name: receiver.full_name,
           receiver_profilePic: receiver.profile_picture,
-          last_message_time: lastMessage
-            ? lastMessage.timestamp
-            : chat.updatedAt,
+          last_message_time: lastMessage ? lastMessage.timestamp : chat.updatedAt,
+          unread_count: unreadCount, // ✅ Now correctly fetched
         };
       })
-      .filter((chat) => chat !== null); // Remove invalid entries
+      .filter((chat) => chat !== null);
 
     res.status(200).json(formattedChats);
   } catch (error) {
     console.error("Error fetching chats:", error);
-    res
-      .status(500)
-      .json({ message: "Error fetching chats", error: error.message });
+    res.status(500).json({ message: "Error fetching chats", error: error.message });
   }
 };
+;
