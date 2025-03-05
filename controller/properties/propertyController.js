@@ -5,6 +5,7 @@ const Media = require("../../models/Media");
 const Amenities = require("../../models/admin/Amenities");
 const PropertySubtype = require("../../models/admin/PropertySubtype");
 const FeaturedEntity = require("../../models/FeaturedEntity");
+const SavedProperty = require("../../models/SavedProperty")
 const { uploadMultipleToCloudinary } = require("../../config/cloudinary"); // Import cloudinary helper
 
 exports.addProperty = async (req, res) => {
@@ -216,7 +217,7 @@ exports.addProperty = async (req, res) => {
 
 exports.getAllProperties = async (req, res) => {
   try {
-    let { page, limit, featured } = req.query;
+    let { page, limit, featured, user_id } = req.query;
     page = parseInt(page) || 1; // Default page = 1
     limit = parseInt(limit) || 10; // Default limit = 10
 
@@ -234,24 +235,39 @@ exports.getAllProperties = async (req, res) => {
     // Fetch properties with pagination & filter
     const properties = await Property.find(query)
       .populate("owner_id")
-      .populate("location") // Fetch location details
+      .populate("location")
       .populate("media")
       .populate("feature_details")
-      .populate("property_type") // Fetch property type details
-      .populate("property_subtype") // Fetch property subtype details
+      .populate("property_type")
+      .populate("property_subtype")
       .skip(skip)
       .limit(limit);
 
-    // Fetch amenities details for each property
-    const propertiesWithAmenities = await Promise.all(
+    // Fetch amenities details and saved status
+    const propertiesWithDetails = await Promise.all(
       properties.map(async (property) => {
         const amenitiesDetails = await Amenities.find({
           _id: { $in: property.amenities },
         });
 
+        let savedStatus = "unlike"; // Default status
+
+        // If user_id is provided, check saved status
+        if (user_id) {
+          const savedProperty = await SavedProperty.findOne({
+            user_id,
+            property_id: property._id,
+          });
+
+          if (savedProperty) {
+            savedStatus = savedProperty.status; // 'like' or 'unlike'
+          }
+        }
+
         return {
           ...property.toObject(),
           amenities: amenitiesDetails, // Replace IDs with actual amenities details
+          saved_status: savedStatus, // Include saved property status
         };
       })
     );
@@ -260,7 +276,7 @@ exports.getAllProperties = async (req, res) => {
       totalProperties,
       currentPage: page,
       totalPages: Math.ceil(totalProperties / limit),
-      properties: propertiesWithAmenities,
+      properties: propertiesWithDetails,
     });
   } catch (error) {
     console.error(error);
@@ -270,10 +286,10 @@ exports.getAllProperties = async (req, res) => {
   }
 };
 
-
 exports.getPropertyById = async (req, res) => {
   try {
     const { id } = req.params;
+    const { user_id } = req.query; // Extract user_id from query params
 
     const property = await Property.findById(id)
       .populate("owner_id")
@@ -292,9 +308,22 @@ exports.getPropertyById = async (req, res) => {
       _id: { $in: property.amenities },
     });
 
+    // Default status as 'unlike'
+    let saved_status = "unlike";
+
+    // If user_id is provided, check if the user has liked the property
+    if (user_id) {
+      const savedProperty = await SavedProperty.findOne({ user_id, property_id: id });
+
+      if (savedProperty && savedProperty.status === "like") {
+        saved_status = "like";
+      }
+    }
+
     res.status(200).json({
       ...property.toObject(),
       amenities: amenitiesDetails,
+      saved_status, // Include saved status
     });
   } catch (error) {
     console.error(error);
@@ -303,6 +332,7 @@ exports.getPropertyById = async (req, res) => {
       .json({ message: "Error fetching property", error: error.message });
   }
 };
+
 
 exports.getAllPropertiesByOwnerId = async (req, res) => {
   try {

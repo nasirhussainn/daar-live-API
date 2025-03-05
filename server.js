@@ -55,6 +55,7 @@ const eventTypeRoutes = require("./routes/propertyFacilities/eventTypeRoutes");
 const amenitiesRoutes = require("./routes/propertyFacilities/amenitiesRoutes");
 
 const propertyRoutes = require("./routes/property/propertyRoutes");
+const savedPropertyRoutes = require("./routes/property/savedPropertyRoutes");
 const eventRoutes = require("./routes/event/eventRoutes");
 const reviewRoutes = require("./routes/review/reviewRoutes");
 const subscriptionRoute = require("./routes/subscription/subscriptionRoute");
@@ -88,7 +89,7 @@ app.use("/property-facilities", [
   amenitiesRoutes,
 ]);
 
-app.use("/property", [propertyRoutes]);
+app.use("/property", [propertyRoutes, savedPropertyRoutes]);
 
 app.use("/event", [eventRoutes]);
 
