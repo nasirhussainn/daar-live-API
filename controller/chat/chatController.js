@@ -57,9 +57,7 @@ exports.sendMessage = async (req, res, next, io) => {
 
     // ✅ Correctly update unread count for the receiver
     chat.participants.forEach((participant) => {
-      console.log(`${participant}`)
       if (participant.toString() !== senderId) {
-        console.log(`The sender: ${participant}`)
         const currentUnreadCount = chat.unreadCount.get(participant.toString()) || 0;
         chat.unreadCount.set(participant.toString(), currentUnreadCount + 1);
       }
