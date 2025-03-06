@@ -78,18 +78,36 @@ exports.sendMessage = async (req, res, next, io) => {
 
 // Get Chat by ID
 exports.getChatById = async (req, res) => {
-  const { chatId, userId } = req.params;
+  const { userId, chatId } = req.params; // userId is required
+  const { propertyId } = req.query; // propertyId is optional (for case 2)
+
   try {
-    const chat = await Chat.findById(chatId).populate(
-      "messages.senderId",
-      "name email"
-    );
+    let chat;
 
-    if (!chat) return res.status(404).json({ message: "Chat not found" });
+    if (chatId) {
+      // Case 1: Fetch chat by chatId
+      chat = await Chat.findById(chatId).populate("messages.senderId", "name email");
 
+      if (!chat) {
+        return res.status(404).json({ message: "Chat not found" });
+      }
+
+    } else if (propertyId) {
+      // Case 2: Fetch chat by propertyId & userId
+      chat = await Chat.findOne({
+        propertyId,
+        participants: { $in: [userId] },
+      }).populate("messages.senderId", "name email");
+
+      if (!chat) {
+        return res.status(200).json({}); // Return empty response for "Send Message" flow
+      }
+    } else {
+      return res.status(400).json({ message: "Invalid request. Provide chatId or propertyId." });
+    }
+
+    // Reset unread count for the user if needed
     let updated = false;
-
-    // Reset unread count for the user
     if (chat.unreadCount.has(userId)) {
       chat.unreadCount.set(userId, 0);
       updated = true;
@@ -97,13 +115,12 @@ exports.getChatById = async (req, res) => {
 
     if (updated) await chat.save(); // Save only if changes were made
 
-    res.status(200).json(chat);
+    return res.status(200).json(chat);
+
   } catch (error) {
     res.status(500).json({ message: "Error fetching chat", error: error.message });
   }
 };
-
-
 
 // Get all chats for a participant (user or realtor)
 exports.getChatsByParticipant = async (req, res) => {

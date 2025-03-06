@@ -8,7 +8,7 @@ module.exports = (io) => {
   // Pass io to controller properly
   router.post("/send", upload.single("media"), (req, res, next) => sendMessage(req, res, next, io));
 
-  router.get('/viaChat/:chatId/user/:userId', getChatById);
+  router.get('/viaChat/:userId/:chatId?', getChatById);
 
   router.get("/viaUser/:participantId", getChatsByParticipant);
 
