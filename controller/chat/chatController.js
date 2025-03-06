@@ -160,12 +160,40 @@ exports.getChatsByParticipant = async (req, res) => {
         // ✅ Correct unread count fetching
         const unreadCount = chat.unreadCount?.get(participantId) || 0;
 
+        let lastMessageText = null;
+        if (lastMessage) {
+          if (lastMessage.text) {
+            lastMessageText = lastMessage.text;
+          } else if (lastMessage.mediaUrl) {
+            const mediaExtensions = {
+              image: [".png", ".jpg", ".jpeg", ".gif", ".webp"],
+              video: [".mp4", ".mov", ".avi", ".mkv"],
+              audio: [".mp3", ".wav", ".ogg", ".m4a"],
+              document: [".pdf", ".docx", ".xlsx", ".pptx"],
+            };
+
+            const extension = lastMessage.mediaUrl.split(".").pop().toLowerCase();
+
+            if (mediaExtensions.image.includes(`.${extension}`)) {
+              lastMessageText = "📷 Photo";
+            } else if (mediaExtensions.video.includes(`.${extension}`)) {
+              lastMessageText = "🎥 Video";
+            } else if (mediaExtensions.audio.includes(`.${extension}`)) {
+              lastMessageText = "🎵 Audio";
+            } else if (mediaExtensions.document.includes(`.${extension}`)) {
+              lastMessageText = "📄 Document";
+            } else {
+              lastMessageText = "📎 Attachment";
+            }
+          }
+        }
+
         return {
           chat_id: chat._id,
           sender_id: participantId,
           receiver_id: receiver._id,
           property_id: chat.propertyId?._id || null,
-          last_message: lastMessage ? lastMessage.text || lastMessage.mediaUrl : null,
+          last_message: lastMessageText,
           receiver_name: receiver.full_name,
           receiver_profilePic: receiver.profile_picture,
           last_message_time: lastMessage ? lastMessage.timestamp : chat.updatedAt,
@@ -180,4 +208,5 @@ exports.getChatsByParticipant = async (req, res) => {
     res.status(500).json({ message: "Error fetching chats", error: error.message });
   }
 };
-;
+
+
