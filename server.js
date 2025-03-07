@@ -5,9 +5,12 @@ const { getAuth } = require("firebase-admin/auth");
 const { initializeSocket } = require("./config/socket"); 
 // const redisSubscriber = require("./config/redisSubscriber");
 const http = require("http");
+require("./jobs/subscriptionRelatedJobs"); // This will execute the cron job from the imported file
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+
 
 // Enable CORS for specific origin
 app.use(cors({ origin: "*" }));
