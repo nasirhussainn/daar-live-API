@@ -62,16 +62,11 @@ exports.addReview = async (req, res) => {
     }
 
     // Check if the user has already reviewed this entity
-    const existingReview = await Review.findOne({
+    let existingReview = await Review.findOne({
       review_for,
       review_for_type,
       review_by,
     }).session(session);
-    if (existingReview) {
-      return res
-        .status(400)
-        .json({ message: "You have already reviewed this entity" });
-    }
 
     let target;
     let model;
@@ -82,7 +77,7 @@ exports.addReview = async (req, res) => {
         return res
           .status(404)
           .json({ message: "Realtor not found for the given User" });
-      model = Realtor; // Correct model reference
+      model = Realtor;
     } else if (review_for_type === "Event") {
       target = await Event.findById(review_for).session(session);
       if (!target) return res.status(404).json({ message: "Event not found" });
@@ -94,15 +89,25 @@ exports.addReview = async (req, res) => {
       model = Property;
     }
 
-    // Create the new review
-    const newReview = new Review({
-      review_for,
-      review_for_type,
-      review_by,
-      review_description,
-      review_rating,
-    });
-    await newReview.save({ session }); // Save with session
+    let review;
+    if (existingReview) {
+      // Overwrite the existing review (for all types)
+      existingReview.review_description = review_description;
+      existingReview.review_rating = review_rating;
+      existingReview.updated_at = new Date();
+      await existingReview.save({ session });
+      review = existingReview;
+    } else {
+      // Create a new review if it does not exist
+      review = new Review({
+        review_for,
+        review_for_type,
+        review_by,
+        review_description,
+        review_rating,
+      });
+      await review.save({ session }); // Save with session
+    }
 
     // Recalculate and update avg_rating
     await recalculateAvgRating(model, review_for, session, review_for_type);
@@ -111,7 +116,7 @@ exports.addReview = async (req, res) => {
 
     res
       .status(200)
-      .json({ message: "Review added successfully!", review: newReview });
+      .json({ message: "Review added successfully!", review });
   } catch (error) {
     await session.abortTransaction(); // Abort transaction on error
     console.error(error);
@@ -122,6 +127,7 @@ exports.addReview = async (req, res) => {
     session.endSession(); // End the session
   }
 };
+
 
 exports.updateReview = async (req, res) => {
     const session = await mongoose.startSession(); // Start session
