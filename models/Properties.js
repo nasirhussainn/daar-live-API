@@ -20,16 +20,8 @@ const PropertySchema = new Schema({
 
   charge_per: { type: String },
 
-  property_type: {
-    type: Schema.Types.ObjectId,
-    ref: "PropertyType",
-    required: true,
-  },
-  property_subtype: {
-    type: Schema.Types.ObjectId,
-    ref: "PropertySubtype",
-    required: true,
-  },
+  property_type: { type: Schema.Types.ObjectId, ref: "PropertyType", required: true },
+  property_subtype: { type: Schema.Types.ObjectId, ref: "PropertySubtype", required: true },
 
   // Location fields
   country: { type: String },
@@ -51,13 +43,16 @@ const PropertySchema = new Schema({
   security_deposit: { type: String }, // Changed to match request field name
 
   is_available: { type: Boolean, default: true },
-  is_feature: { type: Boolean, default: false }, 
+  is_feature: { type: Boolean, default: false },
 
   allow_booking: { type: Boolean, default: true },
 
   created_by: { type: String, enum: ["admin", "realtor"], required: true }, // Track who created it
 
   avg_rating: { type: Number, default: 0 },
+
+  is_booked: { type: Boolean, default: false }, // Tracks if the property is booked
+  booking_id: { type: Schema.Types.ObjectId, ref: "Booking", default: null }, // Reference to the active booking
 
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now },

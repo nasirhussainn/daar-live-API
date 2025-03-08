@@ -5,7 +5,9 @@ const Media = require("../../models/Media");
 const Amenities = require("../../models/admin/Amenities");
 const PropertySubtype = require("../../models/admin/PropertySubtype");
 const FeaturedEntity = require("../../models/FeaturedEntity");
-const SavedProperty = require("../../models/SavedProperty")
+const SavedProperty = require("../../models/SavedProperty");
+const Review = require("../../models/Review");
+const Booking = require("../../models/Booking");
 const { uploadMultipleToCloudinary } = require("../../config/cloudinary"); // Import cloudinary helper
 
 exports.addProperty = async (req, res) => {
@@ -240,6 +242,7 @@ exports.getAllProperties = async (req, res) => {
       .populate("feature_details")
       .populate("property_type")
       .populate("property_subtype")
+      .populate("booking_id")
       .skip(skip)
       .limit(limit);
 
@@ -248,6 +251,11 @@ exports.getAllProperties = async (req, res) => {
       properties.map(async (property) => {
         const amenitiesDetails = await Amenities.find({
           _id: { $in: property.amenities },
+        });
+
+        const reviewDetails = await Review.find({
+          review_for: property._id,
+          review_for_type: "Property",
         });
 
         let savedStatus = "unlike"; // Default status
@@ -267,6 +275,7 @@ exports.getAllProperties = async (req, res) => {
         return {
           ...property.toObject(),
           amenities: amenitiesDetails, // Replace IDs with actual amenities details
+          review: reviewDetails,
           saved_status: savedStatus, // Include saved property status
         };
       })
@@ -297,7 +306,8 @@ exports.getPropertyById = async (req, res) => {
       .populate("media")
       .populate("feature_details")
       .populate("property_type") // Fetch property type details
-      .populate("property_subtype"); // Fetch property subtype details
+      .populate("property_subtype") // Fetch property subtype details
+      .populate("booking_id");
 
     if (!property) {
       return res.status(404).json({ message: "Property not found" });
@@ -306,6 +316,11 @@ exports.getPropertyById = async (req, res) => {
     // Fetch amenities details
     const amenitiesDetails = await Amenities.find({
       _id: { $in: property.amenities },
+    });
+
+    const reviewDetails = await Review.find({
+      review_for: property._id,
+      review_for_type: "Property",
     });
 
     // Default status as 'unlike'
@@ -323,6 +338,7 @@ exports.getPropertyById = async (req, res) => {
     res.status(200).json({
       ...property.toObject(),
       amenities: amenitiesDetails,
+      reviews: reviewDetails,
       saved_status, // Include saved status
     });
   } catch (error) {
@@ -354,6 +370,7 @@ exports.getAllPropertiesByOwnerId = async (req, res) => {
       .populate("feature_details")
       .populate("property_type") // Fetch property type details
       .populate("property_subtype") // Fetch property subtype details
+      .populate("booking_id")
       .skip(skip)
       .limit(limit);
 
@@ -370,9 +387,15 @@ exports.getAllPropertiesByOwnerId = async (req, res) => {
           _id: { $in: property.amenities },
         });
 
+        const reviewDetails = await Review.find({
+          review_for: property._id,
+          review_for_type: "Property",
+        });
+
         return {
           ...property.toObject(),
           amenities: amenitiesDetails, // Replace IDs with actual amenities details
+          reviews: reviewDetails, // Replace IDs with actual review details
         };
       })
     );

@@ -1,4 +1,7 @@
 const nodemailer = require("nodemailer");
+const Booking = require("../models/Booking");
+const User = require("../models/User");
+const Property = require("../models/Properties");
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -32,4 +35,67 @@ async function sendPasswordResetEmail(email, resetLink) {
   await transporter.sendMail(mailOptions);
 }
 
-module.exports = { sendVerificationEmail, sendPasswordResetEmail };
+
+async function sendBookingConfirmationEmail(booking) {
+  try {
+    // Fetch buyer (user) details
+    const buyer = await User.findById(booking.user_id);
+    if (!buyer) throw new Error("Buyer not found");
+
+    // Fetch realtor details
+    const realtor = await User.findById(booking.realtor_id);
+    if (!realtor) throw new Error("Realtor not found");
+
+    // Fetch property details
+    const property = await Property.findById(booking.property_id);
+    if (!property) throw new Error("Property not found");
+
+    // Construct email content
+    const emailSubject = "Booking Confirmation - Your Booking Details";
+    const emailBody = `
+      <p>Dear ${buyer.name},</p>
+      <p>Your booking has been successfully confirmed.</p>
+      <p><strong>Booking Details:</strong></p>
+      <ul>
+        <li><strong>Property:</strong> ${property.title}</li>
+        <li><strong>Location:</strong> ${property.city}, ${property.state}, ${property.country}</li>
+        <li><strong>Booking Start Date:</strong> ${new Date(booking.start_date).toLocaleDateString()}</li>
+        <li><strong>Booking End Date:</strong> ${new Date(booking.end_date).toLocaleDateString()}</li>
+        <li><strong>Security Deposit:</strong> $${booking.security_deposit || "N/A"}</li>
+        <li><strong>Confirmation Ticket:</strong> ${booking.confirmation_ticket}</li>
+      </ul>
+      <p>For any queries, please contact the property owner:</p>
+      <p><strong>Realtor:</strong> ${realtor.name} (${realtor.email})</p>
+      <p>Thank you for booking with us!</p>
+    `;
+
+    // Send email to buyer
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: buyer.email,
+      subject: emailSubject,
+      html: emailBody,
+    });
+
+    // Send email to realtor
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: realtor.email,
+      subject: "New Booking Confirmation",
+      html: `
+        <p>Dear ${realtor.name},</p>
+        <p>Your property <strong>${property.title}</strong> has been booked.</p>
+        <p>Booking details:</p>
+        ${emailBody} <!-- Reusing the same email content -->
+        <p>Best regards,</p>
+        <p>Your Platform Team</p>
+      `,
+    });
+
+    console.log("Booking confirmation emails sent successfully.");
+  } catch (error) {
+    console.error("Error sending booking confirmation emails:", error.message);
+  }
+}
+
+module.exports = { sendVerificationEmail, sendPasswordResetEmail, sendBookingConfirmationEmail };

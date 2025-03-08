@@ -22,6 +22,12 @@ const BookingSchema = new Schema({
 
   is_cancellable: { type: Boolean, default: true },
 
+  status: {
+    type: String,
+    enum: ["pending", "confirmed", "completed", "canceled"],
+    default: "pending", // Default to pending when booking is created
+  },
+
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now },
 });

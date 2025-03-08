@@ -4,6 +4,7 @@ const User = require("../../models/User");
 const Realtor = require("../../models/Realtor");
 const Subscription = require("../../models/Subscription");
 const Plan = require("../../models/admin/SubscriptionPlan"); // Import Plan model
+const Review = require("../../models/Review");
 
 router.get("/user-via-token/:login_token", async (req, res) => {
   try {
@@ -41,6 +42,10 @@ router.get("/user-via-token/:login_token", async (req, res) => {
             responseData.plan_details = plan;
           }
         }
+
+        // Fetch reviews for the realtor
+        const reviews = await Review.find({ review_for: user._id, review_for_type: "User" }).lean();
+        responseData.reviews = reviews;
       }
     }
 
@@ -83,6 +88,10 @@ router.get("/user-via-id/:_id", async (req, res) => {
             responseData.plan_details = plan;
           }
         }
+
+         // Fetch reviews for the realtor
+         const reviews = await Review.find({ review_for: user._id, review_for_type: "User" }).lean();
+         responseData.reviews = reviews;
       }
     }
 
@@ -125,6 +134,10 @@ router.get("/user", async (req, res) => {
             responseData.plan_details = plan;
           }
         }
+
+         // Fetch reviews for the realtor
+         const reviews = await Review.find({ review_for: user._id, review_for_type: "User" }).lean();
+         responseData.reviews = reviews;
       }
     }
 
@@ -171,17 +184,21 @@ router.get("/realtors", async (req, res) => {
     const realtors = await User.find({ role: "realtor" }).skip(skip).limit(limit).lean();
     const totalRealtors = await User.countDocuments({ role: "realtor" });
 
-    // Fetch realtor details and subscriptions in parallel
+    // Fetch realtor details, subscriptions, and reviews in parallel
     const realtorData = await Promise.all(
       realtors.map(async (user) => {
         const realtorDetails = await Realtor.findOne({ user_id: user._id }).lean();
         let subscription = null;
+        let reviews = [];
 
         if (realtorDetails) {
           subscription = await Subscription.findOne({
             realtor_id: realtorDetails._id,
             status: "active",
           }).lean();
+
+          // Fetch reviews for the realtor
+          reviews = await Review.find({ review_for: realtorDetails.user_id, review_for_type: "User" }).lean();
         }
 
         return {
@@ -189,6 +206,7 @@ router.get("/realtors", async (req, res) => {
           realtor_details: realtorDetails || null,
           subscription: subscription || null,
           is_subscribed: !!subscription, // Boolean flag for subscription status
+          reviews, // Include reviews
         };
       })
     );
@@ -208,6 +226,7 @@ router.get("/realtors", async (req, res) => {
     return res.status(500).json({ message: "Server error. Please try again." });
   }
 });
+
 
 
 

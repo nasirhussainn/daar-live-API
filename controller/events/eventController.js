@@ -5,6 +5,7 @@ const Media = require("../../models/Media");
 const EventType = require("../../models/admin/EventType");
 const { uploadMultipleToCloudinary } = require("../../config/cloudinary");
 const FeaturedEntity = require("../../models/FeaturedEntity");
+const Review = require("../../models/Review");
 
 exports.addEvent = async (req, res) => {
   const session = await mongoose.startSession();
@@ -218,7 +219,18 @@ exports.getAllEvents = async (req, res) => {
       .skip(skip)
       .limit(limit);
 
-    if (!events.length) {
+    // Fetch reviews for each event
+    const eventsWithReviews = await Promise.all(
+      events.map(async (event) => {
+        const reviews = await Review.find({ review_for: event._id, review_for_type: "Event" });
+        return {
+          ...event.toObject(),
+          reviews,
+        };
+      })
+    );
+
+    if (!eventsWithReviews.length) {
       return res.status(404).json({ message: "No events found" });
     }
 
@@ -226,16 +238,13 @@ exports.getAllEvents = async (req, res) => {
       totalEvents,
       currentPage: page,
       totalPages: Math.ceil(totalEvents / limit),
-      events,
+      events: eventsWithReviews,
     });
   } catch (error) {
     console.error(error);
-    res
-      .status(500)
-      .json({ message: "Error fetching events", error: error.message });
+    res.status(500).json({ message: "Error fetching events", error: error.message });
   }
 };
-
 
 exports.getEventById = async (req, res) => {
   try {
@@ -252,12 +261,16 @@ exports.getEventById = async (req, res) => {
       return res.status(404).json({ message: "Event not found" });
     }
 
-    res.status(200).json(event);
+    // Fetch reviews for the event
+    const reviews = await Review.find({ review_for: id, review_for_type: "Event" });
+
+    res.status(200).json({
+      ...event.toObject(),
+      reviews,
+    });
   } catch (error) {
     console.error(error);
-    res
-      .status(500)
-      .json({ message: "Error fetching event", error: error.message });
+    res.status(500).json({ message: "Error fetching event", error: error.message });
   }
 };
 
@@ -283,7 +296,18 @@ exports.getAllEventsByHostId = async (req, res) => {
       .skip(skip)
       .limit(limit);
 
-    if (!events.length) {
+    // Fetch reviews for each event
+    const eventsWithReviews = await Promise.all(
+      events.map(async (event) => {
+        const reviews = await Review.find({ review_for: event._id, review_for_type: "Event" });
+        return {
+          ...event.toObject(),
+          reviews,
+        };
+      })
+    );
+
+    if (!eventsWithReviews.length) {
       return res.status(404).json({ message: "No events found for this host" });
     }
 
@@ -291,15 +315,14 @@ exports.getAllEventsByHostId = async (req, res) => {
       totalEvents,
       currentPage: page,
       totalPages: Math.ceil(totalEvents / limit),
-      events,
+      events: eventsWithReviews,
     });
   } catch (error) {
     console.error(error);
-    res
-      .status(500)
-      .json({ message: "Error fetching events", error: error.message });
+    res.status(500).json({ message: "Error fetching events", error: error.message });
   }
 };
+
 
 exports.deleteEvent = async (req, res) => {
   const session = await mongoose.startSession();
