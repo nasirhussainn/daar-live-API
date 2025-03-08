@@ -43,9 +43,15 @@ const BookingSchema = new Schema({
     default: "pending", // Default to pending when booking is created
   },
 
+  // Fields for booking on behalf of someone else
+  guest_name: { type: String, default: null }, 
+  guest_email: { type: String, default: null },
+  guest_phone: { type: String, default: null },
+
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now },
 });
+
 
 // Ensure a unique confirmation ticket before saving
 BookingSchema.pre("save", async function (next) {
