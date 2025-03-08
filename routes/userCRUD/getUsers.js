@@ -227,7 +227,4 @@ router.get("/realtors", async (req, res) => {
   }
 });
 
-
-
-
 module.exports = router;

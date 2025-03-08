@@ -53,7 +53,7 @@ async function sendBookingConfirmationEmail(booking) {
     // Construct email content
     const emailSubject = "Booking Confirmation - Your Booking Details";
     const emailBody = `
-      <p>Dear ${buyer.name},</p>
+      <p>Dear ${buyer.full_name},</p>
       <p>Your booking has been successfully confirmed.</p>
       <p><strong>Booking Details:</strong></p>
       <ul>
@@ -65,7 +65,7 @@ async function sendBookingConfirmationEmail(booking) {
         <li><strong>Confirmation Ticket:</strong> ${booking.confirmation_ticket}</li>
       </ul>
       <p>For any queries, please contact the property owner:</p>
-      <p><strong>Realtor:</strong> ${realtor.name} (${realtor.email})</p>
+      <p><strong>Realtor:</strong> ${realtor.full_name} (${realtor.email})</p>
       <p>Thank you for booking with us!</p>
     `;
 
