@@ -83,7 +83,7 @@ async function sendBookingConfirmationEmail(booking) {
       to: realtor.email,
       subject: "New Booking Confirmation",
       html: `
-        <p>Dear ${realtor.name},</p>
+        <p>Dear ${realtor.full_name},</p>
         <p>Your property <strong>${property.title}</strong> has been booked.</p>
         <p>Booking details:</p>
         ${emailBody} <!-- Reusing the same email content -->
