@@ -256,7 +256,8 @@ exports.getAllProperties = async (req, res) => {
         const reviewDetails = await Review.find({
           review_for: property._id,
           review_for_type: "Property",
-        });
+        })
+        .populate("review_by")
 
         let savedStatus = "unlike"; // Default status
 
@@ -319,9 +320,13 @@ exports.getPropertyById = async (req, res) => {
     });
 
     const reviewDetails = await Review.find({
-      review_for: property._id,
+      review_for: property._id, // Ensure property is defined
       review_for_type: "Property",
+    }).populate({
+      path: "review_by", // Reference field in Review model
+      select: "full_name email profile_picture", // Specify fields to return (optional)
     });
+    
 
     // Default status as 'unlike'
     let saved_status = "unlike";

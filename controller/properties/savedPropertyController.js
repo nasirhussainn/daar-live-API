@@ -55,11 +55,22 @@ exports.getSavedProperties = async (req, res) => {
   try {
     const { user_id } = req.params;
 
-    // Get all saved properties for the user
-    const savedProperties = await SavedProperty.find({ user_id }).populate("property_id");
+    // Get all saved properties for the user with deep population
+    const savedProperties = await SavedProperty.find({ user_id })
+      .populate({
+        path: "property_id",
+        populate: [
+          { path: "property_type" }, // Populating property_type
+          { path: "property_subtype" }, // Populating property_subtype
+          { path: "location" }, // Populating location
+          { path: "media" }, // Populating media
+          { path: "amenities" }, // Populating amenities
+        ],
+      });
 
     res.status(200).json({ savedProperties });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
