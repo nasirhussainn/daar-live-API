@@ -9,7 +9,8 @@ const MessageSchema = new mongoose.Schema({
 
 const ChatSchema = new mongoose.Schema(
   {
-    propertyId: { type: mongoose.Schema.Types.ObjectId, ref: "Property", required: true },
+    propertyId: { type: mongoose.Schema.Types.ObjectId, ref: "Property", default: null }, // Nullable for event-based chats
+    eventId: { type: mongoose.Schema.Types.ObjectId, ref: "Event", default: null }, // Added event reference
     participants: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     messages: [MessageSchema],
     unreadCount: {

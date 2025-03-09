@@ -122,10 +122,6 @@ exports.confirmBooking = async (req, res) => {
   }
 };
 
-
-
-  
-
 // Cancel Booking
 exports.cancelBooking = async (req, res) => {
   try {

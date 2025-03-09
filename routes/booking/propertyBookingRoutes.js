@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const bookingController = require("../../controller/booking/bookingController");
+const bookingController = require("../../controller/booking/propertyBookingController");
 
 // Book a property
 router.post("/book", bookingController.bookProperty);

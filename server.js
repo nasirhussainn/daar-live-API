@@ -74,7 +74,7 @@ const contactUsRoutes = require("./routes/admin/contactUsRoutes");
 
 const approvalRoutes = require("./routes/admin/approvalRoutes")
 
-const bookingRoutes = require("./routes/booking/bookingRoutes")
+const bookingRoutes = require("./routes/booking/propertyBookingRoutes")
 
 app.use("/auth", [
   authSignup,
