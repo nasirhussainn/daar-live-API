@@ -11,22 +11,42 @@ const generateConfirmationTicket = async function () {
     for (let i = 0; i < 8; i++) {
       ticket += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    exists = await Booking.exists({ confirmation_ticket: ticket }); // Check uniqueness
+    exists = await Booking.exists({ confirmation_ticket: ticket });
   }
   
   return ticket;
 };
 
-
 const BookingSchema = new Schema({
-  property_id: { type: Schema.Types.ObjectId, ref: "Property", required: true },
+  booking_type: {
+    type: String,
+    enum: ["property", "event"],
+    required: true, 
+  },
+
+  // Property booking fields
+  property_id: { type: Schema.Types.ObjectId, ref: "Property", default: null },
+
+  // Event booking fields
+  event_id: { type: Schema.Types.ObjectId, ref: "Event", default: null },
+  total_participants: { type: Number, default: 1 },
+
   user_id: { type: Schema.Types.ObjectId, ref: "User", required: true }, // The one who is booking
-  realtor_id: { type: Schema.Types.ObjectId, ref: "User", required: true }, // The property owner (realtor)
+  realtor_id: { type: Schema.Types.ObjectId, ref: "User", default: null }, // Only for property bookings
 
-  start_date: { type: Date, required: true },
-  end_date: { type: Date, required: true },
+  // Dates field for event bookings
+  dates: [
+    {
+      date: { type: Date, default: null },
+      time_slot: { type: String, default: null }, // Optional: Specify morning, afternoon, etc.
+    }
+  ],
 
-  payment_detail: { type: Object }, // Payment details from Stripe
+  // Property booking dates (kept for backward compatibility)
+  start_date: { type: Date, default: null },
+  end_date: { type: Date, default: null },
+
+  payment_detail: { type: Object },
 
   confirmation_ticket: {
     type: String,
@@ -40,7 +60,7 @@ const BookingSchema = new Schema({
   status: {
     type: String,
     enum: ["pending", "confirmed", "completed", "canceled", "active"],
-    default: "pending", // Default to pending when booking is created
+    default: "pending",
   },
 
   // Fields for booking on behalf of someone else
@@ -52,7 +72,6 @@ const BookingSchema = new Schema({
   updated_at: { type: Date, default: Date.now },
 });
 
-
 // Ensure a unique confirmation ticket before saving
 BookingSchema.pre("validate", async function (next) {
   if (this.isModified("status") && this.status === "confirmed" && !this.confirmation_ticket) {
@@ -60,7 +79,6 @@ BookingSchema.pre("validate", async function (next) {
   }
   next();
 });
-
 
 // Create Booking model
 const Booking = mongoose.model("Booking", BookingSchema);

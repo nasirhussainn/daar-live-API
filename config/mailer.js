@@ -36,7 +36,7 @@ async function sendPasswordResetEmail(email, resetLink) {
 }
 
 
-async function sendBookingConfirmationEmail(booking) {
+async function sendPropertyBookingConfirmationEmail(booking) {
   try {
     // Fetch buyer (user) details
     const buyer = await User.findById(booking.user_id);
@@ -98,4 +98,69 @@ async function sendBookingConfirmationEmail(booking) {
   }
 }
 
-module.exports = { sendVerificationEmail, sendPasswordResetEmail, sendBookingConfirmationEmail };
+
+async function sendEventBookingConfirmationEmail(booking) {
+  try {
+    // Fetch buyer (user) details
+    const buyer = await User.findById(booking.user_id);
+    if (!buyer) throw new Error("Buyer not found");
+
+    // Fetch event details
+    const event = await Event.findById(booking.event_id);
+    if (!event) throw new Error("Event not found");
+
+    // Fetch host (event organizer) details
+    const host = await User.findById(event.host_id);
+    if (!host) throw new Error("Event host not found");
+
+    // Generate email content
+    const emailSubject = "Event Booking Confirmation - Your Ticket Details";
+    const emailBody = `
+      <p>Dear ${buyer.full_name},</p>
+      <p>Your booking for the event <strong>${event.title}</strong> has been successfully confirmed.</p>
+      <p><strong>Event Details:</strong></p>
+      <ul>
+        <li><strong>Event:</strong> ${event.title}</li>
+        <li><strong>Date:</strong> ${new Date(event.date).toLocaleDateString()}</li>
+        <li><strong>Time:</strong> ${event.time}</li>
+        <li><strong>Location:</strong> ${event.venue}, ${event.city}, ${event.state}</li>
+        <li><strong>Number of Tickets:</strong> ${booking.number_of_tickets}</li>
+        <li><strong>Guest Name:</strong> ${booking.guest_name || buyer.full_name}</li>
+        <li><strong>Guest Email:</strong> ${booking.guest_email || buyer.email}</li>
+        <li><strong>Confirmation Ticket:</strong> ${booking.confirmation_ticket}</li>
+      </ul>
+      <p>For any queries, please contact the event host:</p>
+      <p><strong>Host:</strong> ${host.full_name} (${host.email})</p>
+      <p>Thank you for booking with us!</p>
+    `;
+
+    // Send email to buyer
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: buyer.email,
+      subject: emailSubject,
+      html: emailBody,
+    });
+
+    // Send email to event host
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: host.email,
+      subject: "New Event Booking Confirmation",
+      html: `
+        <p>Dear ${host.full_name},</p>
+        <p>Your event <strong>${event.title}</strong> has been booked by <strong>${buyer.full_name}</strong>.</p>
+        <p>Booking details:</p>
+        ${emailBody} <!-- Reusing the same email content -->
+        <p>Best regards,</p>
+        <p>Your Platform Team</p>
+      `,
+    });
+
+    console.log("Event booking confirmation emails sent successfully.");
+  } catch (error) {
+    console.error("Error sending event booking confirmation emails:", error.message);
+  }
+}
+
+module.exports = { sendVerificationEmail, sendPasswordResetEmail, sendPropertyBookingConfirmationEmail, sendEventBookingConfirmationEmail };

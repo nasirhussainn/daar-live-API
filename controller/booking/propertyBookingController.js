@@ -1,7 +1,7 @@
 const Booking = require("../../models/Booking");
 const Property = require("../../models/Properties");
 const User = require("../../models/User");
-const { sendBookingConfirmationEmail } = require("../../config/mailer");
+const { sendPropertyBookingConfirmationEmail } = require("../../config/mailer");
 
 // Book a Property
 exports.bookProperty = async (req, res) => {
@@ -62,6 +62,7 @@ exports.bookProperty = async (req, res) => {
 
     // Create a new booking with "pending" status
     const newBooking = new Booking({
+      booking_type: "property",
       property_id,
       user_id,
       realtor_id: realtor._id,
@@ -87,7 +88,7 @@ exports.bookProperty = async (req, res) => {
 };
 
 
-exports.confirmBooking = async (req, res) => {
+exports.confirmPropertyBooking = async (req, res) => {
   try {
     const { booking_id, payment_detail } = req.body;
 
@@ -110,7 +111,7 @@ exports.confirmBooking = async (req, res) => {
     booking.payment_detail = payment_detail;
     await booking.save(); // This will trigger the pre-validation hook to generate a ticket
 
-    await sendBookingConfirmationEmail(booking);
+    await sendPropertyBookingConfirmationEmail(booking);
 
     res.status(200).json({ 
       message: "Booking confirmed successfully", 
@@ -123,7 +124,7 @@ exports.confirmBooking = async (req, res) => {
 };
 
 // Cancel Booking
-exports.cancelBooking = async (req, res) => {
+exports.cancelPropertyBooking = async (req, res) => {
   try {
     const { booking_id } = req.params;
 
@@ -156,7 +157,7 @@ exports.cancelBooking = async (req, res) => {
 };
 
 // ✅ Get All Bookings with Optional Status Filter
-exports.getAllBookings = async (req, res) => {
+exports.getAllPropertyBookings = async (req, res) => {
     try {
       const { status } = req.query; // Optional filter
   
@@ -175,7 +176,7 @@ exports.getAllBookings = async (req, res) => {
   };
   
 // ✅ Get Booking by Booking ID
-exports.getBookingById = async (req, res) => {
+exports.getPropertyBookingById = async (req, res) => {
     try {
       const { booking_id } = req.params;
   
@@ -195,21 +196,24 @@ exports.getBookingById = async (req, res) => {
   };
 
   // ✅ Get All Bookings for a Specific Property with Optional Status Filter
-exports.getBookingsByPropertyId = async (req, res) => {
+  exports.getBookingsByEntitiesId = async (req, res) => {
     try {
-      const { property_id } = req.params;
-      const { status } = req.query; // Optional filter for status
+      const { property_id, status, user_id, realtor_id } = req.query; // Query parameters
   
-      let query = { property_id }; // Base query for property
-      if (status) query.status = status; // Apply status filter if provided
+      let query = {}; // Base query
+  
+      if (property_id) query.property_id = property_id; // Filter by property ID if provided
+      if (status) query.status = status; // Filter by status if provided
+      if (user_id) query.user_id = user_id; // Filter by user ID if provided
+      if (realtor_id) query.realtor_id = realtor_id; // Filter
   
       const bookings = await Booking.find(query)
-        .populate("property_id") // Property details
-        .populate("user_id") // User details
-        .populate("realtor_id"); // Realtor details
+        .populate("property_id") // Populate property details
+        .populate("user_id") // Populate user details
+        .populate("realtor_id"); // Populate realtor details
   
       if (bookings.length === 0) {
-        return res.status(404).json({ message: "No bookings found for this property" });
+        return res.status(404).json({ message: "No bookings found matching the criteria" });
       }
   
       res.status(200).json({ message: "Bookings retrieved successfully", bookings });
@@ -217,6 +221,7 @@ exports.getBookingsByPropertyId = async (req, res) => {
       res.status(500).json({ message: "Server Error", error: error.message });
     }
   };
+  
 
   exports.getBookedPropertyDetails = async (req, res) => {
     try {

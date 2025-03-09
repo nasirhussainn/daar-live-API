@@ -4,13 +4,13 @@ const bookingController = require("../../controller/booking/propertyBookingContr
 
 // Book a property
 router.post("/book", bookingController.bookProperty);
-router.put("/confirm-booking", bookingController.confirmBooking);
+router.put("/confirm-booking", bookingController.confirmPropertyBooking);
 
-router.get("/all-booking", bookingController.getAllBookings);
-router.get("/bookingId/:booking_id", bookingController.getBookingById);
-router.get("/bookingPropertyViaStatus/:property_id", bookingController.getBookingsByPropertyId)
+router.get("/all-booking", bookingController.getAllPropertyBookings);
+router.get("/bookingId/:booking_id", bookingController.getPropertyBookingById);
+router.get("/bookingPropertyViaEntity", bookingController.getBookingsByEntitiesId)
 router.get("/bookingPropertyDetail/:property_id", bookingController.getBookedPropertyDetails)
 // Cancel a booking
-router.put("/cancel/:booking_id", bookingController.cancelBooking);
+router.put("/cancel/:booking_id", bookingController.cancelPropertyBooking);
 
 module.exports = router;

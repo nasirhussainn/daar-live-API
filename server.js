@@ -74,7 +74,8 @@ const contactUsRoutes = require("./routes/admin/contactUsRoutes");
 
 const approvalRoutes = require("./routes/admin/approvalRoutes")
 
-const bookingRoutes = require("./routes/booking/propertyBookingRoutes")
+const propertyBookingRoutes = require("./routes/booking/propertyBookingRoutes")
+const eventBookingRoutes = require("./routes/booking/eventBookingRoutes")
 
 app.use("/auth", [
   authSignup,
@@ -93,9 +94,9 @@ app.use("/property-facilities", [
   amenitiesRoutes,
 ]);
 
-app.use("/property", [propertyRoutes, savedPropertyRoutes, bookingRoutes]);
+app.use("/property", [propertyRoutes, savedPropertyRoutes, propertyBookingRoutes]);
 
-app.use("/event", [eventRoutes]);
+app.use("/event", [eventRoutes, eventBookingRoutes]);
 
 app.use("/review", [reviewRoutes]);
 
