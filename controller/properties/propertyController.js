@@ -307,7 +307,6 @@ exports.getPropertyById = async (req, res) => {
       .populate("feature_details")
       .populate("property_type") // Fetch property type details
       .populate("property_subtype") // Fetch property subtype details
-      .populate("booking_id");
 
     if (!property) {
       return res.status(404).json({ message: "Property not found" });
@@ -374,7 +373,6 @@ exports.getAllPropertiesByOwnerId = async (req, res) => {
       .populate("feature_details")
       .populate("property_type") // Fetch property type details
       .populate("property_subtype") // Fetch property subtype details
-      .populate("booking_id")
       .skip(skip)
       .limit(limit);
 
