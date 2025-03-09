@@ -2,6 +2,10 @@ const nodemailer = require("nodemailer");
 const Booking = require("../models/Booking");
 const User = require("../models/User");
 const Property = require("../models/Properties");
+const Event = require("../models/Events");
+const fs = require("fs");
+const path = require("path");
+const PDFDocument = require("pdfkit");
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -98,7 +102,6 @@ async function sendPropertyBookingConfirmationEmail(booking) {
   }
 }
 
-
 async function sendEventBookingConfirmationEmail(booking) {
   try {
     // Fetch buyer (user) details
@@ -106,7 +109,7 @@ async function sendEventBookingConfirmationEmail(booking) {
     if (!buyer) throw new Error("Buyer not found");
 
     // Fetch event details
-    const event = await Event.findById(booking.event_id);
+    const event = await Event.findById(booking.event_id).populate("location");
     if (!event) throw new Error("Event not found");
 
     // Fetch host (event organizer) details
@@ -115,32 +118,62 @@ async function sendEventBookingConfirmationEmail(booking) {
 
     // Generate email content
     const emailSubject = "Event Booking Confirmation - Your Ticket Details";
+    
+    let ticketDetailsHTML = "";
+    booking.tickets.forEach((ticket, index) => {
+      ticketDetailsHTML += `<li><strong>Ticket ${index + 1}:</strong> ${ticket.ticket_id}</li>`;
+    });
+
     const emailBody = `
       <p>Dear ${buyer.full_name},</p>
       <p>Your booking for the event <strong>${event.title}</strong> has been successfully confirmed.</p>
       <p><strong>Event Details:</strong></p>
       <ul>
         <li><strong>Event:</strong> ${event.title}</li>
-        <li><strong>Date:</strong> ${new Date(event.date).toLocaleDateString()}</li>
-        <li><strong>Time:</strong> ${event.time}</li>
-        <li><strong>Location:</strong> ${event.venue}, ${event.city}, ${event.state}</li>
-        <li><strong>Number of Tickets:</strong> ${booking.number_of_tickets}</li>
+        <li><strong>Date:</strong> ${new Date(event.start_date).toLocaleDateString()}</li>
+        <li><strong>Location:</strong> ${event.location.address}, ${event.city}, ${event.state}</li>
+        <li><strong>Number of Tickets:</strong> ${booking.tickets.length}</li>
         <li><strong>Guest Name:</strong> ${booking.guest_name || buyer.full_name}</li>
         <li><strong>Guest Email:</strong> ${booking.guest_email || buyer.email}</li>
         <li><strong>Confirmation Ticket:</strong> ${booking.confirmation_ticket}</li>
+        ${ticketDetailsHTML}
       </ul>
+      <p>Your tickets are attached as a PDF file.</p>
       <p>For any queries, please contact the event host:</p>
       <p><strong>Host:</strong> ${host.full_name} (${host.email})</p>
       <p>Thank you for booking with us!</p>
     `;
 
-    // Send email to buyer
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: buyer.email,
-      subject: emailSubject,
-      html: emailBody,
-    });
+    try {
+      // Generate a PDF with ticket details
+      const pdfPath = await generateBookingPDF(booking, buyer, event);
+    
+      // Send email with PDF attachment to buyer
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: buyer.email,
+        subject: emailSubject,
+        html: emailBody,
+        attachments: [
+          {
+            filename: "Event_Tickets.pdf",
+            path: pdfPath,
+            contentType: "application/pdf",
+          },
+        ],
+      });
+    
+      // ✅ Delete the PDF file after sending the email
+      fs.unlink(pdfPath, (err) => {
+        if (err) {
+          console.error("Error deleting PDF:", err);
+        } else {
+          console.log("PDF deleted successfully.");
+        }
+      });
+    } catch (error) {
+      console.error("Error sending event booking confirmation email:", error.message);
+    }
 
     // Send email to event host
     await transporter.sendMail({
@@ -151,7 +184,7 @@ async function sendEventBookingConfirmationEmail(booking) {
         <p>Dear ${host.full_name},</p>
         <p>Your event <strong>${event.title}</strong> has been booked by <strong>${buyer.full_name}</strong>.</p>
         <p>Booking details:</p>
-        ${emailBody} <!-- Reusing the same email content -->
+        ${emailBody}
         <p>Best regards,</p>
         <p>Your Platform Team</p>
       `,
@@ -161,6 +194,44 @@ async function sendEventBookingConfirmationEmail(booking) {
   } catch (error) {
     console.error("Error sending event booking confirmation emails:", error.message);
   }
+}
+
+/**
+ * Generates a PDF file with ticket details
+ */
+async function generateBookingPDF(booking, buyer, event) {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument();
+    const filePath = path.join(__dirname, `Event_Tickets_${booking._id}.pdf`);
+    const stream = fs.createWriteStream(filePath);
+
+    doc.pipe(stream);
+
+    // Title
+    doc.fontSize(18).text("Event Booking Confirmation", { align: "center" }).moveDown();
+
+    // Event details
+    doc.fontSize(14).text(`Event: ${event.title}`);
+    doc.text(`Date: ${new Date(event.start_date).toLocaleDateString()}`);
+    doc.text(`Location: ${event.venue}, ${event.city}, ${event.state}`).moveDown();
+
+    // Booking details
+    doc.text(`Booking ID: ${booking._id}`);
+    doc.text(`Buyer: ${buyer.full_name} (${buyer.email})`);
+    doc.text(`Number of Tickets: ${booking.tickets.length}`);
+    doc.text(`Confirmation Ticket: ${booking.confirmation_ticket}`).moveDown();
+
+    // Ticket list
+    doc.fontSize(12).text("Ticket Details:", { underline: true }).moveDown();
+    booking.tickets.forEach((ticket, index) => {
+      doc.text(`Ticket ${index + 1}: ${ticket.ticket_id}`);
+    });
+
+    doc.end();
+
+    stream.on("finish", () => resolve(filePath));
+    stream.on("error", (err) => reject(err));
+  });
 }
 
 module.exports = { sendVerificationEmail, sendPasswordResetEmail, sendPropertyBookingConfirmationEmail, sendEventBookingConfirmationEmail };

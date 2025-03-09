@@ -111,6 +111,13 @@ exports.confirmPropertyBooking = async (req, res) => {
     booking.payment_detail = payment_detail;
     await booking.save(); // This will trigger the pre-validation hook to generate a ticket
 
+    // Find associated property
+    const property = await Property.findById(booking.property_id);
+    if (!property) return res.status(404).json({ message: "Property not found" });
+
+    property.is_booked = true;
+    await property.save();
+
     await sendPropertyBookingConfirmationEmail(booking);
 
     res.status(200).json({ 
@@ -159,9 +166,10 @@ exports.cancelPropertyBooking = async (req, res) => {
 // ✅ Get All Bookings with Optional Status Filter
 exports.getAllPropertyBookings = async (req, res) => {
     try {
+      // let query = { booking_type: "property" };
+      let query = {};
       const { status } = req.query; // Optional filter
   
-      let query = {}; // Default: fetch all bookings
       if (status) query.status = status; // Apply status filter if provided
   
       const bookings = await Booking.find(query)

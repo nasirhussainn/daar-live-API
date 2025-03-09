@@ -8,7 +8,7 @@ const generateConfirmationTicket = async function () {
 
   while (exists) {
     ticket = "";
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 6; i++) {
       ticket += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     exists = await Booking.exists({ confirmation_ticket: ticket });
@@ -29,16 +29,14 @@ const BookingSchema = new Schema({
 
   // Event booking fields
   event_id: { type: Schema.Types.ObjectId, ref: "Event", default: null },
-  total_participants: { type: Number, default: 1 },
 
   user_id: { type: Schema.Types.ObjectId, ref: "User", required: true }, // The one who is booking
   realtor_id: { type: Schema.Types.ObjectId, ref: "User", default: null }, // Only for property bookings
 
   // Dates field for event bookings
-  dates: [
+  event_dates: [
     {
       date: { type: Date, default: null },
-      time_slot: { type: String, default: null }, // Optional: Specify morning, afternoon, etc.
     }
   ],
 
@@ -68,6 +66,16 @@ const BookingSchema = new Schema({
   guest_email: { type: String, default: null },
   guest_phone: { type: String, default: null },
 
+  number_of_tickets: { type: Number, default: 1 },
+
+  // Tickets object (For event bookings)
+  tickets: [
+    {
+      ticket_id: { type: String, unique: true }, // Unique ticket identifier
+      status: { type: String, enum: ["valid", "used", "canceled"], default: "valid" }, // Ticket status
+    }
+  ],
+
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now },
 });
@@ -77,6 +85,7 @@ BookingSchema.pre("validate", async function (next) {
   if (this.isModified("status") && this.status === "confirmed" && !this.confirmation_ticket) {
     this.confirmation_ticket = await generateConfirmationTicket();
   }
+
   next();
 });
 

@@ -89,21 +89,6 @@ const updateCancellableBookings = async () => {
   }
 };
 
-// Schedule: Runs every 30 minutes
-cron.schedule("*/30 * * * *", async () => {
-  try {
-    console.log("🏠 Running property-related scheduled tasks...");
-    await activateOngoingBookings();
-    await expireCompletedBookings();
-    await updateCancellableBookings();
-    console.log("✅ Property-related scheduled tasks completed.");
-  } catch (error) {
-    console.error("❌ Error in property-related scheduled tasks:", error);
-  }
-}, {
-  timezone: "Asia/Aden",
-});
-
 // Delete bookings with pending status for more than 2 hours
 const deleteExpiredPendingBookings = async () => {
   console.log("🔄 Checking for expired pending bookings to delete...");

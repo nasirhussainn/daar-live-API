@@ -52,7 +52,6 @@ const PropertySchema = new Schema({
   avg_rating: { type: Number, default: 0 },
 
   is_booked: { type: Boolean, default: false }, // Tracks if the property is booked
-  booking_id: { type: Schema.Types.ObjectId, ref: "Booking", default: null }, // Reference to the active booking
 
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now },
