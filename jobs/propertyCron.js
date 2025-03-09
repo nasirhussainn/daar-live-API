@@ -104,4 +104,50 @@ cron.schedule("*/30 * * * *", async () => {
   timezone: "Asia/Aden",
 });
 
-module.exports = { activateOngoingBookings, expireCompletedBookings, updateCancellableBookings };
+// Delete bookings with pending status for more than 2 hours
+const deleteExpiredPendingBookings = async () => {
+  console.log("🔄 Checking for expired pending bookings to delete...");
+
+  try {
+    const now = new Date();
+    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000); // 2 hours ago
+
+    // Find and delete bookings that are pending for more than 2 hours
+    const deletedBookings = await Booking.deleteMany({
+      status: "pending",
+      updatedAt: { $lt: twoHoursAgo }, // Created more than 2 hours ago
+    });
+
+    console.log(`✅ Deleted ${deletedBookings.deletedCount} expired pending bookings.`);
+  } catch (error) {
+    console.error("❌ Error deleting expired pending bookings:", error);
+  }
+};
+
+// Schedule: Runs every 30 minutes
+cron.schedule(
+  "*/30 * * * *",
+  async () => {
+    try {
+      console.log("🏠 Running property-related scheduled tasks...");
+      await activateOngoingBookings();
+      await expireCompletedBookings();
+      await updateCancellableBookings();
+      await deleteExpiredPendingBookings();
+      console.log("✅ Property-related scheduled tasks completed.");
+    } catch (error) {
+      console.error("❌ Error in property-related scheduled tasks:", error);
+    }
+  },
+  {
+    timezone: "Asia/Aden",
+  }
+);
+
+module.exports = {
+  activateOngoingBookings,
+  expireCompletedBookings,
+  updateCancellableBookings,
+  deleteExpiredPendingBookings,
+};
+

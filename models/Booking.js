@@ -3,20 +3,20 @@ const Schema = mongoose.Schema;
 
 const generateConfirmationTicket = async function () {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  
-  while (true) {
-    let ticket = "";
+  let ticket;
+  let exists = true;
+
+  while (exists) {
+    ticket = "";
     for (let i = 0; i < 8; i++) {
       ticket += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-
-    // Check if ticket already exists in the database
-    const existingBooking = await Booking.findOne({ confirmation_ticket: ticket });
-    if (!existingBooking) {
-      return ticket; // If unique, return it
-    }
+    exists = await Booking.exists({ confirmation_ticket: ticket }); // Check uniqueness
   }
+  
+  return ticket;
 };
+
 
 const BookingSchema = new Schema({
   property_id: { type: Schema.Types.ObjectId, ref: "Property", required: true },
@@ -26,7 +26,7 @@ const BookingSchema = new Schema({
   start_date: { type: Date, required: true },
   end_date: { type: Date, required: true },
 
-  payment_detail: { type: Object, required: true }, // Payment details from Stripe
+  payment_detail: { type: Object }, // Payment details from Stripe
 
   confirmation_ticket: {
     type: String,
@@ -54,12 +54,13 @@ const BookingSchema = new Schema({
 
 
 // Ensure a unique confirmation ticket before saving
-BookingSchema.pre("save", async function (next) {
-  if (!this.confirmation_ticket) {
+BookingSchema.pre("validate", async function (next) {
+  if (this.isModified("status") && this.status === "confirmed" && !this.confirmation_ticket) {
     this.confirmation_ticket = await generateConfirmationTicket();
   }
   next();
 });
+
 
 // Create Booking model
 const Booking = mongoose.model("Booking", BookingSchema);
