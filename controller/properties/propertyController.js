@@ -242,7 +242,6 @@ exports.getAllProperties = async (req, res) => {
       .populate("feature_details")
       .populate("property_type")
       .populate("property_subtype")
-      .populate("booking_id")
       .skip(skip)
       .limit(limit);
 
