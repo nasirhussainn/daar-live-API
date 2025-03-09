@@ -7,6 +7,7 @@ const { initializeSocket } = require("./config/socket");
 const http = require("http");
 require("./jobs/propertyCron");
 require("./jobs/subscriptionCron"); // This will execute the cron job from the imported file
+require("./jobs/eventCron");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
