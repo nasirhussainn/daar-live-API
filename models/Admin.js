@@ -18,7 +18,7 @@ const AdminSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['viewer', 'editor']
+    enum: ['super', 'viewer', 'editor']
   },
   permissions: [{
      type: String, required: true ,  

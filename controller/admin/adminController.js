@@ -6,8 +6,9 @@ exports.createAdmin = async (req, res) => {
     try {
         const { email, password, role, permissions } = req.body;
 
+        // Ensure role is not 'super'
         if (!['viewer', 'editor'].includes(role)) {
-            return res.status(400).json({ message: 'Invalid role' });
+            return res.status(400).json({ message: 'Invalid role. Role must be "viewer" or "editor".' });
         }
 
         const existingAdmin = await Admin.findOne({ email });
@@ -29,6 +30,7 @@ exports.createAdmin = async (req, res) => {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
+
 
 // 🔹 Login Admin
 exports.loginAdmin = async (req, res) => {
@@ -90,6 +92,11 @@ exports.updateAdmin = async (req, res) => {
             return res.status(404).json({ message: 'Admin not found' });
         }
 
+        // Prevent updates if role is 'super'
+        if (admin.role === 'super') {
+            return res.status(403).json({ message: 'Super admin cannot be updated' });
+        }
+
         if (email) {
             const existingAdmin = await Admin.findOne({ email });
             if (existingAdmin && existingAdmin.id !== req.params.id) {
@@ -133,6 +140,11 @@ exports.deleteAdmin = async (req, res) => {
             return res.status(404).json({ message: 'Admin not found' });
         }
 
+        // Prevent deletion if role is 'super'
+        if (admin.role === 'super') {
+            return res.status(403).json({ message: 'Super admin cannot be deleted' });
+        }
+
         await Admin.findByIdAndDelete(req.params.id);
         res.status(200).json({ message: 'Admin deleted successfully' });
 
@@ -140,3 +152,4 @@ exports.deleteAdmin = async (req, res) => {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
+
