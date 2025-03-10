@@ -1,4 +1,5 @@
 const SavedProperty = require("../../models/SavedProperty");
+const { getRealtorStats } = require("../../controller/stats/getRealtorStats"); // Import the function
 
 // @desc Like a property (save property)
 // @route POST /api/saved-properties/like
@@ -50,27 +51,77 @@ exports.dislikeProperty = async (req, res) => {
   }
 };
 
-// @desc Get all saved properties for a user
 exports.getSavedProperties = async (req, res) => {
   try {
     const { user_id } = req.params;
+    let { page, limit } = req.query;
 
-    // Get all saved properties for the user with deep population
+    page = parseInt(page) || 1; // Default page = 1
+    limit = parseInt(limit) || 10; // Default limit = 10
+    const skip = (page - 1) * limit;
+
+    // Fetch total count of saved properties
+    const totalSavedProperties = await SavedProperty.countDocuments({ user_id });
+
+    // Fetch paginated saved properties
     const savedProperties = await SavedProperty.find({ user_id })
       .populate({
         path: "property_id",
         populate: [
-          { path: "property_type" }, // Populating property_type
-          { path: "property_subtype" }, // Populating property_subtype
-          { path: "location" }, // Populating location
-          { path: "media" }, // Populating media
-          { path: "amenities" }, // Populating amenities
+          { path: "owner_id" }, // Fetch owner (realtor) details
+          { path: "property_type" },
+          { path: "property_subtype" },
+          { path: "location" },
+          { path: "media" },
+          { path: "amenities" }
         ],
-      });
+      })
+      .skip(skip)
+      .limit(limit);
 
-    res.status(200).json({ savedProperties });
+    if (!savedProperties.length) {
+      return res.status(404).json({ message: "No saved properties found" });
+    }
+
+    // Get unique realtors (owners) from saved properties
+    const uniqueOwners = [...new Set(savedProperties.map(saved => saved.property_id.owner_id.toString()))];
+
+    // Fetch statistics for all unique realtors
+    const ownerStats = {};
+    for (const ownerId of uniqueOwners) {
+      ownerStats[ownerId] = await getRealtorStats(ownerId);
+    }
+
+    // Fetch amenities and reviews for each saved property
+    const savedPropertiesWithDetails = await Promise.all(
+      savedProperties.map(async (saved) => {
+        const property = saved.property_id;
+        const ownerId = property.owner_id._id.toString(); // Extract owner_id
+
+        const reviewDetails = await Review.find({
+          review_for: property._id,
+          review_for_type: "Property",
+        }).populate("review_by");
+
+        return {
+          ...property.toObject(),
+          reviews: reviewDetails,
+          saved_status: saved.status, // Include saved status ('like' or 'unlike')
+          owner_stats: ownerStats[ownerId] || null, // Include statistics for this owner
+        };
+      })
+    );
+
+    res.status(200).json({
+      totalSavedProperties,
+      currentPage: page,
+      totalPages: Math.ceil(totalSavedProperties / limit),
+      properties: savedPropertiesWithDetails,
+    });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 

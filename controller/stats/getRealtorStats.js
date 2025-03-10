@@ -1,0 +1,41 @@
+const getRealtorStats = async (realtorId) => {
+    try {
+      if (!realtorId) return null;
+  
+      const realtorObjectId = new mongoose.Types.ObjectId(realtorId);
+      const oneMonthAgo = new Date();
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+  
+      const [currentListed, allListed, soldData, rentedData] = await Promise.all([
+        Property.countDocuments({
+          owner_id: realtorObjectId,
+          created_at: { $gte: oneMonthAgo },
+        }),
+        Property.countDocuments({ owner_id: realtorObjectId }),
+        Property.aggregate([
+          { $match: { owner_id: realtorObjectId, property_status: "sold" } },
+          { $group: { _id: null, soldCount: { $sum: 1 }, soldRevenue: { $sum: { $toDouble: "$price" } } } },
+        ]),
+        Booking.aggregate([
+          { $match: { realtor_id: realtorObjectId, status: { $in: ["active", "completed", "confirmed"] } } },
+          { $group: { _id: null, rentedCount: { $sum: 1 }, rentedRevenue: { $sum: { $toDouble: "$payment_detail.amount" } } } },
+        ]),
+      ]);
+  
+      return {
+        currentListed,
+        allListed,
+        soldCount: soldData.length > 0 ? soldData[0].soldCount : 0,
+        soldRevenue: soldData.length > 0 ? soldData[0].soldRevenue : 0,
+        rentedCount: rentedData.length > 0 ? rentedData[0].rentedCount : 0,
+        rentedRevenue: rentedData.length > 0 ? rentedData[0].rentedRevenue : 0,
+      };
+    } catch (error) {
+      console.error("Error fetching realtor stats:", error);
+      return null;
+    }
+  };
+  
+  // Export function
+  module.exports = { getRealtorStats };
+  

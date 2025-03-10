@@ -6,6 +6,7 @@ const EventType = require("../../models/admin/EventType");
 const { uploadMultipleToCloudinary } = require("../../config/cloudinary");
 const FeaturedEntity = require("../../models/FeaturedEntity");
 const Review = require("../../models/Review");
+const { getRealtorStats } = require("../../controller/stats/getRealtorStats"); // Import the function
 
 const Admin = require("../../models/Admin"); // Import the Admin model
 async function determineCreatedBy(owner_id) {
@@ -197,34 +198,24 @@ exports.addEvent = async (req, res) => {
   }
 };
 
+// ✅ Fetch all events with optional filters (featured, created_by) + Host Stats
 exports.getAllEvents = async (req, res) => {
   try {
     let { page, limit, featured, created_by } = req.query;
 
-    page = parseInt(page) || 1; // Default page = 1
-    limit = parseInt(limit) || 10; // Default limit = 10
+    page = parseInt(page) || 1;
+    limit = parseInt(limit) || 10;
     const skip = (page - 1) * limit;
 
-    // Build query object
-    // const query = {};
-    // if (featured === "true") {
-    //   query.is_feature = true;
-    // }
-
-    // if (created_by) query.created_by = created_by
-
     const query = {};
-
     if (featured === "true" || created_by) {
       query.$or = [];
       if (featured === "true") query.$or.push({ is_feature: true });
       if (created_by) query.$or.push({ created_by });
     }
 
-    // Fetch total event count for pagination
     const totalEvents = await Event.countDocuments(query);
 
-    // Fetch paginated events with optional featured filter
     const events = await Event.find(query)
       .populate("host_id")
       .populate("event_type")
@@ -234,38 +225,48 @@ exports.getAllEvents = async (req, res) => {
       .skip(skip)
       .limit(limit);
 
-    // Fetch reviews for each event
-    const eventsWithReviews = await Promise.all(
+    if (!events.length) {
+      return res.status(404).json({ message: "No events found" });
+    }
+
+    // Get unique hosts
+    const uniqueHosts = [...new Set(events.map(event => event.host_id._id.toString()))];
+
+    // Fetch statistics for each host
+    const hostStats = {};
+    for (const hostId of uniqueHosts) {
+      hostStats[hostId] = await getRealtorStats(hostId);
+    }
+
+    // Fetch reviews and attach stats
+    const eventsWithDetails = await Promise.all(
       events.map(async (event) => {
         const reviews = await Review.find({
           review_for: event._id,
           review_for_type: "Event",
         });
+
         return {
           ...event.toObject(),
           reviews,
+          host_stats: hostStats[event.host_id._id.toString()] || null,
         };
       })
     );
-
-    if (!eventsWithReviews.length) {
-      return res.status(404).json({ message: "No events found" });
-    }
 
     res.status(200).json({
       totalEvents,
       currentPage: page,
       totalPages: Math.ceil(totalEvents / limit),
-      events: eventsWithReviews,
+      events: eventsWithDetails,
     });
   } catch (error) {
     console.error(error);
-    res
-      .status(500)
-      .json({ message: "Error fetching events", error: error.message });
+    res.status(500).json({ message: "Error fetching events", error: error.message });
   }
 };
 
+// ✅ Fetch single event by ID + Host Stats
 exports.getEventById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -287,31 +288,32 @@ exports.getEventById = async (req, res) => {
       review_for_type: "Event",
     });
 
+    // Fetch host stats
+    const hostStats = await getRealtorStats(event.host_id._id.toString());
+
     res.status(200).json({
       ...event.toObject(),
       reviews,
+      host_stats: hostStats || null,
     });
   } catch (error) {
     console.error(error);
-    res
-      .status(500)
-      .json({ message: "Error fetching event", error: error.message });
+    res.status(500).json({ message: "Error fetching event", error: error.message });
   }
 };
 
+// ✅ Fetch all events by host ID + Host Stats
 exports.getAllEventsByHostId = async (req, res) => {
   try {
     const { host_id } = req.params;
     let { page, limit } = req.query;
 
-    page = parseInt(page) || 1; // Default page = 1
-    limit = parseInt(limit) || 10; // Default limit = 10
+    page = parseInt(page) || 1;
+    limit = parseInt(limit) || 10;
     const skip = (page - 1) * limit;
 
-    // Fetch total event count for this host
     const totalEvents = await Event.countDocuments({ host_id });
 
-    // Fetch paginated events for the given host_id
     const events = await Event.find({ host_id })
       .populate("host_id")
       .populate("event_type")
@@ -321,37 +323,41 @@ exports.getAllEventsByHostId = async (req, res) => {
       .skip(skip)
       .limit(limit);
 
-    // Fetch reviews for each event
-    const eventsWithReviews = await Promise.all(
+    if (!events.length) {
+      return res.status(404).json({ message: "No events found for this host" });
+    }
+
+    // Fetch host stats
+    const hostStats = await getRealtorStats(host_id);
+
+    // Fetch reviews and attach stats
+    const eventsWithDetails = await Promise.all(
       events.map(async (event) => {
         const reviews = await Review.find({
           review_for: event._id,
           review_for_type: "Event",
         });
+
         return {
           ...event.toObject(),
           reviews,
+          host_stats: hostStats || null,
         };
       })
     );
-
-    if (!eventsWithReviews.length) {
-      return res.status(404).json({ message: "No events found for this host" });
-    }
 
     res.status(200).json({
       totalEvents,
       currentPage: page,
       totalPages: Math.ceil(totalEvents / limit),
-      events: eventsWithReviews,
+      events: eventsWithDetails,
     });
   } catch (error) {
     console.error(error);
-    res
-      .status(500)
-      .json({ message: "Error fetching events", error: error.message });
+    res.status(500).json({ message: "Error fetching events", error: error.message });
   }
 };
+
 
 exports.deleteEvent = async (req, res) => {
   const session = await mongoose.startSession();

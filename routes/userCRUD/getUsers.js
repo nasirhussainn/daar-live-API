@@ -5,6 +5,7 @@ const Realtor = require("../../models/Realtor");
 const Subscription = require("../../models/Subscription");
 const Plan = require("../../models/admin/SubscriptionPlan"); // Import Plan model
 const Review = require("../../models/Review");
+const { getRealtorStats } = require("../../controller/stats/getRealtorStats");
 
 router.get("/user-via-token/:login_token", async (req, res) => {
   try {
@@ -46,6 +47,8 @@ router.get("/user-via-token/:login_token", async (req, res) => {
         // Fetch reviews for the realtor
         const reviews = await Review.find({ review_for: user._id, review_for_type: "User" }).lean();
         responseData.reviews = reviews;
+        stats = await getRealtorStats(user._id);
+        responseData.stats = stats;
       }
     }
 
@@ -92,6 +95,8 @@ router.get("/user-via-id/:_id", async (req, res) => {
          // Fetch reviews for the realtor
          const reviews = await Review.find({ review_for: user._id, review_for_type: "User" }).lean();
          responseData.reviews = reviews;
+         stats = await getRealtorStats(user._id);
+        responseData.stats = stats;
       }
     }
 
@@ -138,6 +143,8 @@ router.get("/user", async (req, res) => {
          // Fetch reviews for the realtor
          const reviews = await Review.find({ review_for: user._id, review_for_type: "User" }).lean();
          responseData.reviews = reviews;
+         stats = await getRealtorStats(user._id);
+        responseData.stats = stats;
       }
     }
 
@@ -199,6 +206,7 @@ router.get("/realtors", async (req, res) => {
 
           // Fetch reviews for the realtor
           reviews = await Review.find({ review_for: realtorDetails.user_id, review_for_type: "User" }).lean();
+          stats = await getRealtorStats(realtorDetails.user_id);
         }
 
         return {
