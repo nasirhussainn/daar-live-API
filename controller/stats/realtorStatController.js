@@ -1,9 +1,10 @@
+const mongoose = require("mongoose");
 const Property = require("../../models/Properties");
 const Booking = require("../../models/Booking");
 
 const getRealtorStats = async (req, res) => {
   try {
-    const realtorId = req.params.realtorId; // Get realtor ID from request params
+    const realtorId = req.params.realtorId;
 
     if (!realtorId) {
       return res
@@ -11,79 +12,69 @@ const getRealtorStats = async (req, res) => {
         .json({ success: false, message: "Realtor ID is required" });
     }
 
+    const realtorObjectId = new mongoose.Types.ObjectId(realtorId);
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
 
-    const [currentListed, allListed, soldProperties, rentedData] =
-      await Promise.all([
-        // Count properties listed in the last month
-        Property.countDocuments({
-          owner_id: realtorId,
-          created_at: { $gte: oneMonthAgo },
-        }),
+    const [currentListed, allListed, soldData, rentedData] = await Promise.all([
+      // Properties listed in the last month
+      Property.countDocuments({
+        owner_id: realtorObjectId,
+        created_at: { $gte: oneMonthAgo },
+      }),
 
-        // Count all properties listed by the realtor
-        Property.countDocuments({ owner_id: realtorId }),
+      // Total properties listed by the realtor
+      Property.countDocuments({ owner_id: realtorObjectId }),
 
-        // Get sold properties and sum their prices
-        Property.aggregate([
-          { $match: { owner_id: realtorId, property_status: "sold" } },
-          {
-            $group: {
-              _id: null,
-              totalSoldRevenue: { $sum: { $toDouble: "$price" } },
-              count: { $sum: 1 }, // Add count of sold properties
-            },
+      // Sold properties count and total revenue
+      Property.aggregate([
+        { $match: { owner_id: realtorObjectId, property_status: "sold" } },
+        {
+          $group: {
+            _id: null,
+            soldCount: { $sum: 1 },
+            soldRevenue: { $sum: { $toDouble: "$price" } },
           },
-        ]),
+        },
+      ]),
 
-        // Find rented bookings where the property is for rent and sum revenue
-        Booking.aggregate([
-          {
-            $match: {
-              realtor_id: realtorId,
-              status: { $in: ["active", "completed"] }, // Include both active and completed bookings
-            },
+      // Rented properties count and total rental revenue (No $lookup needed)
+      Booking.aggregate([
+        {
+          $match: {
+            realtor_id: realtorObjectId,
+            status: { $in: ["active", "completed", "confirmed"] }, // Include active & completed rentals
           },
-          {
-            $lookup: {
-              from: "properties",
-              localField: "property_id",
-              foreignField: "_id",
-              as: "property",
-            },
+        },
+        {
+          $group: {
+            _id: null,
+            rentedCount: { $sum: 1 },
+            rentedRevenue: { $sum: { $toDouble: "$payment_detail.amount" } },
           },
-          { $unwind: "$property" },
-          { $match: { "property.property_purpose": "rent" } },
-          {
-            $group: {
-              _id: null,
-              rentedCount: { $sum: 1 },
-              rentedRevenue: { $sum: { $toDouble: "$payment_detail.amount" } },
-            },
-          },
-        ]),
-      ]);
+        },
+      ]),
+    ]);
 
-    // Debugging logs
-    console.log("Sold Properties:", soldProperties);
-    console.log("Rented Data:", rentedData);
-
-    const totalSoldRevenue =
-      soldProperties.length > 0 ? soldProperties[0].totalSoldRevenue : 0;
+    // Extract values safely
+    const soldCount = soldData.length > 0 ? soldData[0].soldCount : 0;
+    const soldRevenue = soldData.length > 0 ? soldData[0].soldRevenue : 0;
     const rentedCount = rentedData.length > 0 ? rentedData[0].rentedCount : 0;
-    const rentedRevenue =
-      rentedData.length > 0 ? rentedData[0].rentedRevenue : 0;
+    const rentedRevenue = rentedData.length > 0 ? rentedData[0].rentedRevenue : 0;
+    
+    const totalCount = soldCount + rentedCount; // Total transactions
+    const totalRevenue = soldRevenue + rentedRevenue; // Total revenue
 
     return res.status(200).json({
       success: true,
       currentListed,
       allListed,
-      sold: soldProperties.length > 0 ? soldProperties[0].count : 0, // Corrected sold count
-      rented: rentedCount,
-      totalRevenue: totalSoldRevenue + rentedRevenue, // Total Revenue (Sold + Rented)
-      soldRevenue: totalSoldRevenue,
-      rentedRevenue: rentedRevenue,
+      soldCount,
+      rentedCount,
+      soldRevenue,
+      rentedRevenue,
+      totalCount,
+      totalRevenue,
     });
   } catch (error) {
     console.error("Error fetching realtor stats:", error);
