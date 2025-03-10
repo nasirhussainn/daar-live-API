@@ -7,11 +7,11 @@ const { uploadMultipleToCloudinary } = require("../../config/cloudinary");
 const FeaturedEntity = require("../../models/FeaturedEntity");
 const Review = require("../../models/Review");
 
-const Admin = require('../../models/Admin'); // Import the Admin model
+const Admin = require("../../models/Admin"); // Import the Admin model
 async function determineCreatedBy(owner_id) {
-    if (!owner_id) return "realtor"; // If owner_id is not provided, assume it's a realtor
-    const isAdmin = await Admin.exists({ _id: owner_id }); // Check if owner_id exists in Admin collection
-    return isAdmin ? "admin" : "realtor"; // Return "admin" if exists in Admin, otherwise "realtor"
+  if (!owner_id) return "realtor"; // If owner_id is not provided, assume it's a realtor
+  const isAdmin = await Admin.exists({ _id: owner_id }); // Check if owner_id exists in Admin collection
+  return isAdmin ? "admin" : "realtor"; // Return "admin" if exists in Admin, otherwise "realtor"
 }
 
 exports.addEvent = async (req, res) => {
@@ -42,11 +42,9 @@ exports.addEvent = async (req, res) => {
     } = req.body;
 
     if (entry_type === "paid" && (!entry_price || entry_price == 0)) {
-      return res
-        .status(400)
-        .json({
-          message: "Entry price cannot be zero or empty for paid events",
-        });
+      return res.status(400).json({
+        message: "Entry price cannot be zero or empty for paid events",
+      });
     }
 
     const eventTypesArray = Array.isArray(req.body.event_type)
@@ -208,12 +206,20 @@ exports.getAllEvents = async (req, res) => {
     const skip = (page - 1) * limit;
 
     // Build query object
-    const query = {};
-    if (featured === "true") {
-      query.is_feature = true;
-    }
+    // const query = {};
+    // if (featured === "true") {
+    //   query.is_feature = true;
+    // }
 
-    if (created_by) query.created_by = created_by
+    // if (created_by) query.created_by = created_by
+
+    const query = {};
+
+    if (featured === "true" || created_by) {
+      query.$or = [];
+      if (featured === "true") query.$or.push({ is_feature: true });
+      if (created_by) query.$or.push({ created_by });
+    }
 
     // Fetch total event count for pagination
     const totalEvents = await Event.countDocuments(query);
@@ -231,7 +237,10 @@ exports.getAllEvents = async (req, res) => {
     // Fetch reviews for each event
     const eventsWithReviews = await Promise.all(
       events.map(async (event) => {
-        const reviews = await Review.find({ review_for: event._id, review_for_type: "Event" });
+        const reviews = await Review.find({
+          review_for: event._id,
+          review_for_type: "Event",
+        });
         return {
           ...event.toObject(),
           reviews,
@@ -251,7 +260,9 @@ exports.getAllEvents = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Error fetching events", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching events", error: error.message });
   }
 };
 
@@ -271,7 +282,10 @@ exports.getEventById = async (req, res) => {
     }
 
     // Fetch reviews for the event
-    const reviews = await Review.find({ review_for: id, review_for_type: "Event" });
+    const reviews = await Review.find({
+      review_for: id,
+      review_for_type: "Event",
+    });
 
     res.status(200).json({
       ...event.toObject(),
@@ -279,7 +293,9 @@ exports.getEventById = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Error fetching event", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching event", error: error.message });
   }
 };
 
@@ -308,7 +324,10 @@ exports.getAllEventsByHostId = async (req, res) => {
     // Fetch reviews for each event
     const eventsWithReviews = await Promise.all(
       events.map(async (event) => {
-        const reviews = await Review.find({ review_for: event._id, review_for_type: "Event" });
+        const reviews = await Review.find({
+          review_for: event._id,
+          review_for_type: "Event",
+        });
         return {
           ...event.toObject(),
           reviews,
@@ -328,10 +347,11 @@ exports.getAllEventsByHostId = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Error fetching events", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching events", error: error.message });
   }
 };
-
 
 exports.deleteEvent = async (req, res) => {
   const session = await mongoose.startSession();

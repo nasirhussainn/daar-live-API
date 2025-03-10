@@ -235,12 +235,20 @@ exports.getAllProperties = async (req, res) => {
     const skip = (page - 1) * limit;
 
     // Build query object
+    // const query = {};
+    // if (featured === "true") {
+    //   query.is_feature = true;
+    // }
+
+    // if (created_by) query.created_by = created_by
+
     const query = {};
-    if (featured === "true") {
-      query.is_feature = true;
+
+    if (featured === "true" || created_by) {
+      query.$or = [];
+      if (featured === "true") query.$or.push({ is_feature: true });
+      if (created_by) query.$or.push({ created_by });
     }
-    
-    if (created_by) query.created_by = created_by
 
     // Fetch total count (for frontend pagination)
     const totalProperties = await Property.countDocuments(query);
