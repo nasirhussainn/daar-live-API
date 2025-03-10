@@ -10,6 +10,14 @@ const Review = require("../../models/Review");
 const Booking = require("../../models/Booking");
 const { uploadMultipleToCloudinary } = require("../../config/cloudinary"); // Import cloudinary helper
 
+const Admin = require('../../models/Admin'); // Import the Admin model
+async function determineCreatedBy(owner_id) {
+    if (!owner_id) return "realtor"; // If owner_id is not provided, assume it's a realtor
+    const isAdmin = await Admin.exists({ _id: owner_id }); // Check if owner_id exists in Admin collection
+    return isAdmin ? "admin" : "realtor"; // Return "admin" if exists in Admin, otherwise "realtor"
+}
+
+
 exports.addProperty = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -117,13 +125,14 @@ exports.addProperty = async (req, res) => {
     // Step 6: Set `property_status`, `allow_booking`, and `created_by`
     let property_status = "pending";
     let allow_booking = true;
-    let created_by = owner_id ? "realtor" : "admin";
+
+    const created_by = await determineCreatedBy(owner_id);
 
     if (property_purpose === "sell") {
       allow_booking = false; // If purpose is "sell", disable booking
     }
 
-    if (is_feature === "true" || is_feature === true) {
+    if (is_feature === "true" || is_feature === true || created_by === "admin") {
       property_status = "approved"; // If featured, set status to approved
     }
 
@@ -219,7 +228,7 @@ exports.addProperty = async (req, res) => {
 
 exports.getAllProperties = async (req, res) => {
   try {
-    let { page, limit, featured, user_id } = req.query;
+    let { page, limit, featured, user_id, created_by } = req.query;
     page = parseInt(page) || 1; // Default page = 1
     limit = parseInt(limit) || 10; // Default limit = 10
 
@@ -230,6 +239,8 @@ exports.getAllProperties = async (req, res) => {
     if (featured === "true") {
       query.is_feature = true;
     }
+    
+    if (created_by) query.created_by = created_by
 
     // Fetch total count (for frontend pagination)
     const totalProperties = await Property.countDocuments(query);

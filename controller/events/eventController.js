@@ -7,6 +7,13 @@ const { uploadMultipleToCloudinary } = require("../../config/cloudinary");
 const FeaturedEntity = require("../../models/FeaturedEntity");
 const Review = require("../../models/Review");
 
+const Admin = require('../../models/Admin'); // Import the Admin model
+async function determineCreatedBy(owner_id) {
+    if (!owner_id) return "realtor"; // If owner_id is not provided, assume it's a realtor
+    const isAdmin = await Admin.exists({ _id: owner_id }); // Check if owner_id exists in Admin collection
+    return isAdmin ? "admin" : "realtor"; // Return "admin" if exists in Admin, otherwise "realtor"
+}
+
 exports.addEvent = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -106,7 +113,7 @@ exports.addEvent = async (req, res) => {
     }
 
     // Step 4: Set `created_by`, `allow_booking`, and `is_feature`
-    let created_by = host_id ? "realtor" : "admin";
+    const created_by = await determineCreatedBy(host_id);
     // Step 5: Create the event data
     const eventData = new Event({
       host_id,
@@ -194,7 +201,7 @@ exports.addEvent = async (req, res) => {
 
 exports.getAllEvents = async (req, res) => {
   try {
-    let { page, limit, featured } = req.query;
+    let { page, limit, featured, created_by } = req.query;
 
     page = parseInt(page) || 1; // Default page = 1
     limit = parseInt(limit) || 10; // Default limit = 10
@@ -205,6 +212,8 @@ exports.getAllEvents = async (req, res) => {
     if (featured === "true") {
       query.is_feature = true;
     }
+
+    if (created_by) query.created_by = created_by
 
     // Fetch total event count for pagination
     const totalEvents = await Event.countDocuments(query);
