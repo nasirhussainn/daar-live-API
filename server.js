@@ -79,6 +79,7 @@ const propertyBookingRoutes = require("./routes/booking/propertyBookingRoutes")
 const eventBookingRoutes = require("./routes/booking/eventBookingRoutes")
 
 const realtorStatRoutes = require("./routes/stats/realtorStatRoutes");
+const subscriptionStatRoutes = require("./routes/stats/subscriptionStatRoutes");
 
 app.use("/auth", [
   authSignup,
@@ -118,6 +119,8 @@ app.use("/contact-admin", contactUsRoutes);
 // redisSubscriber(io);
 
 app.use("/approval", approvalRoutes);
+
+app.use("/stats", [realtorStatRoutes, subscriptionStatRoutes]);
 
 // Start the Server
 server.listen(PORT, () => {
