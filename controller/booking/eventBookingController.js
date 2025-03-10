@@ -1,6 +1,7 @@
 const Booking = require("../../models/Booking");
 const Event = require("../../models/Events");
 const User = require("../../models/User");
+const Review = require("../../models/Review");
 const { sendEventBookingConfirmationEmail } = require("../../config/mailer");
 
 // ✅ Book an Event
@@ -77,7 +78,7 @@ exports.bookEvent = async (req, res) => {
       number_of_tickets,
       status: "pending",
       event_dates: event_dates || [],
-      tickets: tickets || [], 
+      tickets: tickets || [],
       tickets,
     });
 
@@ -186,15 +187,70 @@ exports.getAllEventBookings = async (req, res) => {
     const { status } = req.query;
     if (status) query.status = status;
 
+    // Fetch bookings with full event details
     const bookings = await Booking.find(query)
-      .populate("event_id")
-      .populate("user_id");
+      .populate({
+        path: "event_id",
+        populate: [
+          { path: "host_id", select: "full_name email profile_picture" }, // Get host details
+          { path: "event_type", select: "name" }, // Get event type names
+          {
+            path: "location",
+            select:
+              "address city state country postal_code latitude longitude nearbyLocations",
+          }, // Get full location details
+          { path: "media", select: "images videos" }, // Get images & videos
+          { path: "feature_details", select: "feature_name description" }, // Get feature details
+        ],
+      })
+      .populate({
+        path: "user_id",
+        select: "full_name email profile_picture", // Only required user fields
+      })
+      .populate({
+        path: "realtor_id",
+        select: "full_name email", // Only required realtor fields
+      });
 
-    res
-      .status(200)
-      .json({ message: "Bookings retrieved successfully", bookings });
+    // Fetch reviews for each event
+    const bookingsWithReviews = await Promise.all(
+      bookings.map(async (booking) => {
+        if (!booking.event_id) return booking; // Skip if event_id is missing
+
+        const reviews = await Review.find({
+          review_for: booking.event_id._id,
+          review_for_type: "Event",
+        })
+          .populate({
+            path: "review_by",
+            select: "full_name email profile_picture",
+          }) // Fetch reviewer details
+          .select("review_description review_rating createdAt");
+
+        return {
+          ...booking.toObject(),
+          event_id: {
+            ...booking.event_id.toObject(),
+            reviews, // Attach event reviews
+          },
+        };
+      })
+    );
+
+    if (!bookingsWithReviews.length) {
+      return res.status(404).json({ message: "No event bookings found" });
+    }
+
+    res.status(200).json({
+      message: "Bookings retrieved successfully",
+      bookings: bookingsWithReviews,
+    });
   } catch (error) {
-    res.status(500).json({ message: "Server Error", error: error.message });
+    console.error(error);
+    res.status(500).json({
+      message: "Server Error",
+      error: error.message,
+    });
   }
 };
 
@@ -203,18 +259,64 @@ exports.getEventBookingById = async (req, res) => {
   try {
     const { booking_id } = req.params;
 
+    // Find booking with event and user details
     const booking = await Booking.findById(booking_id)
-      .populate("event_id")
-      .populate("user_id");
+      .populate({
+        path: "event_id",
+        populate: [
+          { path: "host_id", select: "full_name email profile_picture" }, // Get host details
+          { path: "event_type", select: "name" }, // Get event type name
+          {
+            path: "location",
+            select:
+              "address city state country postal_code latitude longitude nearbyLocations",
+          }, // Get full location details
+          { path: "media", select: "images videos" }, // Get images & videos
+          { path: "feature_details", select: "feature_name description" }, // Get feature details
+        ],
+      })
+      .populate({
+        path: "user_id",
+        select: "full_name email profile_picture", // Get only required user fields
+      })
+      .populate({
+        path: "realtor_id",
+        select: "full_name email", // Get only required realtor fields
+      });
 
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
     }
 
-    res
-      .status(200)
-      .json({ message: "Booking retrieved successfully", booking });
+    // Fetch reviews for the event
+    let eventReviews = [];
+    if (booking.event_id) {
+      eventReviews = await Review.find({
+        review_for: booking.event_id._id,
+        review_for_type: "Event",
+      })
+        .populate({
+          path: "review_by",
+          select: "full_name email profile_picture",
+        }) // Fetch reviewer details
+        .select("review_description review_rating createdAt");
+    }
+
+    // Attach reviews to the event
+    const bookingWithReviews = {
+      ...booking.toObject(),
+      event_id: {
+        ...booking.event_id.toObject(),
+        reviews: eventReviews, // Add reviews to event
+      },
+    };
+
+    res.status(200).json({
+      message: "Booking retrieved successfully",
+      booking: bookingWithReviews,
+    });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
@@ -222,19 +324,38 @@ exports.getEventBookingById = async (req, res) => {
 // ✅ Get All Bookings for a Specific Event (With Optional Status Filter)
 exports.getBookingsByEntitiesId = async (req, res) => {
   try {
-    const { event_id, status, user_id, realtor_id } = req.query; // Query parameters
+    const { event_id, user_id, realtor_id, status } = req.query; // Query parameters
 
-    let query = {}; // Base query
+    let query = { booking_type: "event" }; // Set booking_type="event" in the query
 
-    if (event_id) query.event_id = event_id; // Filter by property ID if provided
-    if (status) query.status = status; // Filter by status if provided
-    if (user_id) query.user_id = user_id; // Filter by user ID if provided
-    if (realtor_id) query.realtor_id = realtor_id; // Filter
+    if (event_id) query.event_id = event_id; // Filter by event ID
+    if (status) query.status = status; // Filter by status
+    if (user_id) query.user_id = user_id; // Filter by user ID
+    if (realtor_id) query.realtor_id = realtor_id; // Filter by realtor ID
 
     const bookings = await Booking.find(query)
-      .populate("event_id") // Populate property details
-      .populate("user_id") // Populate user details
-      .populate("realtor_id"); // Populate realtor details
+      .populate({
+        path: "event_id",
+        populate: [
+          { path: "host_id", select: "full_name email profile_picture" }, // Host details
+          { path: "event_type", select: "name" }, // Event type name
+          {
+            path: "location",
+            select:
+              "address city state country postal_code latitude longitude nearbyLocations",
+          }, // Full location details
+          { path: "media", select: "images videos" }, // Event media (images & videos)
+          { path: "feature_details", select: "feature_name description" }, // Event features
+        ],
+      })
+      .populate({
+        path: "user_id",
+        select: "full_name email profile_picture", // User details
+      })
+      .populate({
+        path: "realtor_id",
+        select: "full_name email", // Realtor details
+      });
 
     if (bookings.length === 0) {
       return res
@@ -242,10 +363,40 @@ exports.getBookingsByEntitiesId = async (req, res) => {
         .json({ message: "No bookings found matching the criteria" });
     }
 
-    res
-      .status(200)
-      .json({ message: "Bookings retrieved successfully", bookings });
+    // Fetch event reviews and attach them to respective events
+    const bookingsWithReviews = await Promise.all(
+      bookings.map(async (booking) => {
+        let eventReviews = [];
+        if (booking.event_id && booking.event_id._id) {
+          eventReviews = await Review.find({
+            review_for: booking.event_id._id,
+            review_for_type: "Event",
+          })
+            .populate({
+              path: "review_by",
+              select: "full_name email profile_picture",
+            }) // Reviewer details
+            .select("review_description review_rating createdAt");
+        }
+
+        return {
+          ...booking.toObject(),
+          event_id: booking.event_id
+            ? {
+                ...booking.event_id.toObject(),
+                reviews: eventReviews, // Add reviews to event
+              }
+            : null, // Handle case where event_id is null
+        };
+      })
+    );
+
+    res.status(200).json({
+      message: "Bookings retrieved successfully",
+      bookings: bookingsWithReviews,
+    });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 };

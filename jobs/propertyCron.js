@@ -100,7 +100,7 @@ const deleteExpiredPendingBookings = async () => {
     // Find and delete bookings that are pending for more than 2 hours
     const deletedBookings = await Booking.deleteMany({
       status: "pending",
-      updatedAt: { $lt: twoHoursAgo }, // Created more than 2 hours ago
+      updated_at: { $lt: twoHoursAgo }, // Created more than 2 hours ago
     });
 
     console.log(`✅ Deleted ${deletedBookings.deletedCount} expired pending bookings.`);

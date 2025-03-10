@@ -21,7 +21,6 @@ const BookingSchema = new Schema({
   booking_type: {
     type: String,
     enum: ["property", "event"],
-    required: true, 
   },
 
   // Property booking fields
