@@ -73,7 +73,7 @@ const chatRoutes = require("./routes/chat/chatRoutes")(io);
 
 const contactUsRoutes = require("./routes/admin/contactUsRoutes");
 
-const approvalRoutes = require("./routes/admin/approvalRoutes")
+const approvalRoutes = require("./routes/approval/approvalRoutes")
 
 const propertyBookingRoutes = require("./routes/booking/propertyBookingRoutes")
 const eventBookingRoutes = require("./routes/booking/eventBookingRoutes")
