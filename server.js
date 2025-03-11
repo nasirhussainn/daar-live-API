@@ -81,6 +81,8 @@ const eventBookingRoutes = require("./routes/booking/eventBookingRoutes")
 const realtorStatRoutes = require("./routes/stats/realtorStatRoutes");
 const subscriptionStatRoutes = require("./routes/stats/subscriptionStatRoutes");
 
+const notificationRoutes = require("./routes/notification/notificationRoutes");
+
 app.use("/auth", [
   authSignup,
   authPassword,
@@ -121,6 +123,8 @@ app.use("/contact-admin", contactUsRoutes);
 app.use("/approval", approvalRoutes);
 
 app.use("/stats", [realtorStatRoutes, subscriptionStatRoutes]);
+
+app.use("/notifications", notificationRoutes);
 
 // Start the Server
 server.listen(PORT, () => {

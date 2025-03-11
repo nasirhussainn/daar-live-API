@@ -3,6 +3,7 @@ const Property = require("../../models/Properties");
 const User = require("../../models/User");
 const Review = require("../../models/Review");
 const { sendPropertyBookingConfirmationEmail } = require("../../config/mailer");
+const Notification = require("../../models/Notification"); 
 
 // Book a Property
 exports.bookProperty = async (req, res) => {
@@ -140,6 +141,25 @@ exports.confirmPropertyBooking = async (req, res) => {
     await property.save();
 
     await sendPropertyBookingConfirmationEmail(booking);
+
+     // ✅ Send Notification to User
+     await Notification.create({
+      user: booking.user_id,
+      notification_type: "booking",
+      reference_id: booking._id,
+      title: "Booking Confirmed",
+      message: `Your booking has been confirmed! Your confirmation ticket is ${booking.confirmation_ticket}.`,
+    });
+
+    // ✅ Send Notification to Realtor
+    await Notification.create({
+      user: booking.realtor_id,
+      notification_type: "booking",
+      reference_id: booking._id,
+      title: "Booking Confirmed",
+      message: `A booking for your property has been confirmed.`,
+    });
+
 
     res.status(200).json({
       message: "Booking confirmed successfully",

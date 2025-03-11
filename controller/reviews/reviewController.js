@@ -4,6 +4,8 @@ const User = require("../../models/User");
 const Realtor = require("../../models/Realtor");
 const Event = require("../../models/Events");
 const Property = require("../../models/Properties");
+const Notification = require("../../models/Notification"); 
+
 const mongoose = require("mongoose");
 
 // Function to recalculate avg_rating for a User, Event, or Property
@@ -44,8 +46,8 @@ const recalculateAvgRating = async (
 };
 
 exports.addReview = async (req, res) => {
-  const session = await mongoose.startSession(); // Start a new session
-  session.startTransaction(); // Begin transaction
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
   try {
     const {
@@ -56,12 +58,10 @@ exports.addReview = async (req, res) => {
       review_rating,
     } = req.body;
 
-    // Validate review type
     if (!["User", "Event", "Property"].includes(review_for_type)) {
       return res.status(400).json({ message: "Invalid review type" });
     }
 
-    // Check if the user has already reviewed this entity
     let existingReview = await Review.findOne({
       review_for,
       review_for_type,
@@ -70,35 +70,36 @@ exports.addReview = async (req, res) => {
 
     let target;
     let model;
+    let recipientUserId; // User to notify
 
     if (review_for_type === "User") {
-      target = await Realtor.findOne({ user_id: review_for }).session(session); // Use session
+      target = await Realtor.findOne({ user_id: review_for }).session(session);
       if (!target)
-        return res
-          .status(404)
-          .json({ message: "Realtor not found for the given User" });
+        return res.status(404).json({ message: "Realtor not found for the given User" });
       model = Realtor;
+      recipientUserId = target.user_id; // Notify the realtor
     } else if (review_for_type === "Event") {
       target = await Event.findById(review_for).session(session);
       if (!target) return res.status(404).json({ message: "Event not found" });
       model = Event;
+      recipientUserId = target.organizer; // Notify the event organizer
     } else if (review_for_type === "Property") {
       target = await Property.findById(review_for).session(session);
-      if (!target)
-        return res.status(404).json({ message: "Property not found" });
+      if (!target) return res.status(404).json({ message: "Property not found" });
       model = Property;
+      recipientUserId = target.owner; // Notify the property owner
     }
 
     let review;
+    let isNewReview = false; // Track if it's a new review
+
     if (existingReview) {
-      // Overwrite the existing review (for all types)
       existingReview.review_description = review_description;
       existingReview.review_rating = review_rating;
       existingReview.updated_at = new Date();
       await existingReview.save({ session });
       review = existingReview;
     } else {
-      // Create a new review if it does not exist
       review = new Review({
         review_for,
         review_for_type,
@@ -106,27 +107,40 @@ exports.addReview = async (req, res) => {
         review_description,
         review_rating,
       });
-      await review.save({ session }); // Save with session
+      await review.save({ session });
+      isNewReview = true;
     }
 
-    // Recalculate and update avg_rating
     await recalculateAvgRating(model, review_for, session, review_for_type);
 
-    await session.commitTransaction(); // Commit transaction
+    // Create notification for the recipient
+    if (recipientUserId) {
+      const notification = new Notification({
+        user: recipientUserId,
+        notification_type: "review",
+        reference_id: review._id,
+        title: isNewReview ? "New Review Received" : "Review Updated",
+        message: isNewReview
+          ? `You have received a new review with a rating of ${review_rating}.`
+          : `Your review has been updated with a new rating of ${review_rating}.`,
+        is_read: false,
+      });
 
-    res
-      .status(200)
-      .json({ message: "Review added successfully!", review });
+      await notification.save({ session }); // Save notification within transaction
+    }
+
+    await session.commitTransaction();
+    res.status(200).json({ message: "Review added successfully!", review });
+
   } catch (error) {
-    await session.abortTransaction(); // Abort transaction on error
+    await session.abortTransaction();
     console.error(error);
-    res
-      .status(500)
-      .json({ message: "Error adding review", error: error.message });
+    res.status(500).json({ message: "Error adding review", error: error.message });
   } finally {
-    session.endSession(); // End the session
+    session.endSession();
   }
 };
+
 
 
 exports.updateReview = async (req, res) => {

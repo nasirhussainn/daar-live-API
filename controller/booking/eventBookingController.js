@@ -3,6 +3,7 @@ const Event = require("../../models/Events");
 const User = require("../../models/User");
 const Review = require("../../models/Review");
 const { sendEventBookingConfirmationEmail } = require("../../config/mailer");
+const Notification = require("../../models/Notification"); 
 
 // ✅ Book an Event
 const generateTickets = (numTickets) => {
@@ -133,6 +134,23 @@ exports.confirmEventBooking = async (req, res) => {
 
     // Send confirmation email
     await sendEventBookingConfirmationEmail(booking);
+
+    await Notification.create({
+      user: booking.user_id,
+      notification_type: "booking",
+      reference_id: booking._id,
+      title: "Booking Confirmed",
+      message: `Your booking has been confirmed! Your confirmation ticket is ${booking.confirmation_ticket}.`,
+    });
+
+    // ✅ Send Notification to Realtor
+    await Notification.create({
+      user: booking.realtor_id,
+      notification_type: "booking",
+      reference_id: booking._id,
+      title: "Booking Confirmed",
+      message: `A booking for your property has been confirmed.`,
+    });
 
     res
       .status(200)
