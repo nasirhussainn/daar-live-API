@@ -6,6 +6,7 @@ const Subscription = require("../../models/Subscription");
 const Plan = require("../../models/admin/SubscriptionPlan"); // Import Plan model
 const Review = require("../../models/Review");
 const { getRealtorStats } = require("../../controller/stats/getRealtorStats");
+const { getReviewsWithCount } = require("../../controller/reviews/getReviewsWithCount"); // Import the function
 
 router.get("/user-via-token/:login_token", async (req, res) => {
   try {
@@ -45,8 +46,8 @@ router.get("/user-via-token/:login_token", async (req, res) => {
         }
 
         // Fetch reviews for the realtor
-        const reviews = await Review.find({ review_for: user._id, review_for_type: "User" }).lean();
-        responseData.reviews = reviews;
+        const reviewData = await getReviewsWithCount(user._id, "User");
+        responseData.reviews = reviewData;
         stats = await getRealtorStats(user._id);
         responseData.stats = stats;
       }
@@ -93,8 +94,8 @@ router.get("/user-via-id/:_id", async (req, res) => {
         }
 
          // Fetch reviews for the realtor
-         const reviews = await Review.find({ review_for: user._id, review_for_type: "User" }).lean();
-         responseData.reviews = reviews;
+         const reviewData = await getReviewsWithCount(user._id, "User");
+         responseData.reviews = reviewData;
          stats = await getRealtorStats(user._id);
         responseData.stats = stats;
       }
@@ -141,8 +142,8 @@ router.get("/user", async (req, res) => {
         }
 
          // Fetch reviews for the realtor
-         const reviews = await Review.find({ review_for: user._id, review_for_type: "User" }).lean();
-         responseData.reviews = reviews;
+         const reviewData = await getReviewsWithCount(user._id, "User");
+         responseData.reviews = reviewData;
          stats = await getRealtorStats(user._id);
         responseData.stats = stats;
       }
@@ -196,25 +197,23 @@ router.get("/realtors", async (req, res) => {
       realtors.map(async (user) => {
         const realtorDetails = await Realtor.findOne({ user_id: user._id }).lean();
         let subscription = null;
-        let reviews = [];
 
         if (realtorDetails) {
           subscription = await Subscription.findOne({
             realtor_id: realtorDetails._id,
             status: "active",
           }).lean();
-
-          // Fetch reviews for the realtor
-          reviews = await Review.find({ review_for: realtorDetails.user_id, review_for_type: "User" }).lean();
-          stats = await getRealtorStats(realtorDetails.user_id);
         }
+        const reviewData = await getReviewsWithCount(realtorDetails.user_id, "User");
+        const stats = await getRealtorStats(realtorDetails.user_id);
 
         return {
           ...user,
           realtor_details: realtorDetails || null,
           subscription: subscription || null,
           is_subscribed: !!subscription, // Boolean flag for subscription status
-          reviews, // Include reviews
+          reviews: reviewData || [],
+          stats: stats || null,
         };
       })
     );

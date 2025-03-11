@@ -7,6 +7,7 @@ const { uploadMultipleToCloudinary } = require("../../config/cloudinary");
 const FeaturedEntity = require("../../models/FeaturedEntity");
 const Review = require("../../models/Review");
 const { getRealtorStats } = require("../../controller/stats/getRealtorStats"); // Import the function
+const { getReviewsWithCount } = require("../../controller/reviews/getReviewsWithCount"); // Import the function
 
 const Admin = require("../../models/Admin"); // Import the Admin model
 async function determineCreatedBy(owner_id) {
@@ -241,10 +242,7 @@ exports.getAllEvents = async (req, res) => {
     // Fetch reviews and attach stats
     const eventsWithDetails = await Promise.all(
       events.map(async (event) => {
-        const reviews = await Review.find({
-          review_for: event._id,
-          review_for_type: "Event",
-        });
+        const reviews = await getReviewsWithCount(event._id, "Event");
 
         return {
           ...event.toObject(),
@@ -283,10 +281,8 @@ exports.getEventById = async (req, res) => {
     }
 
     // Fetch reviews for the event
-    const reviews = await Review.find({
-      review_for: id,
-      review_for_type: "Event",
-    });
+    const reviews = await getReviewsWithCount(event._id, "Event");
+
 
     // Fetch host stats
     const hostStats = await getRealtorStats(event.host_id._id.toString());
@@ -333,10 +329,8 @@ exports.getAllEventsByHostId = async (req, res) => {
     // Fetch reviews and attach stats
     const eventsWithDetails = await Promise.all(
       events.map(async (event) => {
-        const reviews = await Review.find({
-          review_for: event._id,
-          review_for_type: "Event",
-        });
+        const reviews = await getReviewsWithCount(event._id, "Event");
+
 
         return {
           ...event.toObject(),

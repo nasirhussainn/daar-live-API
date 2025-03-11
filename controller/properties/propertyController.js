@@ -10,7 +10,7 @@ const Review = require("../../models/Review");
 const Booking = require("../../models/Booking");
 const { uploadMultipleToCloudinary } = require("../../config/cloudinary"); // Import cloudinary helper
 const { getRealtorStats } = require("../../controller/stats/getRealtorStats"); // Import the function
-
+const { getReviewsWithCount } = require("../../controller/reviews/getReviewsWithCount"); // Import the function
 
 const Admin = require('../../models/Admin'); // Import the Admin model
 async function determineCreatedBy(owner_id) {
@@ -264,10 +264,7 @@ exports.getAllProperties = async (req, res) => {
           _id: { $in: property.amenities },
         });
 
-        const reviewDetails = await Review.find({
-          review_for: property._id,
-          review_for_type: "Property",
-        }).populate("review_by");
+        const reviewData = await getReviewsWithCount(property._id, "Property");
 
         let savedStatus = "unlike"; // Default status
 
@@ -292,7 +289,7 @@ exports.getAllProperties = async (req, res) => {
         return {
           ...property.toObject(),
           amenities: amenitiesDetails, // Replace IDs with actual amenities details
-          review: reviewDetails,
+          review: reviewData,
           saved_status: savedStatus, // Include saved property status
           realtor_stats: realtorStats, // ✅ Now includes realtor statistics
         };
@@ -336,13 +333,7 @@ exports.getPropertyById = async (req, res) => {
     });
 
     // Fetch property reviews
-    const reviewDetails = await Review.find({
-      review_for: property._id,
-      review_for_type: "Property",
-    }).populate({
-      path: "review_by",
-      select: "full_name email profile_picture",
-    });
+    const reviewData = await getReviewsWithCount(property._id, "Property");
 
     // Default status as 'unlike'
     let saved_status = "unlike";
@@ -358,16 +349,16 @@ exports.getPropertyById = async (req, res) => {
 
     // Fetch realtor statistics if owner_id exists
     let realtorStats = null;
-    if (property.owner_id && property.owner_id._id) {
+    if (property.owner_id) {
       realtorStats = await getRealtorStats(property.owner_id._id);
     }
 
     res.status(200).json({
       ...property.toObject(),
       amenities: amenitiesDetails,
-      reviews: reviewDetails,
+      reviews: reviewData,
       saved_status, // Include saved status
-      realtor_stats: realtorStats?.success ? realtorStats : null, // Only include stats if successful
+      realtor_stats: realtorStats, // Only include stats if successful
     });
   } catch (error) {
     console.error("Error fetching property details:", error);
@@ -414,15 +405,13 @@ exports.getAllPropertiesByOwnerId = async (req, res) => {
           _id: { $in: property.amenities },
         });
 
-        const reviewDetails = await Review.find({
-          review_for: property._id,
-          review_for_type: "Property",
-        }).populate("review_by");
+        const reviewData = await getReviewsWithCount(property._id, "Property");
 
         return {
           ...property.toObject(),
           amenities: amenitiesDetails, // Replace IDs with actual amenities details
-          reviews: reviewDetails, // Include review details
+          reviews: reviewData, // Include review details
+          realtor_stats: realtorStats, 
         };
       })
     );
@@ -532,6 +521,14 @@ exports.featureProperty = async (req, res) => {
       entity_type: "property",
     });
 
+    if(property.allow_booking === false){
+      property.allow_booking = true
+    }
+    if(property.is_available === false){
+      property.is_available = true
+    }
+
+    await property.save()
     const savedFeatureEntity = await featureEntity.save({ session });
 
     // Update the Property with the FeaturedEntity reference

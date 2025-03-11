@@ -1,3 +1,7 @@
+const mongoose = require("mongoose");
+const Property = require("../../models/Properties");
+const Booking = require("../../models/Booking");
+
 const getRealtorStats = async (realtorId) => {
     try {
       if (!realtorId) return null;
