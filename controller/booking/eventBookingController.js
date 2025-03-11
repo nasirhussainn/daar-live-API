@@ -149,7 +149,7 @@ exports.confirmEventBooking = async (req, res) => {
       notification_type: "booking",
       reference_id: booking._id,
       title: "Booking Confirmed",
-      message: `A booking for your property has been confirmed.`,
+      message: `A booking for your event has been confirmed.`,
     });
 
     res
@@ -189,6 +189,24 @@ exports.cancelEventBooking = async (req, res) => {
     // Update booking status
     booking.status = "canceled";
     await booking.save();
+
+    // ✅ Send Notification to User
+    await Notification.create({
+      user: booking.user_id,
+      notification_type: "booking",
+      reference_id: booking._id,
+      title: "Booking Canceled",
+      message: `Your booking has been canceled!`,
+    });
+
+    // ✅ Send Notification to Realtor
+    await Notification.create({
+      user: booking.realtor_id,
+      notification_type: "booking",
+      reference_id: booking._id,
+      title: "Booking Canceled",
+      message: `A booking for your event has been canceled.`,
+    });
 
     res
       .status(200)

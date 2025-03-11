@@ -200,6 +200,24 @@ exports.cancelPropertyBooking = async (req, res) => {
     property.booking_id = null;
     await property.save();
 
+     // ✅ Send Notification to User
+     await Notification.create({
+      user: booking.user_id,
+      notification_type: "booking",
+      reference_id: booking._id,
+      title: "Booking Canceled",
+      message: `Your booking has been canceled!`,
+    });
+
+    // ✅ Send Notification to Realtor
+    await Notification.create({
+      user: booking.realtor_id,
+      notification_type: "booking",
+      reference_id: booking._id,
+      title: "Booking Canceled",
+      message: `A booking for your property has been canceled.`,
+    });
+
     res.status(200).json({ message: "Booking canceled successfully", booking });
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
