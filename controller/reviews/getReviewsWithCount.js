@@ -25,6 +25,18 @@ const getReviewsWithCount = async (reviewForId, reviewForType) => {
       return { total_reviews: 0, reviews: [] };
     }
   };
+
+  const getReviewCount = async (reviewForId, reviewForType) => {
+    try {
+        return await Review.countDocuments({
+            review_for: reviewForId,
+            review_for_type: reviewForType,
+        });
+    } catch (error) {
+        console.error("Error fetching review count:", error);
+        return 0;
+    }
+};
   
-  module.exports = { getReviewsWithCount };
+  module.exports = { getReviewsWithCount, getReviewCount };
   

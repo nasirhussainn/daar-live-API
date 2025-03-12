@@ -10,7 +10,8 @@ const Review = require("../../models/Review");
 const Booking = require("../../models/Booking");
 const { uploadMultipleToCloudinary } = require("../../config/cloudinary"); // Import cloudinary helper
 const { getRealtorStats } = require("../../controller/stats/getRealtorStats"); // Import the function
-const { getReviewsWithCount } = require("../../controller/reviews/getReviewsWithCount"); // Import the function
+const { getReviewsWithCount, getReviewCount } = require("../../controller/reviews/getReviewsWithCount"); // Import the function
+const { getAvgRating } = require("../../routes/userCRUD/getAvgRating"); // Import the function
 
 const Admin = require('../../models/Admin'); // Import the Admin model
 async function determineCreatedBy(owner_id) {
@@ -284,6 +285,8 @@ exports.getAllProperties = async (req, res) => {
         let realtorStats = null;
         if (property.owner_id) {
           realtorStats = await getRealtorStats(property.owner_id._id); // Reusing function
+          realtorAvgRating = await getAvgRating(property.owner_id._id);
+          reatorReviewCount = await getReviewCount(property.owner_id._id, "User");
         }
 
         return {
@@ -292,6 +295,8 @@ exports.getAllProperties = async (req, res) => {
           review: reviewData,
           saved_status: savedStatus, // Include saved property status
           realtor_stats: realtorStats, // ✅ Now includes realtor statistics
+          realtor_review_count: reatorReviewCount,
+          realtor_avg_rating: realtorAvgRating,
         };
       })
     );
@@ -351,6 +356,8 @@ exports.getPropertyById = async (req, res) => {
     let realtorStats = null;
     if (property.owner_id) {
       realtorStats = await getRealtorStats(property.owner_id._id);
+      realtorAvgRating = await getAvgRating(property.owner_id._id);
+      reatorReviewCount = await getReviewCount(property.owner_id._id, "User");
     }
 
     res.status(200).json({
@@ -359,6 +366,8 @@ exports.getPropertyById = async (req, res) => {
       reviews: reviewData,
       saved_status, // Include saved status
       realtor_stats: realtorStats, // Only include stats if successful
+      realtor_review_count: reatorReviewCount,
+      realtor_avg_rating: realtorAvgRating,
     });
   } catch (error) {
     console.error("Error fetching property details:", error);
@@ -397,6 +406,8 @@ exports.getAllPropertiesByOwnerId = async (req, res) => {
 
     // Fetch realtor statistics
     let realtorStats = await getRealtorStats(owner_id);
+    let realtorAvgRating = await getAvgRating(owner_id);
+    let reatorReviewCount = await getReviewCount(owner_id, "User");
 
     // Fetch amenities and reviews for each property
     const propertiesWithDetails = await Promise.all(
@@ -406,12 +417,15 @@ exports.getAllPropertiesByOwnerId = async (req, res) => {
         });
 
         const reviewData = await getReviewsWithCount(property._id, "Property");
+        
 
         return {
           ...property.toObject(),
           amenities: amenitiesDetails, // Replace IDs with actual amenities details
           reviews: reviewData, // Include review details
           realtor_stats: realtorStats, 
+          realtor_review_count: reatorReviewCount,
+          realtor_avg_rating: realtorAvgRating,
         };
       })
     );
@@ -421,7 +435,6 @@ exports.getAllPropertiesByOwnerId = async (req, res) => {
       currentPage: page,
       totalPages: Math.ceil(totalProperties / limit),
       properties: propertiesWithDetails,
-      realtor_stats: realtorStats?.success ? realtorStats : null, // Include realtor stats
     });
   } catch (error) {
     console.error(error);
