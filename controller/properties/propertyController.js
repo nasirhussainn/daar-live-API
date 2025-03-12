@@ -10,16 +10,18 @@ const Review = require("../../models/Review");
 const Booking = require("../../models/Booking");
 const { uploadMultipleToCloudinary } = require("../../config/cloudinary"); // Import cloudinary helper
 const { getRealtorStats } = require("../../controller/stats/getRealtorStats"); // Import the function
-const { getReviewsWithCount, getReviewCount } = require("../../controller/reviews/getReviewsWithCount"); // Import the function
+const {
+  getReviewsWithCount,
+  getReviewCount,
+} = require("../../controller/reviews/getReviewsWithCount"); // Import the function
 const { getAvgRating } = require("../../routes/userCRUD/getAvgRating"); // Import the function
 
-const Admin = require('../../models/Admin'); // Import the Admin model
+const Admin = require("../../models/Admin"); // Import the Admin model
 async function determineCreatedBy(owner_id) {
-    if (!owner_id) return "realtor"; // If owner_id is not provided, assume it's a realtor
-    const isAdmin = await Admin.exists({ _id: owner_id }); // Check if owner_id exists in Admin collection
-    return isAdmin ? "admin" : "realtor"; // Return "admin" if exists in Admin, otherwise "realtor"
+  if (!owner_id) return "realtor"; // If owner_id is not provided, assume it's a realtor
+  const isAdmin = await Admin.exists({ _id: owner_id }); // Check if owner_id exists in Admin collection
+  return isAdmin ? "admin" : "realtor"; // Return "admin" if exists in Admin, otherwise "realtor"
 }
-
 
 exports.addProperty = async (req, res) => {
   const session = await mongoose.startSession();
@@ -135,7 +137,11 @@ exports.addProperty = async (req, res) => {
       allow_booking = false; // If purpose is "sell", disable booking
     }
 
-    if (is_feature === "true" || is_feature === true || created_by === "admin") {
+    if (
+      is_feature === "true" ||
+      is_feature === true ||
+      created_by === "admin"
+    ) {
       property_status = "approved"; // If featured, set status to approved
     }
 
@@ -249,7 +255,10 @@ exports.getAllProperties = async (req, res) => {
 
     // Fetch properties with pagination & filter
     const properties = await Property.find(query)
-      .populate("owner_id") // This gives us the realtor's ID
+      .populate({
+        path: "owner_id",
+        select: "email full_name phone_number profile_picture", // Only these fields will be included
+      })
       .populate("location")
       .populate("media")
       .populate("feature_details")
@@ -286,7 +295,10 @@ exports.getAllProperties = async (req, res) => {
         if (property.owner_id) {
           realtorStats = await getRealtorStats(property.owner_id._id); // Reusing function
           realtorAvgRating = await getAvgRating(property.owner_id._id);
-          reatorReviewCount = await getReviewCount(property.owner_id._id, "User");
+          reatorReviewCount = await getReviewCount(
+            property.owner_id._id,
+            "User"
+          );
         }
 
         return {
@@ -321,12 +333,15 @@ exports.getPropertyById = async (req, res) => {
     const { user_id } = req.query; // Extract user_id from query params
 
     const property = await Property.findById(id)
-      .populate("owner_id") // Fetch owner details (realtor)
-      .populate("location") // Fetch location details
+      .populate({
+        path: "owner_id",
+        select: "email full_name phone_number profile_picture", // Only these fields will be included
+      })
+      .populate("location")
       .populate("media")
       .populate("feature_details")
-      .populate("property_type") // Fetch property type details
-      .populate("property_subtype"); // Fetch property subtype details
+      .populate("property_type")
+      .populate("property_subtype")
 
     if (!property) {
       return res.status(404).json({ message: "Property not found" });
@@ -345,7 +360,10 @@ exports.getPropertyById = async (req, res) => {
 
     // If user_id is provided, check if the user has liked the property
     if (user_id) {
-      const savedProperty = await SavedProperty.findOne({ user_id, property_id: id });
+      const savedProperty = await SavedProperty.findOne({
+        user_id,
+        property_id: id,
+      });
 
       if (savedProperty && savedProperty.status === "like") {
         saved_status = "like";
@@ -371,7 +389,9 @@ exports.getPropertyById = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching property details:", error);
-    res.status(500).json({ message: "Error fetching property", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching property", error: error.message });
   }
 };
 
@@ -389,12 +409,15 @@ exports.getAllPropertiesByOwnerId = async (req, res) => {
 
     // Fetch paginated properties that belong to the given owner_id
     const properties = await Property.find({ owner_id })
-      .populate("owner_id") // Fetch owner details
-      .populate("location") // Fetch location details
+      .populate({
+        path: "owner_id",
+        select: "email full_name phone_number profile_picture", // Only these fields will be included
+      })
+      .populate("location")
       .populate("media")
       .populate("feature_details")
-      .populate("property_type") // Fetch property type details
-      .populate("property_subtype") // Fetch property subtype details
+      .populate("property_type")
+      .populate("property_subtype")
       .skip(skip)
       .limit(limit);
 
@@ -417,13 +440,12 @@ exports.getAllPropertiesByOwnerId = async (req, res) => {
         });
 
         const reviewData = await getReviewsWithCount(property._id, "Property");
-        
 
         return {
           ...property.toObject(),
           amenities: amenitiesDetails, // Replace IDs with actual amenities details
           reviews: reviewData, // Include review details
-          realtor_stats: realtorStats, 
+          realtor_stats: realtorStats,
           realtor_review_count: reatorReviewCount,
           realtor_avg_rating: realtorAvgRating,
         };
@@ -443,7 +465,6 @@ exports.getAllPropertiesByOwnerId = async (req, res) => {
       .json({ message: "Error fetching properties", error: error.message });
   }
 };
-
 
 exports.deleteProperty = async (req, res) => {
   const session = await mongoose.startSession();
@@ -534,14 +555,14 @@ exports.featureProperty = async (req, res) => {
       entity_type: "property",
     });
 
-    if(property.allow_booking === false){
-      property.allow_booking = true
+    if (property.allow_booking === false) {
+      property.allow_booking = true;
     }
-    if(property.is_available === false){
-      property.is_available = true
+    if (property.is_available === false) {
+      property.is_available = true;
     }
 
-    await property.save()
+    await property.save();
     const savedFeatureEntity = await featureEntity.save({ session });
 
     // Update the Property with the FeaturedEntity reference

@@ -6,8 +6,12 @@ const EventType = require("../../models/admin/EventType");
 const { uploadMultipleToCloudinary } = require("../../config/cloudinary");
 const FeaturedEntity = require("../../models/FeaturedEntity");
 const Review = require("../../models/Review");
-const { getRealtorStats } = require("../../controller/stats/getRealtorStats"); // Import the function
-const { getReviewsWithCount } = require("../../controller/reviews/getReviewsWithCount"); // Import the function
+const { getHostsStats } = require("../stats/getHostStats"); // Import the function
+const {
+  getReviewsWithCount,
+  getReviewCount,
+} = require("../../controller/reviews/getReviewsWithCount"); // Import the function
+const { getAvgRating } = require("../../routes/userCRUD/getAvgRating"); // Import the function
 
 const Admin = require("../../models/Admin"); // Import the Admin model
 async function determineCreatedBy(owner_id) {
@@ -218,7 +222,10 @@ exports.getAllEvents = async (req, res) => {
     const totalEvents = await Event.countDocuments(query);
 
     const events = await Event.find(query)
-      .populate("host_id")
+      .populate({
+        path: "host_id",
+        select: "email full_name phone_number profile_picture", // Fetch only these fields
+      })
       .populate("event_type")
       .populate("location")
       .populate("media")
@@ -231,12 +238,18 @@ exports.getAllEvents = async (req, res) => {
     }
 
     // Get unique hosts
-    const uniqueHosts = [...new Set(events.map(event => event.host_id._id.toString()))];
+    const uniqueHosts = [
+      ...new Set(events.map((event) => event.host_id._id.toString())),
+    ];
 
     // Fetch statistics for each host
     const hostStats = {};
+    const hostAvgRating = {};
+    const hostReviewCount = {};
     for (const hostId of uniqueHosts) {
-      hostStats[hostId] = await getRealtorStats(hostId);
+      hostStats[hostId] = await getHostsStats(hostId);
+      hostAvgRating[hostId] = await getAvgRating(hostId);
+      hostReviewCount[hostId] = await getReviewCount(hostId, "User");
     }
 
     // Fetch reviews and attach stats
@@ -248,6 +261,9 @@ exports.getAllEvents = async (req, res) => {
           ...event.toObject(),
           reviews,
           host_stats: hostStats[event.host_id._id.toString()] || null,
+          host_review_count:
+            hostReviewCount[event.host_id._id.toString()] || null,
+          host_avg_rating: hostAvgRating[event.host_id._id.toString()] || null,
         };
       })
     );
@@ -260,7 +276,9 @@ exports.getAllEvents = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Error fetching events", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching events", error: error.message });
   }
 };
 
@@ -270,7 +288,10 @@ exports.getEventById = async (req, res) => {
     const { id } = req.params;
 
     const event = await Event.findById(id)
-      .populate("host_id")
+      .populate({
+        path: "host_id",
+        select: "email full_name phone_number profile_picture", // Fetch only these fields
+      })
       .populate("event_type")
       .populate("location")
       .populate("media")
@@ -283,20 +304,27 @@ exports.getEventById = async (req, res) => {
     // Fetch reviews for the event
     const reviews = await getReviewsWithCount(event._id, "Event");
 
-
     // Fetch host stats
-    const hostStats = await getRealtorStats(event.host_id._id.toString());
+    const hostId = event.host_id._id.toString();
+    const hostStats = await getHostsStats(hostId);
+    const hostReviewCount = await getReviewCount(hostId, "User");  // Fixed
+    const hostAvgRating = await getAvgRating(hostId);  // Fixed
 
     res.status(200).json({
       ...event.toObject(),
       reviews,
       host_stats: hostStats || null,
+      host_review_count: hostReviewCount || null, // Fixed variable name
+      host_avg_rating: hostAvgRating || null, // Fixed variable name
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Error fetching event", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching event", error: error.message });
   }
 };
+
 
 // ✅ Fetch all events by host ID + Host Stats
 exports.getAllEventsByHostId = async (req, res) => {
@@ -311,7 +339,10 @@ exports.getAllEventsByHostId = async (req, res) => {
     const totalEvents = await Event.countDocuments({ host_id });
 
     const events = await Event.find({ host_id })
-      .populate("host_id")
+      .populate({
+        path: "host_id",
+        select: "email full_name phone_number profile_picture", // Fetch only these fields
+      })
       .populate("event_type")
       .populate("location")
       .populate("media")
@@ -324,18 +355,21 @@ exports.getAllEventsByHostId = async (req, res) => {
     }
 
     // Fetch host stats
-    const hostStats = await getRealtorStats(host_id);
+    const hostStats = await getHostsStats(host_id);
+    const hostReviewCount = await getReviewCount(host_id, "User"); // Fetch review count
+    const hostAvgRating = await getAvgRating(host_id); // Fetch average rating
 
     // Fetch reviews and attach stats
     const eventsWithDetails = await Promise.all(
       events.map(async (event) => {
         const reviews = await getReviewsWithCount(event._id, "Event");
 
-
         return {
           ...event.toObject(),
           reviews,
           host_stats: hostStats || null,
+          host_review_count: hostReviewCount || null, // Added review count
+          host_avg_rating: hostAvgRating || null, // Added average rating
         };
       })
     );
@@ -348,7 +382,9 @@ exports.getAllEventsByHostId = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Error fetching events", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching events", error: error.message });
   }
 };
 

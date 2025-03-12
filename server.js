@@ -78,7 +78,7 @@ const approvalRoutes = require("./routes/approval/approvalRoutes")
 const propertyBookingRoutes = require("./routes/booking/propertyBookingRoutes")
 const eventBookingRoutes = require("./routes/booking/eventBookingRoutes")
 
-const realtorStatRoutes = require("./routes/stats/realtorStatRoutes");
+const realtorHostStatRoutes = require("./routes/stats/realtorHostStatRoutes");
 const subscriptionStatRoutes = require("./routes/stats/subscriptionStatRoutes");
 
 const notificationRoutes = require("./routes/notification/notificationRoutes");
@@ -106,7 +106,7 @@ app.use("/event", [eventRoutes, eventBookingRoutes]);
 
 app.use("/review", [reviewRoutes]);
 
-app.use("/realtor", [subscriptionRoute, realtorStatRoutes]);
+app.use("/realtor", [subscriptionRoute]);
 
 app.use("/admin-settings", [adminSettingRoute]);
 app.use("/admin", [admin])
@@ -122,7 +122,7 @@ app.use("/contact-admin", contactUsRoutes);
 
 app.use("/approval", approvalRoutes);
 
-app.use("/stats", [realtorStatRoutes, subscriptionStatRoutes]);
+app.use("/stats", [subscriptionStatRoutes, realtorHostStatRoutes]);
 
 app.use("/notifications", notificationRoutes);
 
