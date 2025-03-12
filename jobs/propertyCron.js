@@ -38,7 +38,7 @@ const expireCompletedBookings = async () => {
 
     // Find ongoing bookings where end date has passed
     const expiredBookings = await Booking.find({
-      end_date: { $lt: now },
+      end_date: { $lte: now },
       status: "active",
     });
 
@@ -73,7 +73,7 @@ const updateCancellableBookings = async () => {
 
     // Find bookings that are still cancellable but will start in less than 48 hours
     const cancellableBookings = await Booking.find({
-      start_date: { $lt: cutoffTime, $gte: now }, // Start date is within the next 48 hours
+      start_date: { $lte: cutoffTime, $gte: now }, // Start date is within the next 48 hours
       is_cancellable: true, // Still cancellable
       status: "confirmed", // Not yet active
     });
@@ -100,7 +100,7 @@ const deleteExpiredPendingBookings = async () => {
     // Find and delete bookings that are pending for more than 2 hours
     const deletedBookings = await Booking.deleteMany({
       status: "pending",
-      updated_at: { $lt: twoHoursAgo }, // Created more than 2 hours ago
+      updated_at: { $lte: twoHoursAgo }, // Created more than 2 hours ago
     });
 
     console.log(`✅ Deleted ${deletedBookings.deletedCount} expired pending bookings.`);

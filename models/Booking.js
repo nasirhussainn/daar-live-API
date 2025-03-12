@@ -54,6 +54,8 @@ const BookingSchema = new Schema({
 
   is_cancellable: { type: Boolean, default: true },
 
+  cancelation_reason: { type: String, default: null },
+
   status: {
     type: String,
     enum: ["pending", "confirmed", "completed", "canceled", "active"],
@@ -70,8 +72,15 @@ const BookingSchema = new Schema({
   // Tickets object (For event bookings)
   tickets: [
     {
-      ticket_id: { type: String, unique: true }, // Unique ticket identifier
-      status: { type: String, enum: ["valid", "used", "canceled"], default: "valid" }, // Ticket status
+      ticket_id: {
+        type: String,
+        default: null, // Default is null for all bookings
+        unique: function () {
+          return this.booking_type === "event"; // Ensure uniqueness only for event bookings
+        },
+        sparse: true, // Allows null values for property bookings
+      },
+      status: { type: String, enum: ["valid", "used", "canceled"], default: "valid" },
     }
   ],
 

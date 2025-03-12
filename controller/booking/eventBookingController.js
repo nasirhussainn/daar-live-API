@@ -3,7 +3,7 @@ const Event = require("../../models/Events");
 const User = require("../../models/User");
 const Review = require("../../models/Review");
 const { sendEventBookingConfirmationEmail } = require("../../config/mailer");
-const Notification = require("../../models/Notification"); 
+const Notification = require("../../models/Notification");
 
 // ✅ Book an Event
 const generateTickets = (numTickets) => {
@@ -164,6 +164,7 @@ exports.confirmEventBooking = async (req, res) => {
 exports.cancelEventBooking = async (req, res) => {
   try {
     const { booking_id } = req.params;
+    const { cancelation_reason } = req.body;
 
     // Find booking
     const booking = await Booking.findById(booking_id);
@@ -180,15 +181,16 @@ exports.cancelEventBooking = async (req, res) => {
         .json({ message: "This booking cannot be canceled" });
     }
 
-    // Refund tickets to event availability
-    // if (booking.status === "confirmed") {
-    //   event.available_tickets += booking.number_of_tickets;
-    //   await event.save();
-    // }
+    try {
+      // Update booking status and save
+      booking.status = "canceled";
+      booking.cancelation_reason = cancelation_reason;
+      await booking.save();
 
-    // Update booking status
-    booking.status = "canceled";
-    await booking.save();
+      console.log("Booking canceled and property marked as available.");
+    } catch (error) {
+      console.error("Error canceling booking:", error);
+    }
 
     // ✅ Send Notification to User
     await Notification.create({

@@ -3,7 +3,7 @@ const Property = require("../../models/Properties");
 const User = require("../../models/User");
 const Review = require("../../models/Review");
 const { sendPropertyBookingConfirmationEmail } = require("../../config/mailer");
-const Notification = require("../../models/Notification"); 
+const Notification = require("../../models/Notification");
 
 // Book a Property
 exports.bookProperty = async (req, res) => {
@@ -26,11 +26,9 @@ exports.bookProperty = async (req, res) => {
 
     // Check if property allows booking
     if (!property.is_available) {
-      return res
-        .status(400)
-        .json({
-          message: "This property cannot be booked as it is not available",
-        });
+      return res.status(400).json({
+        message: "This property cannot be booked as it is not available",
+      });
     }
     if (!property.allow_booking) {
       return res
@@ -142,8 +140,8 @@ exports.confirmPropertyBooking = async (req, res) => {
 
     await sendPropertyBookingConfirmationEmail(booking);
 
-     // ✅ Send Notification to User
-     await Notification.create({
+    // ✅ Send Notification to User
+    await Notification.create({
       user: booking.user_id,
       notification_type: "booking",
       reference_id: booking._id,
@@ -160,7 +158,6 @@ exports.confirmPropertyBooking = async (req, res) => {
       message: `A booking for your property has been confirmed.`,
     });
 
-
     res.status(200).json({
       message: "Booking confirmed successfully",
       booking,
@@ -174,6 +171,7 @@ exports.confirmPropertyBooking = async (req, res) => {
 exports.cancelPropertyBooking = async (req, res) => {
   try {
     const { booking_id } = req.params;
+    const { cancelation_reason } = req.body;
 
     // Find booking by ID
     const booking = await Booking.findById(booking_id);
@@ -191,17 +189,26 @@ exports.cancelPropertyBooking = async (req, res) => {
         .json({ message: "This booking cannot be canceled" });
     }
 
-    // Update booking status to "canceled"
-    booking.status = "canceled";
-    await booking.save();
+    try {
+      // Update booking status and save
+      booking.status = "canceled";
+      booking.cancelation_reason = cancelation_reason;
+      await booking.save();
 
-    // Mark Property as available again
-    property.is_booked = false;
-    property.booking_id = null;
-    await property.save();
+      // Mark property as available again
+      if (property) {
+        property.is_booked = false;
+        property.booking_id = null;
+        await property.save();
+      }
 
-     // ✅ Send Notification to User
-     await Notification.create({
+      console.log("Booking canceled and property marked as available.");
+    } catch (error) {
+      console.error("Error canceling booking:", error);
+    }
+
+    // ✅ Send Notification to User
+    await Notification.create({
       user: booking.user_id,
       notification_type: "booking",
       reference_id: booking._id,
@@ -369,7 +376,7 @@ exports.getBookingsByEntitiesId = async (req, res) => {
   try {
     const { property_id, status, user_id, realtor_id } = req.query; // Query parameters
 
-    let query = { booking_type: "property" }; 
+    let query = { booking_type: "property" };
 
     if (property_id) query.property_id = property_id; // Filter by property ID if provided
     if (status) query.status = status; // Filter by status if provided
