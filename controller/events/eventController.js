@@ -17,7 +17,7 @@ const Admin = require("../../models/Admin"); // Import the Admin model
 async function determineCreatedBy(owner_id) {
   if (!owner_id) return "realtor"; // If owner_id is not provided, assume it's a realtor
   const isAdmin = await Admin.exists({ _id: owner_id }); // Check if owner_id exists in Admin collection
-  return isAdmin ? "admin" : "realtor"; // Return "admin" if exists in Admin, otherwise "realtor"
+  return isAdmin ? "Admin" : "User"; // Return "admin" if exists in Admin, otherwise "realtor"
 }
 
 exports.addEvent = async (req, res) => {

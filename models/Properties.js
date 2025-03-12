@@ -4,7 +4,17 @@ const FeaturedEntity = require("./FeaturedEntity");
 
 // Define the Property schema
 const PropertySchema = new Schema({
-  owner_id: { type: Schema.Types.ObjectId, ref: "User", required: false }, // Assuming there's a User model
+  owner_id: {
+    type: Schema.Types.ObjectId,
+    refPath: "created_by", // Dynamically references 'User' or 'Admin'
+    required: true,
+  },
+
+  created_by: { 
+    type: String, 
+    enum: ["User", "Admin"], // Must match the actual model names
+    required: true, 
+  },
 
   title: { type: String, required: true },
   description: { type: String },
@@ -46,8 +56,6 @@ const PropertySchema = new Schema({
   is_feature: { type: Boolean, default: false },
 
   allow_booking: { type: Boolean, default: true },
-
-  created_by: { type: String, enum: ["admin", "realtor"], required: true }, // Track who created it
 
   avg_rating: { type: Number, default: 0 },
 

@@ -3,7 +3,18 @@ const Schema = mongoose.Schema;
 const FeaturedEntity = require('./FeaturedEntity'); // Import the new model
 
 const EventSchema = new Schema({
-    host_id: { type: Schema.Types.ObjectId, ref: 'User', required: false }, // Assuming there's a User model
+    host_id: {
+        type: Schema.Types.ObjectId,
+        refPath: "created_by", // Dynamically references 'User' or 'Admin'
+        required: true,
+      },
+    
+      created_by: { 
+        type: String, 
+        enum: ["User", "Admin"], // Must match the actual model names
+        required: true, 
+      },
+  
     title: { type: String, required: true },
     description: { type: String, required: true },
 
@@ -28,8 +39,6 @@ const EventSchema = new Schema({
 
     is_feature: { type: Boolean, default: false },  
     allow_booking: { type: Boolean, default: true },  
-
-    created_by: { type: String, enum: ['realtor', 'admin'], required: true }, // Added field to track creator
 
     avg_rating: { type: Number, default: 0 },
 
