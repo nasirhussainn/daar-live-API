@@ -83,6 +83,8 @@ const subscriptionStatRoutes = require("./routes/stats/subscriptionStatRoutes");
 
 const notificationRoutes = require("./routes/notification/notificationRoutes");
 
+const userApprovalRoutes = require("./routes/admin/userApprovalRoutes");
+
 app.use("/auth", [
   authSignup,
   authPassword,
@@ -120,7 +122,7 @@ app.use("/chat", chatRoutes);
 app.use("/contact-admin", contactUsRoutes);
 // redisSubscriber(io);
 
-app.use("/approval", approvalRoutes);
+app.use("/approval", [approvalRoutes, userApprovalRoutes]);
 
 app.use("/stats", [subscriptionStatRoutes, realtorHostStatRoutes]);
 
