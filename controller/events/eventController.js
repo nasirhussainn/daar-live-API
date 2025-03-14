@@ -206,7 +206,7 @@ exports.addEvent = async (req, res) => {
 // ✅ Fetch all events with optional filters (featured, created_by) + Host Stats
 exports.getAllEvents = async (req, res) => {
   try {
-    let { page, limit, featured, created_by } = req.query;
+    let { page, limit, featured, created_by, status } = req.query;
 
     page = parseInt(page) || 1;
     limit = parseInt(limit) || 10;
@@ -218,6 +218,8 @@ exports.getAllEvents = async (req, res) => {
       if (featured === "true") query.$or.push({ is_feature: true });
       if (created_by) query.$or.push({ created_by });
     }
+
+    if(status) query.status = status;
 
     const totalEvents = await Event.countDocuments(query);
 
