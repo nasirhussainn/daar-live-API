@@ -5,82 +5,99 @@ const { uploadChatMedia } = require("../../config/cloudinary"); // Utility for m
 
 exports.sendMessage = async (req, res, next, io) => {
   try {
-    const { chatId, propertyId, eventId, senderId, text } = req.body;
+    const { chatId, referenceId, referenceType, senderId, senderType, text } =
+      req.body;
     let mediaUrl = null;
+
+    if (!["User", "Realtor", "Admin"].includes(senderType)) {
+      return res.status(400).json({ message: "Invalid senderType" });
+    }
+
+    if (!["Property", "Event"].includes(referenceType)) {
+      return res.status(400).json({ message: "Invalid referenceType" });
+    }
 
     if (req.file) {
       const messageType = "image";
       mediaUrl = await uploadChatMedia(req.file.buffer, messageType);
     }
 
+    if (!text && !mediaUrl) {
+      return res
+        .status(400)
+        .json({ message: "Message must contain text or media" });
+    }
+
     let chat;
 
     if (chatId) {
-      // Find chat by ID if it's provided
       chat = await Chat.findById(chatId);
-    } else {
-      let ownerId = null;
-
-      if (propertyId) {
-        const property = await Property.findById(propertyId);
-        if (!property) {
-          return res.status(404).json({ message: "Property not found" });
-        }
-        ownerId = property.owner_id;
-
-        // Find chat based on property
-        chat = await Chat.findOne({
-          propertyId,
-          participants: { $all: [senderId, ownerId] },
-        });
-      } else if (eventId) {
-        const event = await Event.findById(eventId);
-        if (!event) {
-          return res.status(404).json({ message: "Event not found" });
-        }
-        ownerId = event.host_id;
-
-        // Find chat based on event
-        chat = await Chat.findOne({
-          eventId,
-          participants: { $all: [senderId, ownerId] },
-        });
+      if (!chat) {
+        return res.status(404).json({ message: "Chat not found" });
       }
+    } else {
+      chat = await Chat.findOne({
+        referenceId,
+        referenceType,
+        participants: {
+          $elemMatch: {
+            participant_id: senderId,
+            participant_type: senderType,
+          },
+        },
+      });
 
       if (!chat) {
-        // Create a new chat if one doesn't exist
+        let ownerId, ownerType;
+
+        if (referenceType === "Property") {
+          const property = await Property.findById(referenceId);
+          if (!property) {
+            return res.status(404).json({ message: "Property not found" });
+          }
+          ownerId = property.owner_id;
+          ownerType = property.created_by === "Admin" ? "Admin" : "Realtor";
+        } else if (referenceType === "Event") {
+          const event = await Event.findById(referenceId);
+          if (!event) {
+            return res.status(404).json({ message: "Event not found" });
+          }
+          ownerId = event.host_id;
+          ownerType = event.created_by === "Admin" ? "Admin" : "Realtor";
+        }
+
         chat = new Chat({
-          propertyId: propertyId || null,
-          eventId: eventId || null,
-          participants: [senderId, ownerId],
+          referenceId,
+          referenceType,
+          participants: [
+            { participant_id: senderId, participant_type: senderType },
+            { participant_id: ownerId, participant_type: ownerType },
+          ],
           messages: [],
-          unreadCount: new Map([
-            [senderId, 0],
-            [ownerId, 0],
-          ]),
+          unreadCount: new Map(),
         });
       }
     }
 
-    if (!chat) {
-      return res.status(404).json({ message: "Chat not found" });
-    }
-
-    // Create new message object
     const message = {
-      senderId,
-      text,
-      mediaUrl,
+      sender_id: senderId,
+      sender_type: senderType,
+      content: mediaUrl || text,
       timestamp: new Date(),
+      is_read: false,
     };
 
     chat.messages.push(message);
 
-    // ✅ Correctly update unread count for the receiver
+    // **Update unreadCount for all participants except the sender**
     chat.participants.forEach((participant) => {
-      if (participant.toString() !== senderId) {
-        const currentUnreadCount = chat.unreadCount.get(participant.toString()) || 0;
-        chat.unreadCount.set(participant.toString(), currentUnreadCount + 1);
+      const participantId = participant.participant_id.toString();
+
+      if (participantId !== senderId) {
+        chat.unreadCount.set(
+          participantId,
+          (chat.unreadCount.get(participantId) || 0) + 1
+        );
       }
     });
 
@@ -91,54 +108,58 @@ exports.sendMessage = async (req, res, next, io) => {
     res.status(200).json({ message: "Message sent", chat });
   } catch (error) {
     console.error("Error sending message:", error);
-    res.status(500).json({ message: "Error sending message", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error sending message", error: error.message });
   }
 };
 
-
 // Get Chat by ID
 exports.getChatById = async (req, res) => {
-  const { userId, chatId } = req.params; // userId is required
-  const { propertyId, eventId } = req.query; // propertyId and eventId are optional
+  const { userId, chatId } = req.params; // Ensure userId is provided
+  const { referenceId } = req.query;
 
   try {
     let chat;
 
     if (chatId) {
       // Case 1: Fetch chat by chatId
-      chat = await Chat.findById(chatId).populate("messages.senderId", "name email");
+      chat = await Chat.findById(chatId)
+        .populate("messages.sender_id", "full_name email profile_picture")
+        .exec();
 
       if (!chat) {
         return res.status(404).json({ message: "Chat not found" });
       }
-
-    } else if (propertyId) {
-      // Case 2: Fetch chat by propertyId & userId
+    } else if (referenceId) {
+      // Case 2: Fetch chat by referenceId & referenceType if chatId is not provided
       chat = await Chat.findOne({
-        propertyId,
-        participants: { $in: [userId] },
-      }).populate("messages.senderId", "name email");
+        referenceId,
+        "participants.participant_id": userId, // Check if user is a participant
+      });
 
       if (!chat) {
-        return res.status(200).json({}); // Return empty response for "Send Message" flow
-      }
-    } else if (eventId) {
-      // Case 3: Fetch chat by eventId & userId
-      chat = await Chat.findOne({
-        eventId,
-        participants: { $in: [userId] },
-      }).populate("messages.senderId", "name email");
-
-      if (!chat) {
-        return res.status(200).json({}); // Return empty response for "Send Message" flow
+        return res.status(200).json({}); // Return empty response for new chat initiation
       }
     } else {
-      return res.status(400).json({ message: "Invalid request. Provide chatId, propertyId, or eventId." });
+      return res.status(400).json({
+        message:
+          "Invalid request. Provide chatId or (referenceId & referenceType).",
+      });
     }
 
-    // Reset unread count for the user if needed
     let updated = false;
-    if (chat.unreadCount.has(userId)) {
+
+    // **Mark all messages as read for this user**
+    chat.messages.forEach((msg) => {
+      if (msg.sender_id.toString() !== userId && !msg.is_read) {
+        msg.is_read = true;
+        updated = true;
+      }
+    });
+
+    // **Reset unread count for this user**
+    if (chat.unreadCount && chat.unreadCount.has(userId)) {
       chat.unreadCount.set(userId, 0);
       updated = true;
     }
@@ -146,12 +167,12 @@ exports.getChatById = async (req, res) => {
     if (updated) await chat.save(); // Save only if changes were made
 
     return res.status(200).json(chat);
-
   } catch (error) {
-    res.status(500).json({ message: "Error fetching chat", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching chat", error: error.message });
   }
 };
-
 
 // Get all chats for a participant (user or realtor)
 exports.getChatsByParticipant = async (req, res) => {
@@ -159,51 +180,58 @@ exports.getChatsByParticipant = async (req, res) => {
     const participantId = req.params.participantId;
 
     const chats = await Chat.find({
-      participants: participantId,
-    })
-      .populate("participants", "full_name profile_picture email")
-      .populate({
-        path: "messages.senderId",
-        select: "full_name email",
-      })
-      .select("participants propertyId eventId messages createdAt updatedAt unreadCount");
+      "participants.participant_id": participantId,
+    });
 
     if (!chats || chats.length === 0) {
-      return res.status(404).json({ message: "No chats found for this participant" });
+      return res
+        .status(404)
+        .json({ message: "No chats found for this participant" });
     }
 
     const formattedChats = chats
       .map((chat) => {
         if (!chat.participants || chat.participants.length !== 2) {
-          console.warn(`Chat ${chat._id} has invalid participants:`, chat.participants);
+          console.warn(
+            `Chat ${chat._id} has invalid participants:`,
+            chat.participants
+          );
           return null;
         }
 
         // Determine the other participant (receiver)
-        const receiver = chat.participants.find((p) => p._id.toString() !== participantId);
+        const receiver = chat.participants.find(
+          (p) =>
+            p.participant_id && p.participant_id.toString() !== participantId
+        );
+
         if (!receiver) {
           console.warn(`Chat ${chat._id} is missing a receiver`);
           return null;
         }
 
-        const lastMessage = chat.messages.length > 0 ? chat.messages[chat.messages.length - 1] : null;
-
-        // ✅ Correct unread count fetching
+        const lastMessage =
+          chat.messages.length > 0
+            ? chat.messages[chat.messages.length - 1]
+            : null;
         const unreadCount = chat.unreadCount?.get(participantId) || 0;
 
         let lastMessageText = null;
-        if (lastMessage) {
-          if (lastMessage.text) {
-            lastMessageText = lastMessage.text;
-          } else if (lastMessage.mediaUrl) {
-            const mediaExtensions = {
-              image: [".png", ".jpg", ".jpeg", ".gif", ".webp"],
-              video: [".mp4", ".mov", ".avi", ".mkv"],
-              audio: [".mp3", ".wav", ".ogg", ".m4a"],
-              document: [".pdf", ".docx", ".xlsx", ".pptx"],
-            };
 
-            const extension = lastMessage.mediaUrl.split(".").pop().toLowerCase();
+        if (lastMessage && lastMessage.content) {
+          const mediaExtensions = {
+            image: [".png", ".jpg", ".jpeg", ".gif", ".webp"],
+            video: [".mp4", ".mov", ".avi", ".mkv"],
+            audio: [".mp3", ".wav", ".ogg", ".m4a"],
+            document: [".pdf", ".docx", ".xlsx", ".pptx"],
+          };
+
+          // Check if the content is a URL or plain text
+          if (lastMessage.content.startsWith("http")) {
+            const extension = lastMessage.content
+              .split(".")
+              .pop()
+              .toLowerCase();
 
             if (mediaExtensions.image.includes(`.${extension}`)) {
               lastMessageText = "📷 Photo";
@@ -216,20 +244,25 @@ exports.getChatsByParticipant = async (req, res) => {
             } else {
               lastMessageText = "📎 Attachment";
             }
+          } else {
+            // If content is not a URL, assume it's plain text
+            lastMessageText = lastMessage.content;
           }
         }
 
         return {
           chat_id: chat._id,
           sender_id: participantId,
-          receiver_id: receiver._id,
-          property_id: chat.propertyId?._id || null,
-          event_id: chat.eventId?._id || null,
+          receiver_id: receiver.participant_id._id,
+          reference_id: chat.referenceId || null,
+          reference_type: chat.referenceType || null,
           last_message: lastMessageText,
-          receiver_name: receiver.full_name,
-          receiver_profilePic: receiver.profile_picture,
-          last_message_time: lastMessage ? lastMessage.timestamp : chat.updatedAt,
-          unread_count: unreadCount, // ✅ Now correctly fetched
+          receiver_name: receiver.participant_id.full_name,
+          receiver_profilePic: receiver.participant_id.profile_picture,
+          last_message_time: lastMessage
+            ? lastMessage.timestamp
+            : chat.updatedAt,
+          unread_count: unreadCount,
         };
       })
       .filter((chat) => chat !== null);
@@ -237,9 +270,8 @@ exports.getChatsByParticipant = async (req, res) => {
     res.status(200).json(formattedChats);
   } catch (error) {
     console.error("Error fetching chats:", error);
-    res.status(500).json({ message: "Error fetching chats", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching chats", error: error.message });
   }
 };
-
-
-

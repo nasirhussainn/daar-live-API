@@ -237,7 +237,7 @@ exports.addProperty = async (req, res) => {
 
 exports.getAllProperties = async (req, res) => {
   try {
-    let { page, limit, featured, user_id, created_by } = req.query;
+    let { page, limit, featured, user_id, created_by, property_status } = req.query;
     page = parseInt(page) || 1; // Default page = 1
     limit = parseInt(limit) || 10; // Default limit = 10
     const skip = (page - 1) * limit;
@@ -249,6 +249,8 @@ exports.getAllProperties = async (req, res) => {
       if (featured === "true") query.$or.push({ is_feature: true });
       if (created_by) query.$or.push({ created_by });
     }
+
+    if (property_status) query.property_status = property_status;
 
     // Fetch total count for pagination
     const totalProperties = await Property.countDocuments(query);

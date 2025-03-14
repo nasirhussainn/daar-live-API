@@ -1,25 +1,35 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
+const { Schema } = mongoose;
 
-const MessageSchema = new mongoose.Schema({
-  senderId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  text: { type: String, default: "" },
-  mediaUrl: { type: String, default: null },
-  timestamp: { type: Date, default: Date.now },
-});
-
-const ChatSchema = new mongoose.Schema(
+const ChatSchema = new Schema(
   {
-    propertyId: { type: mongoose.Schema.Types.ObjectId, ref: "Property", default: null }, // Nullable for event-based chats
-    eventId: { type: mongoose.Schema.Types.ObjectId, ref: "Event", default: null }, // Added event reference
-    participants: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-    messages: [MessageSchema],
+    referenceId: { type: Schema.Types.ObjectId, required: true }, // Stores either Property ID or Event ID
+    referenceType: { type: String, enum: ['Property', 'Event'], required: true }, // Determines if it's a Property or Event chat
+
+    participants: [
+      {
+        participant_id: { type: Schema.Types.ObjectId, required: true, refPath: "participants.participant_type" },
+        participant_type: { type: String, enum: ['User', 'Realtor', 'Admin'], required: true }
+      }
+    ],
+
+    messages: [
+      {
+        sender_id: { type: Schema.Types.ObjectId, required: true, refPath: "messages.sender_type" },
+        sender_type: { type: String, enum: ['User', 'Realtor', 'Admin'], required: true },
+        content: { type: String, required: true }, // Stores either text message or media URL
+        timestamp: { type: Date, default: Date.now },
+        is_read: { type: Boolean, default: false }
+      }
+    ],
     unreadCount: {
       type: Map,
-      of: Number, // Stores unread message count per user ID
+      of: Number, 
       default: {},
     },
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Chat", ChatSchema);
+const Chat = mongoose.model('Chat', ChatSchema);
+module.exports = Chat;
