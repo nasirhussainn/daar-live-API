@@ -37,7 +37,8 @@ router.get("/verify-email/:token", async (req, res) => {
       await sendVerificationEmail(user.email, newVerificationLink);
 
       return res.status(400).json({
-        message: "Verification token has expired. A new verification link has been sent to your email.",
+        message:
+          "Verification token has expired. A new verification link has been sent to your email.",
       });
     }
 
@@ -45,8 +46,10 @@ router.get("/verify-email/:token", async (req, res) => {
     user.email_verified = true;
     user.email_verification_token = undefined; // Remove the token after verification
     user.email_verification_token_expiry = undefined; // Clear the expiry date
-    user.account_status = "active"
-    
+    if (user.role === "buyer") {
+      user.account_status = "active";
+    }
+
     await user.save();
 
     return res.status(200).json({ message: "Email verified successfully!" });

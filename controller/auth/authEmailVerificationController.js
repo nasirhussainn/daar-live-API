@@ -43,12 +43,14 @@ const verifyEmail = async (req, res) => {
     user.email_verified = true;
     user.email_verification_token = undefined; // Remove the token after verification
     user.email_verification_token_expiry = undefined; // Clear expiry date
-    user.account_status = "active";
+    if(user.role === 'buyer'){
+      user.account_status = "active";
+    }
 
     await user.save();
 
     if(user.role === 'realtor'){
-    return res.status(200).json({ message: "Email verified successfully! Your account is now active and pending admin approval." });
+    return res.status(200).json({ message: "Email verified successfully! Your account will be reviewed by our team and you will receive an email once it's approved." });
     }else{
       return res.status(200).json({ message: "Email verified successfully!" });
     }

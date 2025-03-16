@@ -17,7 +17,7 @@ admin.initializeApp({
 // Manual Signup with Profile Picture Upload
 exports.signup = async (req, res) => {
     const signup_type = "manual";
-    let phone_issue = null;
+    let phone_issue = false;
     const session = await mongoose.startSession();
   
     try {
