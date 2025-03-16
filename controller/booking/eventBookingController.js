@@ -61,10 +61,20 @@ exports.bookEvent = async (req, res) => {
         .json({ message: "Pending booking updated", booking: existingBooking });
     }
 
-    // Get Event Host
-    const eventHost = await User.findById(event.host_id);
-    if (!eventHost) {
-      return res.status(404).json({ message: "Event host not found" });
+    // Get Owner of the Event (Admin or User)
+    let owner;
+    let ownerType;
+
+    if (event.created_by === "admin") {
+      owner = await Admin.findById(event.host_id).lean();
+      ownerType = "Admin";
+    } else {
+      owner = await User.findById(event.host_id).lean();
+      ownerType = "User";
+    }
+
+    if (!owner) {
+      return res.status(404).json({ message: "Property owner not found" });
     }
 
     // Generate tickets for the new booking
@@ -75,7 +85,8 @@ exports.bookEvent = async (req, res) => {
       booking_type: "event",
       event_id,
       user_id,
-      realtor_id: eventHost._id,
+      owner_type: ownerType, 
+      owner_id: owner._id, 
       number_of_tickets,
       status: "pending",
       event_dates: event_dates || [],
@@ -120,12 +131,12 @@ exports.confirmEventBooking = async (req, res) => {
     const event = await Event.findById(booking.event_id);
     if (!event) return res.status(404).json({ message: "Event not found" });
 
-    if (event.available_tickets < booking.number_of_tickets) {
-      return res.status(400).json({ message: "Not enough tickets available" });
-    }
+    // if (event.available_tickets < booking.number_of_tickets) {
+    //   return res.status(400).json({ message: "Not enough tickets available" });
+    // }
 
-    event.available_tickets -= booking.number_of_tickets;
-    await event.save();
+    // event.available_tickets -= booking.number_of_tickets;
+    // await event.save();
 
     // Update booking status
     booking.status = "confirmed";
@@ -145,7 +156,7 @@ exports.confirmEventBooking = async (req, res) => {
 
     // ✅ Send Notification to Realtor
     await Notification.create({
-      user: booking.realtor_id,
+      user: booking.owner_id,
       notification_type: "booking",
       reference_id: booking._id,
       title: "Booking Confirmed",
@@ -245,10 +256,6 @@ exports.getAllEventBookings = async (req, res) => {
         path: "user_id",
         select: "full_name email profile_picture", // Only required user fields
       })
-      .populate({
-        path: "realtor_id",
-        select: "full_name email", // Only required realtor fields
-      });
 
     // Fetch reviews for each event
     const bookingsWithReviews = await Promise.all(
@@ -317,10 +324,7 @@ exports.getEventBookingById = async (req, res) => {
         path: "user_id",
         select: "full_name email profile_picture", // Get only required user fields
       })
-      .populate({
-        path: "realtor_id",
-        select: "full_name email", // Get only required realtor fields
-      });
+
 
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
@@ -390,10 +394,6 @@ exports.getBookingsByEntitiesId = async (req, res) => {
         path: "user_id",
         select: "full_name email profile_picture", // User details
       })
-      .populate({
-        path: "realtor_id",
-        select: "full_name email", // Realtor details
-      });
 
     if (bookings.length === 0) {
       return res

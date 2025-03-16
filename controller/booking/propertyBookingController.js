@@ -1,6 +1,7 @@
 const Booking = require("../../models/Booking");
 const Property = require("../../models/Properties");
 const User = require("../../models/User");
+const Admin = require("../../models/Admin");
 const Review = require("../../models/Review");
 const { sendPropertyBookingConfirmationEmail } = require("../../config/mailer");
 const Notification = require("../../models/Notification");
@@ -31,9 +32,7 @@ exports.bookProperty = async (req, res) => {
       });
     }
     if (!property.allow_booking) {
-      return res
-        .status(400)
-        .json({ message: "This property cannot be booked" });
+      return res.status(400).json({ message: "This property cannot be booked" });
     }
 
     // Check if the user already has a pending booking for this property
@@ -61,34 +60,62 @@ exports.bookProperty = async (req, res) => {
       });
     }
 
-    // Check for overlapping confirmed/active/pending bookings
+    // Check for overlapping bookings
+    const startDate = new Date(start_date);
+    const endDate = new Date(end_date);
+
     const existingBooking = await Booking.findOne({
       property_id,
-      status: { $in: ["active", "confirmed", "pending"] }, // Active bookings
-      $or: [{ start_date: { $lt: end_date }, end_date: { $gt: start_date } }],
+      status: { $in: ["active", "confirmed", "pending"] },
+      $or: [
+        property.charge_per === "day"
+          ? { start_date: { $lt: endDate }, end_date: { $gt: startDate } }
+          : null,
+        property.charge_per === "hourly"
+          ? {
+              start_date: { $gte: new Date(startDate.setMinutes(0, 0, 0)) },
+              end_date: { $lte: new Date(endDate.setMinutes(59, 59, 999)) },
+            }
+          : null,
+      ].filter(Boolean),
     });
 
     if (existingBooking) {
-      return res
-        .status(400)
-        .json({ message: "Property is already booked for the selected dates" });
+      return res.status(400).json({
+        message:
+          property.charge_per === "hourly"
+            ? "Property is already booked for the selected date and time"
+            : "Property is already booked for the selected dates",
+      });
     }
 
-    // Get Realtor (Owner of the property)
-    const realtor = await User.findById(property.owner_id);
-    if (!realtor)
+    // Get Owner of the Property (Admin or User)
+    let owner;
+    let ownerType;
+
+    if (property.created_by === "Admin") {
+      owner = await Admin.findById(property.owner_id).lean();
+      ownerType = "Admin";
+    } else {
+      owner = await User.findById(property.owner_id).lean();
+      ownerType = "User";
+    }
+
+    if (!owner) {
       return res.status(404).json({ message: "Property owner not found" });
+    }
 
     // Create a new booking with "pending" status
     const newBooking = new Booking({
       booking_type: "property",
       property_id,
       user_id,
-      realtor_id: realtor._id,
+      owner_type: ownerType, // Dynamically set owner type
+      owner_id: owner._id, // Set owner reference ID
       start_date,
       end_date,
       security_deposit,
-      status: "pending", // Booking starts as "pending"
+      status: "pending",
       guest_name: guest_name || null,
       guest_email: guest_email || null,
       guest_phone: guest_phone || null,
@@ -104,6 +131,7 @@ exports.bookProperty = async (req, res) => {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
+
 
 exports.confirmPropertyBooking = async (req, res) => {
   try {
@@ -148,7 +176,7 @@ exports.confirmPropertyBooking = async (req, res) => {
 
     // ✅ Send Notification to Realtor
     await Notification.create({
-      user: booking.realtor_id,
+      user: booking.owner_id,
       notification_type: "booking",
       reference_id: booking._id,
       title: "Booking Confirmed",
@@ -255,10 +283,6 @@ exports.getAllPropertyBookings = async (req, res) => {
         path: "user_id",
         select: "full_name email profile_picture", // User details
       })
-      .populate({
-        path: "realtor_id",
-        select: "full_name email", // Realtor details
-      });
 
     if (bookings.length === 0) {
       return res
@@ -326,10 +350,6 @@ exports.getPropertyBookingById = async (req, res) => {
         path: "user_id",
         select: "full_name email profile_picture", // User details
       })
-      .populate({
-        path: "realtor_id",
-        select: "full_name email", // Realtor details
-      });
 
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
@@ -399,10 +419,7 @@ exports.getBookingsByEntitiesId = async (req, res) => {
         path: "user_id",
         select: "full_name email profile_picture", // User details
       })
-      .populate({
-        path: "realtor_id",
-        select: "full_name email", // Realtor details
-      });
+
 
     if (bookings.length === 0) {
       return res

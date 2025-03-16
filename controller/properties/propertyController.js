@@ -54,8 +54,6 @@ exports.addProperty = async (req, res) => {
       is_feature,
     } = req.body;
 
-    console.log(req.body);
-
     // Step 2: Validate property_subtype against property_purpose
     const subType = await PropertySubtype.findById(property_subtype);
     if (!subType) {

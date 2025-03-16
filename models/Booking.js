@@ -13,7 +13,7 @@ const generateConfirmationTicket = async function () {
     }
     exists = await Booking.exists({ confirmation_ticket: ticket });
   }
-  
+
   return ticket;
 };
 
@@ -30,13 +30,24 @@ const BookingSchema = new Schema({
   event_id: { type: Schema.Types.ObjectId, ref: "Event", default: null },
 
   user_id: { type: Schema.Types.ObjectId, ref: "User", required: true }, // The one who is booking
-  realtor_id: { type: Schema.Types.ObjectId, ref: "User", default: null }, // Only for property bookings
+
+  // Owner details (Either User or Admin)
+  owner_type: {
+    type: String,
+    enum: ["User", "Admin"], // Defines whether the owner is an admin or a user
+    required: true,
+  },
+  owner_id: {
+    type: Schema.Types.ObjectId,
+    required: true,
+    refPath: "owner_type", // Dynamically references either "User" or "Admin"
+  },
 
   // Dates field for event bookings
   event_dates: [
     {
       date: { type: Date, default: null },
-    }
+    },
   ],
 
   // Property booking dates (kept for backward compatibility)
@@ -48,6 +59,7 @@ const BookingSchema = new Schema({
   confirmation_ticket: {
     type: String,
     unique: true,
+    sparse: true, 
   },
 
   security_deposit: { type: Number },
@@ -63,7 +75,7 @@ const BookingSchema = new Schema({
   },
 
   // Fields for booking on behalf of someone else
-  guest_name: { type: String, default: null }, 
+  guest_name: { type: String, default: null },
   guest_email: { type: String, default: null },
   guest_phone: { type: String, default: null },
 
@@ -74,14 +86,14 @@ const BookingSchema = new Schema({
     {
       ticket_id: {
         type: String,
-        default: null, // Default is null for all bookings
+        default: null,
         unique: function () {
           return this.booking_type === "event"; // Ensure uniqueness only for event bookings
         },
-        sparse: true, // Allows null values for property bookings
+        sparse: true,
       },
       status: { type: String, enum: ["valid", "used", "canceled"], default: "valid" },
-    }
+    },
   ],
 
   created_at: { type: Date, default: Date.now },

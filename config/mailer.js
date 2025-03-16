@@ -3,6 +3,7 @@ const Booking = require("../models/Booking");
 const User = require("../models/User");
 const Property = require("../models/Properties");
 const Event = require("../models/Events");
+const Admin = require("../models/Admin");
 const fs = require("fs");
 const path = require("path");
 const PDFDocument = require("pdfkit");
@@ -39,7 +40,6 @@ async function sendPasswordResetEmail(email, resetLink) {
   await transporter.sendMail(mailOptions);
 }
 
-
 async function sendPropertyBookingConfirmationEmail(booking) {
   try {
     // Fetch buyer (user) details
@@ -47,7 +47,12 @@ async function sendPropertyBookingConfirmationEmail(booking) {
     if (!buyer) throw new Error("Buyer not found");
 
     // Fetch realtor details
-    const realtor = await User.findById(booking.realtor_id);
+    if (booking.owner_type === "Admin") {
+      realtor = await Admin.findById(booking.owner_id);
+      realtor.full_name = "Admin"
+    } else {
+      realtor = await User.findById(booking.owner_id);
+    }
     if (!realtor) throw new Error("Realtor not found");
 
     // Fetch property details
@@ -62,11 +67,21 @@ async function sendPropertyBookingConfirmationEmail(booking) {
       <p><strong>Booking Details:</strong></p>
       <ul>
         <li><strong>Property:</strong> ${property.title}</li>
-        <li><strong>Location:</strong> ${property.city}, ${property.state}, ${property.country}</li>
-        <li><strong>Booking Start Date:</strong> ${new Date(booking.start_date).toLocaleDateString()}</li>
-        <li><strong>Booking End Date:</strong> ${new Date(booking.end_date).toLocaleDateString()}</li>
-        <li><strong>Security Deposit:</strong> $${booking.security_deposit || "N/A"}</li>
-        <li><strong>Confirmation Ticket:</strong> ${booking.confirmation_ticket}</li>
+        <li><strong>Location:</strong> ${property.city}, ${property.state}, ${
+      property.country
+    }</li>
+        <li><strong>Booking Start Date:</strong> ${new Date(
+          booking.start_date
+        ).toLocaleDateString()}</li>
+        <li><strong>Booking End Date:</strong> ${new Date(
+          booking.end_date
+        ).toLocaleDateString()}</li>
+        <li><strong>Security Deposit:</strong> $${
+          booking.security_deposit || "N/A"
+        }</li>
+        <li><strong>Confirmation Ticket:</strong> ${
+          booking.confirmation_ticket
+        }</li>
       </ul>
       <p>For any queries, please contact the property owner:</p>
       <p><strong>Realtor:</strong> ${realtor.full_name} (${realtor.email})</p>
@@ -113,29 +128,48 @@ async function sendEventBookingConfirmationEmail(booking) {
     if (!event) throw new Error("Event not found");
 
     // Fetch host (event organizer) details
-    const host = await User.findById(event.host_id);
-    if (!host) throw new Error("Event host not found");
+    if (booking.owner_type === "Admin") {
+      host = await Admin.findById(booking.owner_id);
+      host.full_name = "Admin"
+    } else {
+      host = await User.findById(booking.owner_id);
+    }
+    if (!host) throw new Error("Host not found");
 
     // Generate email content
     const emailSubject = "Event Booking Confirmation - Your Ticket Details";
-    
+
     let ticketDetailsHTML = "";
     booking.tickets.forEach((ticket, index) => {
-      ticketDetailsHTML += `<li><strong>Ticket ${index + 1}:</strong> ${ticket.ticket_id}</li>`;
+      ticketDetailsHTML += `<li><strong>Ticket ${index + 1}:</strong> ${
+        ticket.ticket_id
+      }</li>`;
     });
 
     const emailBody = `
       <p>Dear ${buyer.full_name},</p>
-      <p>Your booking for the event <strong>${event.title}</strong> has been successfully confirmed.</p>
+      <p>Your booking for the event <strong>${
+        event.title
+      }</strong> has been successfully confirmed.</p>
       <p><strong>Event Details:</strong></p>
       <ul>
         <li><strong>Event:</strong> ${event.title}</li>
-        <li><strong>Date:</strong> ${new Date(event.start_date).toLocaleDateString()}</li>
-        <li><strong>Location:</strong> ${event.location.address}, ${event.city}, ${event.state}</li>
+        <li><strong>Date:</strong> ${new Date(
+          event.start_date
+        ).toLocaleDateString()}</li>
+        <li><strong>Location:</strong> ${event.location.address}, ${
+      event.city
+    }, ${event.state}</li>
         <li><strong>Number of Tickets:</strong> ${booking.tickets.length}</li>
-        <li><strong>Guest Name:</strong> ${booking.guest_name || buyer.full_name}</li>
-        <li><strong>Guest Email:</strong> ${booking.guest_email || buyer.email}</li>
-        <li><strong>Confirmation Ticket:</strong> ${booking.confirmation_ticket}</li>
+        <li><strong>Guest Name:</strong> ${
+          booking.guest_name || buyer.full_name
+        }</li>
+        <li><strong>Guest Email:</strong> ${
+          booking.guest_email || buyer.email
+        }</li>
+        <li><strong>Confirmation Ticket:</strong> ${
+          booking.confirmation_ticket
+        }</li>
         ${ticketDetailsHTML}
       </ul>
       <p>Your tickets are attached as a PDF file.</p>
@@ -147,7 +181,7 @@ async function sendEventBookingConfirmationEmail(booking) {
     try {
       // Generate a PDF with ticket details
       const pdfPath = await generateBookingPDF(booking, buyer, event);
-    
+
       // Send email with PDF attachment to buyer
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
@@ -162,7 +196,7 @@ async function sendEventBookingConfirmationEmail(booking) {
           },
         ],
       });
-    
+
       // ✅ Delete the PDF file after sending the email
       fs.unlink(pdfPath, (err) => {
         if (err) {
@@ -172,7 +206,10 @@ async function sendEventBookingConfirmationEmail(booking) {
         }
       });
     } catch (error) {
-      console.error("Error sending event booking confirmation email:", error.message);
+      console.error(
+        "Error sending event booking confirmation email:",
+        error.message
+      );
     }
 
     // Send email to event host
@@ -192,7 +229,10 @@ async function sendEventBookingConfirmationEmail(booking) {
 
     console.log("Event booking confirmation emails sent successfully.");
   } catch (error) {
-    console.error("Error sending event booking confirmation emails:", error.message);
+    console.error(
+      "Error sending event booking confirmation emails:",
+      error.message
+    );
   }
 }
 
@@ -208,12 +248,17 @@ async function generateBookingPDF(booking, buyer, event) {
     doc.pipe(stream);
 
     // Title
-    doc.fontSize(18).text("Event Booking Confirmation", { align: "center" }).moveDown();
+    doc
+      .fontSize(18)
+      .text("Event Booking Confirmation", { align: "center" })
+      .moveDown();
 
     // Event details
     doc.fontSize(14).text(`Event: ${event.title}`);
     doc.text(`Date: ${new Date(event.start_date).toLocaleDateString()}`);
-    doc.text(`Location: ${event.venue}, ${event.city}, ${event.state}`).moveDown();
+    doc
+      .text(`Location: ${event.venue}, ${event.city}, ${event.state}`)
+      .moveDown();
 
     // Booking details
     doc.text(`Booking ID: ${booking._id}`);
@@ -234,4 +279,9 @@ async function generateBookingPDF(booking, buyer, event) {
   });
 }
 
-module.exports = { sendVerificationEmail, sendPasswordResetEmail, sendPropertyBookingConfirmationEmail, sendEventBookingConfirmationEmail };
+module.exports = {
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+  sendPropertyBookingConfirmationEmail,
+  sendEventBookingConfirmationEmail,
+};
