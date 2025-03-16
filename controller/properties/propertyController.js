@@ -14,7 +14,7 @@ const {
   getReviewsWithCount,
   getReviewCount,
 } = require("../../controller/reviews/getReviewsWithCount"); // Import the function
-const { getAvgRating } = require("../../routes/userCRUD/getAvgRating"); // Import the function
+const { getAvgRating } = require("../user/getAvgRating"); // Import the function
 
 const Admin = require("../../models/Admin"); // Import the Admin model
 async function determineCreatedBy(owner_id) {

@@ -4,7 +4,7 @@ const Review = require("../../models/Review");
 const Amenities = require("../../models/admin/Amenities");
 const { getRealtorStats } = require("../../controller/stats/getRealtorStats"); // Import the function
 const { getReviewsWithCount, getReviewCount } = require("../../controller/reviews/getReviewsWithCount");
-const { getAvgRating } = require("../../routes/userCRUD/getAvgRating");
+const { getAvgRating } = require("../user/getAvgRating");
 
 // @desc Like a property (save property)
 // @route POST /api/saved-properties/like

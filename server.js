@@ -43,14 +43,21 @@ app.get("/", (req, res) => {
 });
 
 // Import Routes (other routes)
-const authPassword = require("./routes/auth/authPassword");
-const authEmailVerification = require("./routes/auth/authEmailVerification");
-const authLogin = require("./routes/auth/authLogin");
-const authPhoneVerification = require("./routes/auth/authPhoneVerification");
-const authSignup = require("./routes/auth/authSignup");
+// const authPassword = require("./routes/auth/authPassword");
+// const authEmailVerification = require("./routes/auth/authEmailVerification");
+// const authLogin = require("./routes/auth/authLogin");
+// const authPhoneVerification = require("./routes/auth/authPhoneVerification");
+// const authSignup = require("./routes/auth/authSignup");
+const authEmailVerificationRoutes = require("./routes/auth/authEmailVerificationRoutes");
+const authLoginRoutes = require("./routes/auth/authLoginRoutes");
+const authPasswordRoutes = require("./routes/auth/authPasswordRoutes");
+const authPhoneVerificationRoutes = require("./routes/auth/authPhoneVerificationRoutes");
+const authSignupRoutes = require("./routes/auth/authSignupRoutes");
 
-const userGET = require("./routes/userCRUD/getUsers");
-const userUPDATE = require("./routes/userCRUD/updateUsers");
+// const userGET = require("./routes/userCRUD/getUsers");
+// const userUPDATE = require("./routes/userCRUD/updateUsers");
+const userGetRoutes = require("./routes/userRoutes/userGetRoutes");
+const userUpdateRoutes = require("./routes/userRoutes/userUpdateRoutes");
 
 const propertyTypeRoutes = require("./routes/propertyFacilities/propertyTypeRoutes");
 const propertySubtypeRoutes = require("./routes/propertyFacilities/propertySubtypeRoutes");
@@ -86,14 +93,26 @@ const notificationRoutes = require("./routes/notification/notificationRoutes");
 const userApprovalRoutes = require("./routes/admin/userApprovalRoutes");
 
 app.use("/auth", [
-  authSignup,
-  authPassword,
-  authEmailVerification,
-  authLogin,
-  authPhoneVerification,
+  authLoginRoutes,
+  authEmailVerificationRoutes,
+  authPasswordRoutes,
+  authPhoneVerificationRoutes,
+  authSignupRoutes,
+  // authSignup,
+  // authPassword,
+  // authEmailVerification,
+  // authLogin,
+  // authPhoneVerification,
 ]);
 
-app.use("/crud-users", [userGET, userUPDATE]);
+app.use("/crud-users", 
+  [
+    // userGET, 
+    // userUPDATE,
+    userGetRoutes,
+    userUpdateRoutes,
+
+  ]);
 
 app.use("/property-facilities", [
   propertyTypeRoutes,

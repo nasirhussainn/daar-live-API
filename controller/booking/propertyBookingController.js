@@ -135,9 +135,6 @@ exports.confirmPropertyBooking = async (req, res) => {
     if (!property)
       return res.status(404).json({ message: "Property not found" });
 
-    property.is_booked = true;
-    await property.save();
-
     await sendPropertyBookingConfirmationEmail(booking);
 
     // ✅ Send Notification to User
