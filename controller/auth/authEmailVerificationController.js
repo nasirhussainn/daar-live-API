@@ -47,7 +47,11 @@ const verifyEmail = async (req, res) => {
 
     await user.save();
 
-    return res.status(200).json({ message: "Email verified successfully!" });
+    if(user.role === 'realtor'){
+    return res.status(200).json({ message: "Email verified successfully! Your account is now active and pending admin approval." });
+    }else{
+      return res.status(200).json({ message: "Email verified successfully!" });
+    }
   } catch (error) {
     console.error("Email Verification Error:", error);
     return res.status(500).json({ message: "Server error. Please try again." });

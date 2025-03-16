@@ -102,8 +102,16 @@ exports.getRealtors = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const realtors = await User.find({ role: "realtor" }).skip(skip).limit(limit).lean();
-    const totalRealtors = await User.countDocuments({ role: "realtor" });
+    const status = req.query.status; // Get status from query params
+
+    // Build query object
+    let query = { role: "realtor" };
+    if (status) {
+      query.account_status = status; // Apply account_status filter if provided
+    }
+
+    const realtors = await User.find(query).skip(skip).limit(limit).lean();
+    const totalRealtors = await User.countDocuments(query);
 
     const realtorData = await Promise.all(
       realtors.map(async (user) => {

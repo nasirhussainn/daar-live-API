@@ -187,10 +187,18 @@ router.get("/realtors", async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10; // Default: 10 realtors per page
     const skip = (page - 1) * limit;
+    
+    const status = req.query.status; // Get status from query params
+
+    // Build query object
+    let query = { role: "realtor" };
+    if (status) {
+      query.account_status = status; // Apply account_status filter if provided
+    }
 
     // Fetch paginated realtors from User collection
-    const realtors = await User.find({ role: "realtor" }).skip(skip).limit(limit).lean();
-    const totalRealtors = await User.countDocuments({ role: "realtor" });
+    const realtors = await User.find(query).skip(skip).limit(limit).lean();
+    const totalRealtors = await User.countDocuments(query);
 
     // Fetch realtor details, subscriptions, and reviews in parallel
     const realtorData = await Promise.all(
@@ -204,8 +212,8 @@ router.get("/realtors", async (req, res) => {
             status: "active",
           }).lean();
         }
-        const reviewData = await getReviewsWithCount(realtorDetails.user_id, "User");
-        const stats = await getRealtorStats(realtorDetails.user_id);
+        const reviewData = await getReviewsWithCount(realtorDetails?.user_id, "User");
+        const stats = await getRealtorStats(realtorDetails?.user_id);
 
         return {
           ...user,
@@ -233,5 +241,6 @@ router.get("/realtors", async (req, res) => {
     return res.status(500).json({ message: "Server error. Please try again." });
   }
 });
+
 
 module.exports = router;
