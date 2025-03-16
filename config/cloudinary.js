@@ -9,12 +9,12 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const uploadToCloudinary = async (buffer) => {
+const uploadToCloudinary = async (buffer, folder) => {
   return new Promise((resolve, reject) => {
     let stream = cloudinary.uploader.upload_stream(
       {
         resource_type: "auto",
-        folder: "upload_daar_live", // Directory name in Cloudinary
+        folder: folder,
       },
       (error, result) => {
         if (error) {
@@ -46,15 +46,16 @@ const uploadMultipleToCloudinary = async (files, folderName) => {
   for (const file of files) {
     const { buffer, fieldname } = file;
 
+    const updatedFolderName = `${folderName}/${fieldname}`;
     // If it's an image
     if (fieldname === 'images') {
-      const imageUrl = await uploadToCloudinary(buffer, folderName);
+      const imageUrl = await uploadToCloudinary(buffer, updatedFolderName);
       mediaUrls.images.push(imageUrl);
     }
 
     // If it's a video
     if (fieldname === 'videos') {
-      const videoUrl = await uploadToCloudinary(buffer, folderName);
+      const videoUrl = await uploadToCloudinary(buffer, updatedFolderName);
       mediaUrls.videos.push(videoUrl);
     }
   }

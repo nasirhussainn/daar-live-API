@@ -51,7 +51,8 @@ exports.signup = async (req, res) => {
     // Upload profile picture to Cloudinary
     let imageUrl = null;
     if (req.file) {
-      imageUrl = await uploadToCloudinary(req.file.buffer);
+      const folderName = role === "realtor" ? "realtors_profiles" : "buyers_profiles";
+      imageUrl = await uploadToCloudinary(req.file.buffer, folderName);
     }
 
     // Generate email verification token

@@ -20,7 +20,8 @@ exports.updateUser = async (req, res) => {
 
     // Handle profile picture upload
     if (req.file) {
-      const imageUrl = await uploadToCloudinary(req.file.buffer);
+      const folderName = role === "realtor" ? "realtors_profiles" : "buyers_profiles";
+      const imageUrl = await uploadToCloudinary(req.file.buffer, folderName);
       updatedFields.profile_picture = imageUrl;
     }
 

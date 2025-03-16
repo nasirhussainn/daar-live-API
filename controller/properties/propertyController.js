@@ -116,7 +116,7 @@ exports.addProperty = async (req, res) => {
         });
       }
 
-      const folderName = "uploaded_properties_daar_live";
+      const folderName = "property_media_daar_live";
       mediaUrls = await uploadMultipleToCloudinary(mediaFiles, folderName);
     }
 
@@ -679,7 +679,7 @@ exports.updateProperty = async (req, res) => {
         });
       }
 
-      const folderName = "uploaded_properties_daar_live";
+      const folderName = "property_media_daar_live";
       const mediaUrls = await uploadMultipleToCloudinary(
         mediaFiles,
         folderName

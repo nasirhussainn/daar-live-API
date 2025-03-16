@@ -103,7 +103,7 @@ exports.addEvent = async (req, res) => {
         });
       }
 
-      const folderName = "event_media_uploads";
+      const folderName = "event_media_daar_live";
       mediaUrls = await uploadMultipleToCloudinary(mediaFiles, folderName);
 
       // Save media if there are images or videos
