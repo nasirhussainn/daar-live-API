@@ -83,7 +83,7 @@ exports.bookProperty = async (req, res) => {
     if (existingBooking) {
       return res.status(400).json({
         message:
-          property.charge_per === "hourly"
+          property.charge_per === "per_hour"
             ? "Property is already booked for the selected date and time"
             : "Property is already booked for the selected dates",
       });
