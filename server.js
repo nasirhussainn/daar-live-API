@@ -5,7 +5,7 @@ const { getAuth } = require("firebase-admin/auth");
 const { initializeSocket } = require("./config/socket"); 
 // const redisSubscriber = require("./config/redisSubscriber");
 const http = require("http");
-require("./jobs/propertyCron");
+require("./jobs/bookingCron");
 require("./jobs/subscriptionCron"); // This will execute the cron job from the imported file
 require("./jobs/eventCron");
 

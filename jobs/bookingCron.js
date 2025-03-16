@@ -71,23 +71,35 @@ const updateCancellableBookings = async () => {
     const now = new Date();
     const cutoffTime = new Date(now.getTime() + 48 * 60 * 60 * 1000); // 48 hours from now
 
-    // Find bookings that are still cancellable but will start in less than 48 hours
-    const cancellableBookings = await Booking.find({
-      start_date: { $lte: cutoffTime, $gte: now }, // Start date is within the next 48 hours
-      is_cancellable: true, // Still cancellable
-      status: "confirmed", // Not yet active
+    // Find cancellable property bookings
+    const propertyBookings = await Booking.find({
+      booking_type: "property",
+      start_date: { $lte: cutoffTime, $gte: now },
+      is_cancellable: true,
+      status: "confirmed",
     });
 
-    for (const booking of cancellableBookings) {
+    // Find cancellable event bookings (only check the first event date)
+    const eventBookings = await Booking.find({
+      booking_type: "event",
+      "event_dates.0.date": { $lte: cutoffTime, $gte: now }, // Only the first event date
+      is_cancellable: true,
+      status: "confirmed",
+    });
+
+    const allBookings = [...propertyBookings, ...eventBookings];
+
+    for (const booking of allBookings) {
       booking.is_cancellable = false;
       await booking.save();
     }
 
-    console.log(`✅ Updated ${cancellableBookings.length} bookings to non-cancellable.`);
+    console.log(`✅ Updated ${allBookings.length} bookings to non-cancellable.`);
   } catch (error) {
     console.error("❌ Error updating cancellable bookings:", error);
   }
 };
+
 
 // Delete bookings with pending status for more than 2 hours
 const deleteExpiredPendingBookings = async () => {
