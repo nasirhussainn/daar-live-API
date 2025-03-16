@@ -1,13 +1,10 @@
+const { sendAccountStatusUpdateEmail } = require("../../config/mailer");
 const User = require("../../models/User");
 
-// @desc    Update user account status
-// @route   PUT /api/user/:userId/status
-// @access  Public or Protected (as per your requirement)
 const updateUserStatus = async (req, res) => {
   const { userId } = req.params;
   const { status } = req.body;
 
-  // Allowed statuses
   const allowedStatuses = ["pending", "approved", "declined", "active"];
 
   if (!allowedStatuses.includes(status)) {
@@ -25,13 +22,17 @@ const updateUserStatus = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Send email notification about status update
+    await sendAccountStatusUpdateEmail(user);
+
     return res.status(200).json({
-      message: "User status updated successfully",
+      message: "User status updated successfully and email sent",
       user,
     });
   } catch (error) {
     return res.status(500).json({ message: "Error updating user status", error: error.message });
   }
 };
+
 
 module.exports = { updateUserStatus };

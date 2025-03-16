@@ -279,9 +279,35 @@ async function generateBookingPDF(booking, buyer, event) {
   });
 }
 
+async function sendAccountStatusUpdateEmail(user) {
+  try {
+    const emailSubject = "Update on Your Account Status";
+    const emailBody = `
+      <p>Dear ${user.full_name},</p>
+      <p>We wanted to inform you that your account status has been updated.</p>
+      <p><strong>New Status:</strong> ${user.account_status.toUpperCase()}</p>
+      <p>If you have any questions, please feel free to contact our support team.</p>
+      <p>Best regards,</p>
+      <p>Your Platform Team</p>
+    `;
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: user.email,
+      subject: emailSubject,
+      html: emailBody,
+    });
+    
+  } catch (error) {
+    console.error("Error sending account status update email:", error.message);
+  }
+}
+
+
 module.exports = {
   sendVerificationEmail,
   sendPasswordResetEmail,
   sendPropertyBookingConfirmationEmail,
   sendEventBookingConfirmationEmail,
+  sendAccountStatusUpdateEmail
 };

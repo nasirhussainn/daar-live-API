@@ -4,6 +4,6 @@ const { updateUserStatus } = require("../../controller/admin/userApprovalControl
 const router = express.Router();
 
 // Route to update user status
-router.put("/user/:userId/status", updateUserStatus);
+router.put("/user/:userId", updateUserStatus);
 
 module.exports = router;
