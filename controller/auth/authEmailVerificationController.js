@@ -31,7 +31,7 @@ const verifyEmail = async (req, res) => {
       await user.save();
 
       // Send new verification email
-      const newVerificationLink = `${BASE_URL}/auth/verify-email/${newEmailVerificationToken}`;
+      const newVerificationLink = `https://whale-app-4nsg6.ondigitalocean.app/auth/verify-email/${newEmailVerificationToken}`;
       await sendVerificationEmail(user.email, newVerificationLink);
 
       return res.status(400).json({
