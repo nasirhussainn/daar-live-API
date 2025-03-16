@@ -83,6 +83,7 @@ exports.sendMessage = async (req, res, next, io) => {
       sender_id: senderId,
       sender_type: senderType,
       content: mediaUrl || text,
+      is_media: !!mediaUrl,
       timestamp: new Date(),
       is_read: false,
     };

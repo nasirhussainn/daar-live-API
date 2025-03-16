@@ -18,6 +18,7 @@ const ChatSchema = new Schema(
         sender_id: { type: Schema.Types.ObjectId, required: true, refPath: "messages.sender_type" },
         sender_type: { type: String, enum: ['User', 'Realtor', 'Admin'], required: true },
         content: { type: String, required: true }, // Stores either text message or media URL
+        is_media: { type: Boolean, default: false },
         timestamp: { type: Date, default: Date.now },
         is_read: { type: Boolean, default: false }
       }
