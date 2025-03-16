@@ -1,5 +1,7 @@
 const Chat = require("../../models/Chat"); // Import your Chat model
 const Property = require("../../models/Properties"); // Import your Property model
+const User = require("../../models/User"); // Import your User model
+const Admin = require("../../models/Admin"); // Import your Admin model
 const Event = require("../../models/Events"); // Import your Event model
 const { uploadChatMedia } = require("../../config/cloudinary"); // Utility for media upload
 
@@ -125,9 +127,7 @@ exports.getChatById = async (req, res) => {
 
     if (chatId) {
       // Case 1: Fetch chat by chatId
-      chat = await Chat.findById(chatId)
-        .populate("messages.sender_id", "full_name email profile_picture")
-        .exec();
+      chat = await Chat.findById(chatId).exec();
 
       if (!chat) {
         return res.status(404).json({ message: "Chat not found" });
@@ -137,7 +137,7 @@ exports.getChatById = async (req, res) => {
       chat = await Chat.findOne({
         referenceId,
         "participants.participant_id": userId, // Check if user is a participant
-      });
+      }).exec();
 
       if (!chat) {
         return res.status(200).json({}); // Return empty response for new chat initiation
@@ -153,7 +153,11 @@ exports.getChatById = async (req, res) => {
 
     // **Mark all messages as read for this user**
     chat.messages.forEach((msg) => {
-      if (msg.sender_id.toString() !== userId && !msg.is_read) {
+      if (
+        msg.sender_id &&
+        msg.sender_id.toString() !== userId &&
+        !msg.is_read
+      ) {
         msg.is_read = true;
         updated = true;
       }
@@ -180,9 +184,10 @@ exports.getChatsByParticipant = async (req, res) => {
   try {
     const participantId = req.params.participantId;
 
+    // Fetch chats without populating
     const chats = await Chat.find({
       "participants.participant_id": participantId,
-    });
+    }).exec();
 
     if (!chats || chats.length === 0) {
       return res
@@ -190,8 +195,9 @@ exports.getChatsByParticipant = async (req, res) => {
         .json({ message: "No chats found for this participant" });
     }
 
-    const formattedChats = chats
-      .map((chat) => {
+    // Manually populate participant details
+    const formattedChats = await Promise.all(
+      chats.map(async (chat) => {
         if (!chat.participants || chat.participants.length !== 2) {
           console.warn(
             `Chat ${chat._id} has invalid participants:`,
@@ -208,6 +214,55 @@ exports.getChatsByParticipant = async (req, res) => {
 
         if (!receiver) {
           console.warn(`Chat ${chat._id} is missing a receiver`);
+          return null;
+        }
+
+        // Fetch receiver details manually
+        let receiverDetails = null;
+        if (receiver.participant_type === "User" || receiver.participant_type === "Realtor") {
+          receiverDetails = await User.findById(receiver.participant_id, {
+            full_name: 1,
+            profile_picture: 1,
+            email: 1,
+          }).exec();
+        } else if (receiver.participant_type === "Admin") {
+          receiverDetails = await Admin.findById(receiver.participant_id, {
+            full_name: 1,
+            profile_picture: 1,
+            email: 1,
+          }).exec();
+        }
+
+        if (!receiverDetails) {
+          console.warn(`Receiver details not found for chat ${chat._id}`);
+          return null;
+        }
+
+        // Fetch sender details manually
+        let senderDetails = null;
+        const sender = chat.participants.find(
+          (p) =>
+            p.participant_id && p.participant_id.toString() === participantId
+        );
+
+        if (sender) {
+          if (sender.participant_type === "User" || sender.participant_type === "Realtor") {
+            senderDetails = await User.findById(sender.participant_id, {
+              full_name: 1,
+              profile_picture: 1,
+              email: 1,
+            }).exec();
+          } else if (sender.participant_type === "Admin") {
+            senderDetails = await Admin.findById(sender.participant_id, {
+              full_name: 1,
+              profile_picture: 1,
+              email: 1,
+            }).exec();
+          }
+        }
+
+        if (!senderDetails) {
+          console.warn(`Sender details not found for chat ${chat._id}`);
           return null;
         }
 
@@ -254,21 +309,28 @@ exports.getChatsByParticipant = async (req, res) => {
         return {
           chat_id: chat._id,
           sender_id: participantId,
-          receiver_id: receiver.participant_id._id,
+          sender_name: senderDetails.full_name, // Sender's full name
+          sender_profilePic: senderDetails.profile_picture, // Sender's profile picture
+          sender_email: senderDetails.email, // Sender's email
+          receiver_id: receiver.participant_id,
+          receiver_name: receiverDetails.full_name, // Receiver's full name
+          receiver_profilePic: receiverDetails.profile_picture, // Receiver's profile picture
+          receiver_email: receiverDetails.email, // Receiver's email
           reference_id: chat.referenceId || null,
           reference_type: chat.referenceType || null,
           last_message: lastMessageText,
-          receiver_name: receiver.participant_id.full_name,
-          receiver_profilePic: receiver.participant_id.profile_picture,
           last_message_time: lastMessage
             ? lastMessage.timestamp
             : chat.updatedAt,
           unread_count: unreadCount,
         };
       })
-      .filter((chat) => chat !== null);
+    );
 
-    res.status(200).json(formattedChats);
+    // Filter out null values
+    const filteredChats = formattedChats.filter((chat) => chat !== null);
+
+    res.status(200).json(filteredChats);
   } catch (error) {
     console.error("Error fetching chats:", error);
     res
