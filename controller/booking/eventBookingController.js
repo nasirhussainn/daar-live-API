@@ -4,6 +4,7 @@ const User = require("../../models/User");
 const Review = require("../../models/Review");
 const { sendEventBookingConfirmationEmail } = require("../../config/mailer");
 const Notification = require("../../models/Notification");
+const { logPaymentHistory } = require("./paymentHistoryService");
 
 // ✅ Book an Event
 const generateTickets = (numTickets) => {
@@ -131,13 +132,6 @@ exports.confirmEventBooking = async (req, res) => {
     const event = await Event.findById(booking.event_id);
     if (!event) return res.status(404).json({ message: "Event not found" });
 
-    // if (event.available_tickets < booking.number_of_tickets) {
-    //   return res.status(400).json({ message: "Not enough tickets available" });
-    // }
-
-    // event.available_tickets -= booking.number_of_tickets;
-    // await event.save();
-
     // Update booking status
     booking.status = "confirmed";
     booking.payment_detail = payment_detail;
@@ -162,6 +156,10 @@ exports.confirmEventBooking = async (req, res) => {
       title: "Booking Confirmed",
       message: `A booking for your event has been confirmed.`,
     });
+
+     // --------------log payment history-----------------
+     await logPaymentHistory(booking, payment_detail, "booking_event");
+     // -------------------------------------------------
 
     res
       .status(200)

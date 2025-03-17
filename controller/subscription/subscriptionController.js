@@ -1,6 +1,7 @@
 const Subscription = require('../../models/Subscription');
 const Realtor = require('../../models/Realtor');
 const SubscriptionPlan = require('../../models/admin/SubscriptionPlan');
+const PaymentHistory = require("../../models/PaymentHistory");
 
 // 📌 Controller to subscribe a realtor
 const subscribeRealtor = async (req, res) => {
@@ -47,6 +48,21 @@ const subscribeRealtor = async (req, res) => {
 
     // Update the realtor's `is_subscribed` status
     await Realtor.findByIdAndUpdate(realtor_id, { is_subscribed: true });
+
+    // --------------log payment history-----------------
+    const paymentEntry = new PaymentHistory({
+      payer_type: "Realtor",
+      payer_id: realtor_id,
+      recipient_type: "Admin",
+      recipient_id: "daarlive@admin", // Update this with your Admin ID
+      transaction_id: subscription_id,
+      amount: plan.price,
+      entity_type: "subscription",
+      entity_id: subscription._id, // Link to the subscription
+      status: "completed",
+    });
+    await paymentEntry.save(); // Save payment history
+    // -------------------------------------------------
 
     return res.status(201).json({
       message: "Subscription successfully created",

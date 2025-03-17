@@ -6,6 +6,9 @@ const EventType = require("../../models/admin/EventType");
 const { uploadMultipleToCloudinary } = require("../../config/cloudinary");
 const FeaturedEntity = require("../../models/FeaturedEntity");
 const Review = require("../../models/Review");
+const PaymentHistory = require("../../models/PaymentHistory");
+const Realtor = require("../../models/Realtor")
+
 const { getHostsStats } = require("../stats/getHostStats"); // Import the function
 const {
   getReviewsWithCount,
@@ -505,6 +508,23 @@ exports.featureEvent = async (req, res) => {
     // Commit transaction
     await session.commitTransaction();
     session.endSession();
+
+     // --------------log payment history-----------------
+     const realtor = await Realtor.findById(event.host_id);
+     const realtor_id = realtor._id;
+     const paymentEntry = new PaymentHistory({
+       payer_type: "Realtor",
+       payer_id: realtor_id,
+       recipient_type: "Admin",
+       recipient_id: "daarlive@admin", // Update this with your Admin ID
+       transaction_id: transaction_id,
+       amount: transaction_price,
+       entity_type: "freatured_property",
+       entity_id: subscription._id, // Link to the subscription
+       status: "completed",
+     });
+     await paymentEntry.save(); // Save payment history
+     // -------------------------------------------------
 
     res.status(200).json({
       message: "Event has been successfully featured.",

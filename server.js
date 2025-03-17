@@ -89,6 +89,7 @@ const realtorHostStatRoutes = require("./routes/stats/realtorHostStatRoutes");
 const subscriptionStatRoutes = require("./routes/stats/subscriptionStatRoutes");
 
 const notificationRoutes = require("./routes/notification/notificationRoutes");
+const paymentHistoryRoutes = require("./routes/payment/paymentHistoryRoutes")
 
 const userApprovalRoutes = require("./routes/admin/userApprovalRoutes");
 
@@ -146,6 +147,7 @@ app.use("/approval", [approvalRoutes, userApprovalRoutes]);
 app.use("/stats", [subscriptionStatRoutes, realtorHostStatRoutes]);
 
 app.use("/notifications", notificationRoutes);
+app.use("/payment-history", paymentHistoryRoutes);
 
 // Start the Server
 server.listen(PORT, () => {

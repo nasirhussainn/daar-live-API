@@ -5,6 +5,7 @@ const Admin = require("../../models/Admin");
 const Review = require("../../models/Review");
 const { sendPropertyBookingConfirmationEmail } = require("../../config/mailer");
 const Notification = require("../../models/Notification");
+const { logPaymentHistory } = require("./paymentHistoryService");
 
 // Book a Property
 exports.bookProperty = async (req, res) => {
@@ -14,6 +15,7 @@ exports.bookProperty = async (req, res) => {
       user_id,
       start_date,
       end_date,
+      slots, // New: Array of slots for hourly bookings
       security_deposit,
       guest_name,
       guest_email,
@@ -43,9 +45,10 @@ exports.bookProperty = async (req, res) => {
     });
 
     if (existingPendingBooking) {
-      // If the user wants to modify the pending booking, update it
-      existingPendingBooking.start_date = start_date;
-      existingPendingBooking.end_date = end_date;
+      // Update pending booking if it exists
+      existingPendingBooking.start_date = start_date || null;
+      existingPendingBooking.end_date = end_date || null;
+      existingPendingBooking.slots = slots?.length ? slots : [];
       existingPendingBooking.security_deposit = security_deposit;
       existingPendingBooking.guest_name = guest_name || null;
       existingPendingBooking.guest_email = guest_email || null;
@@ -61,30 +64,42 @@ exports.bookProperty = async (req, res) => {
     }
 
     // Check for overlapping bookings
-    const startDate = new Date(start_date);
-    const endDate = new Date(end_date);
+    let bookingConflict = false;
 
-    const existingBooking = await Booking.findOne({
-      property_id,
-      status: { $in: ["active", "confirmed", "pending"] },
-      $or: [
-        property.charge_per === "day"
-          ? { start_date: { $lt: endDate }, end_date: { $gt: startDate } }
-          : null,
-        property.charge_per === "hourly"
-          ? {
-              start_date: { $gte: new Date(startDate.setMinutes(0, 0, 0)) },
-              end_date: { $lte: new Date(endDate.setMinutes(59, 59, 999)) },
-            }
-          : null,
-      ].filter(Boolean),
-    });
+    if (property.charge_per !== "per_hour") {
+      const startDate = new Date(start_date);
+      const endDate = new Date(end_date);
 
-    if (existingBooking) {
+      bookingConflict = await Booking.findOne({
+        property_id,
+        status: { $in: ["active", "confirmed", "pending"] },
+        start_date: { $lt: endDate },
+        end_date: { $gt: startDate },
+      });
+    } else if (property.charge_per === "per_hour" && slots?.length) {
+      for (const slot of slots) {
+        const startTime = slot.start_time;
+        const endTime = slot.end_time;
+
+        const conflict = await Booking.findOne({
+          property_id,
+          status: { $in: ["active", "confirmed", "pending"] },
+          "slots.start_time": { $lt: endTime },
+          "slots.end_time": { $gt: startTime },
+        });
+
+        if (conflict) {
+          bookingConflict = true;
+          break;
+        }
+      }
+    }
+
+    if (bookingConflict) {
       return res.status(400).json({
         message:
           property.charge_per === "per_hour"
-            ? "Property is already booked for the selected date and time"
+            ? "Property is already booked for the selected slots"
             : "Property is already booked for the selected dates",
       });
     }
@@ -112,8 +127,9 @@ exports.bookProperty = async (req, res) => {
       user_id,
       owner_type: ownerType, // Dynamically set owner type
       owner_id: owner._id, // Set owner reference ID
-      start_date,
-      end_date,
+      start_date: start_date || null,
+      end_date: end_date || null,
+      slots: property.charge_per === "per_hour" ? slots : [], // Save slots only for hourly bookings
       security_deposit,
       status: "pending",
       guest_name: guest_name || null,
@@ -165,7 +181,8 @@ exports.confirmPropertyBooking = async (req, res) => {
 
     await sendPropertyBookingConfirmationEmail(booking);
 
-    // ✅ Send Notification to User
+
+    //--------------------- ✅ Send Notification to User---------------------
     await Notification.create({
       user: booking.user_id,
       notification_type: "booking",
@@ -173,7 +190,6 @@ exports.confirmPropertyBooking = async (req, res) => {
       title: "Booking Confirmed",
       message: `Your booking has been confirmed! Your confirmation ticket is ${booking.confirmation_ticket}.`,
     });
-
     // ✅ Send Notification to Realtor
     await Notification.create({
       user: booking.owner_id,
@@ -182,6 +198,13 @@ exports.confirmPropertyBooking = async (req, res) => {
       title: "Booking Confirmed",
       message: `A booking for your property has been confirmed.`,
     });
+    // --------------------------- Send Notification end here------------------------
+
+    // --------------log payment history-----------------
+    await logPaymentHistory(booking, payment_detail, "booking_property");
+    // -------------------------------------------------
+
+
 
     res.status(200).json({
       message: "Booking confirmed successfully",

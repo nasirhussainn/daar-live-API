@@ -26,6 +26,14 @@ const BookingSchema = new Schema({
   // Property booking fields
   property_id: { type: Schema.Types.ObjectId, ref: "Property", default: null },
 
+  // Slots for properties that charge per hour
+  slots: [
+    {
+      start_time: { type: String, default: null }, // Example: "10:00 AM"
+      end_time: { type: String, default: null }, // Example: "12:00 PM"
+    },
+  ],
+
   // Event booking fields
   event_id: { type: Schema.Types.ObjectId, ref: "Event", default: null },
 
