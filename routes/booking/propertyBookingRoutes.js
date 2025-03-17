@@ -13,4 +13,7 @@ router.get("/bookingPropertyDetail/:property_id", bookingController.getBookedPro
 // Cancel a booking
 router.put("/cancel/:booking_id", bookingController.cancelPropertyBooking);
 
+// Available slots for charge_per = hour property
+router.get("/all-slots", bookingController.getSlots)
+
 module.exports = router;

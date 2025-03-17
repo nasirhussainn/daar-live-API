@@ -37,6 +37,13 @@ exports.bookProperty = async (req, res) => {
       return res.status(400).json({ message: "This property cannot be booked" });
     }
 
+    // Ensure per_hour bookings have the same start and end date
+    if (property.charge_per === "per_hour" && start_date !== end_date) {
+      return res.status(400).json({
+        message: "For per-hour bookings, start and end date must be the same.",
+      });
+    }
+
     // Check if the user already has a pending booking for this property
     let existingPendingBooking = await Booking.findOne({
       property_id,
@@ -84,6 +91,7 @@ exports.bookProperty = async (req, res) => {
         const conflict = await Booking.findOne({
           property_id,
           status: { $in: ["active", "confirmed", "pending"] },
+          start_date: start_date, // Ensure we only check for conflicts on the same day
           "slots.start_time": { $lt: endTime },
           "slots.end_time": { $gt: startTime },
         });
@@ -99,7 +107,7 @@ exports.bookProperty = async (req, res) => {
       return res.status(400).json({
         message:
           property.charge_per === "per_hour"
-            ? "Property is already booked for the selected slots"
+            ? "Property is already booked for the selected slots on this date"
             : "Property is already booked for the selected dates",
       });
     }
@@ -500,3 +508,85 @@ exports.getBookedPropertyDetails = async (req, res) => {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
+
+exports.getSlots = async (req, res) => {
+  try {
+    const { property_id, date } = req.query;
+
+    if (!property_id || !date) {
+      return res.status(400).json({ message: "Property ID and date are required" });
+    }
+
+    // Convert date string to Date object
+    const selectedDate = new Date(date);
+
+    // Find property
+    const property = await Property.findById(property_id);
+    if (!property) {
+      return res.status(404).json({ message: "Property not found" });
+    }
+
+    // Check if the property is hourly-based
+    if (property.charge_per !== "per_hour") {
+      return res.status(400).json({ message: "This property does not support hourly booking" });
+    }
+
+    // Get all booked slots for the given date
+    const bookedSlots = await Booking.find({
+      property_id,
+      status: { $in: ["active", "confirmed", "pending"] },
+      start_date: selectedDate, // Since per_hour bookings have start_date = end_date
+    }).select("slots");
+
+    // Convert booked slots into a flat array
+    let bookedTimes = [];
+    bookedSlots.forEach((booking) => {
+      bookedTimes.push(...booking.slots);
+    });
+
+    // Define property working hours (example: 8 AM - 8 PM)
+    const openingTime = "00:00 AM";
+    const closingTime = "11:59 PM";
+
+    // Convert time to minutes for easy calculations
+    function timeToMinutes(time) {
+      const [hour, minute, period] = time.match(/(\d+):(\d+) (\w{2})/).slice(1);
+      let hours = parseInt(hour, 10);
+      if (period === "PM" && hours !== 12) hours += 12;
+      if (period === "AM" && hours === 12) hours = 0;
+      return hours * 60 + parseInt(minute, 10);
+    }
+
+    const openingMinutes = timeToMinutes(openingTime);
+    const closingMinutes = timeToMinutes(closingTime);
+
+    // Generate all possible 1-hour slots within working hours
+    let allSlots = [];
+    for (let start = openingMinutes; start + 60 <= closingMinutes; start += 60) {
+      const end = start + 60;
+      allSlots.push({
+        start_time: `${Math.floor(start / 60) % 12 || 12}:${(start % 60).toString().padStart(2, "0")} ${start < 720 ? "AM" : "PM"}`,
+        end_time: `${Math.floor(end / 60) % 12 || 12}:${(end % 60).toString().padStart(2, "0")} ${end < 720 ? "AM" : "PM"}`
+      });
+    }
+
+    // Filter out booked slots
+    const availableSlots = allSlots.filter((slot) => {
+      return !bookedTimes.some(
+        (booked) =>
+          timeToMinutes(booked.start_time) < timeToMinutes(slot.end_time) &&
+          timeToMinutes(booked.end_time) > timeToMinutes(slot.start_time)
+      );
+    });
+
+    res.status(200).json({
+      message: "Slots fetched successfully",
+      available_slots: availableSlots,
+      booked_slots: bookedTimes, // Send booked slots separately
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+
