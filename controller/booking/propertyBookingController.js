@@ -271,8 +271,6 @@ exports.cancelPropertyBooking = async (req, res) => {
         property.booking_id = null;
         await property.save();
       }
-
-      console.log("Booking canceled and property marked as available.");
     } catch (error) {
       console.error("Error canceling booking:", error);
     }
@@ -553,8 +551,6 @@ exports.getSlots = async (req, res) => {
     startOfDay.setUTCHours(0, 0, 0, 0); // Start of the day (00:00 UTC)
     const endOfDay = new Date(selectedDate);
     endOfDay.setUTCHours(23, 59, 59, 999); // End of the day (23:59 UTC)
-    console.log("Start of Day:", startOfDay);
-    console.log("End of Day:", endOfDay);
 
     // Query bookings within this date range
     const bookedSlots = await Booking.find({
@@ -563,7 +559,6 @@ exports.getSlots = async (req, res) => {
       start_date: { $gte: startOfDay, $lt: endOfDay }, // Ensure only the selected date
     }).select("slots start_date"); // Include start_date in the selection
 
-    console.log(JSON.stringify(bookedSlots));
     // Convert booked slots into a flat array
     let bookedTimes = [];
     bookedSlots.forEach((booking) => {
