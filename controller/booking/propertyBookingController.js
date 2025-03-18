@@ -546,22 +546,15 @@ exports.getSlots = async (req, res) => {
     // Query bookings within this date range
     const bookedSlots = await Booking.find({
       property_id,
-      status: { $in: ["active", "confirmed", "pending", "completed"] }, // Include "completed"
+      status: { $in: ["active", "confirmed", "pending"] }, // Include "completed"
       start_date: { $gte: startOfDay, $lt: endOfDay }, // Ensure only the selected date
     }).select("slots start_date"); // Include start_date in the selection
-
-    // Log start_date for each booking
-    bookedSlots.forEach((booking) => {
-      console.log("Booking Start Date:", booking.start_date);
-    });
 
     // Convert booked slots into a flat array
     let bookedTimes = [];
     bookedSlots.forEach((booking) => {
       bookedTimes.push(...booking.slots);
     });
-
-    console.log("All Booked Slots:", bookedTimes);
 
     // Define property working hours (example: 8 AM - 8 PM)
     const openingTime = "00:00 AM";
@@ -614,9 +607,6 @@ exports.getSlots = async (req, res) => {
         );
       });
     });
-
-    console.log("Available Slots:", availableSlots);
-    console.log("Booked Slots:", bookedTimes);
 
     res.status(200).json({
       message: "Slots fetched successfully",
