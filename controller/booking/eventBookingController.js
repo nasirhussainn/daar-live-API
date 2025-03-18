@@ -5,6 +5,7 @@ const Review = require("../../models/Review");
 const { sendEventBookingConfirmationEmail } = require("../../config/mailer");
 const Notification = require("../../models/Notification");
 const { logPaymentHistory } = require("./paymentHistoryService");
+const sendNotification = require("../notification/sendNotification");
 
 // ✅ Book an Event
 const generateTickets = (numTickets) => {
@@ -140,26 +141,15 @@ exports.confirmEventBooking = async (req, res) => {
     // Send confirmation email
     await sendEventBookingConfirmationEmail(booking);
 
-    await Notification.create({
-      user: booking.user_id,
-      notification_type: "booking",
-      reference_id: booking._id,
-      title: "Booking Confirmed",
-      message: `Your booking has been confirmed! Your confirmation ticket is ${booking.confirmation_ticket}.`,
-    });
-
-    // ✅ Send Notification to Realtor
-    await Notification.create({
-      user: booking.owner_id,
-      notification_type: "booking",
-      reference_id: booking._id,
-      title: "Booking Confirmed",
-      message: `A booking for your event has been confirmed.`,
-    });
-
-     // --------------log payment history-----------------
+    //--------------------- ✅ Notification and Payment---------------------
+    await sendNotification(booking.user_id, "booking", booking._id, "Booking Confirmed",
+      `Your booking has been confirmed! Your confirmation ticket is ${booking.confirmation_ticket}.`
+    );
+    await sendNotification(booking.owner_id, "booking", booking._id,"Booking Confirmed",
+      "A booking for your property has been confirmed."
+    );
      await logPaymentHistory(booking, payment_detail, "booking_event");
-     // -------------------------------------------------
+     // -------------------------------------------------------------
 
     res
       .status(200)

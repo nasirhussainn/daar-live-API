@@ -60,6 +60,7 @@ const PropertySchema = new Schema({
   avg_rating: { type: Number, default: 0 },
 
   is_booked: { type: Boolean, default: false }, // Tracks if the property is booked
+  cancelation_reason: { type: String, default: null },
 
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now },

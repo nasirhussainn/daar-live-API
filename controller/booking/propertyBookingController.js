@@ -6,6 +6,7 @@ const Review = require("../../models/Review");
 const { sendPropertyBookingConfirmationEmail } = require("../../config/mailer");
 const Notification = require("../../models/Notification");
 const { logPaymentHistory } = require("./paymentHistoryService");
+const sendNotification = require("../notification/sendNotification");
 
 const normalizeTime = (time) => {
   let date = new Date(`1970-01-01 ${time}`);
@@ -102,7 +103,7 @@ exports.bookProperty = async (req, res) => {
       startDateOnly.setUTCHours(0, 0, 0, 0); // Normalize to start of day
       const nextDay = new Date(startDateOnly);
       nextDay.setUTCDate(nextDay.getUTCDate() + 1); // Move to next day
-    
+
       const existingBookings = await Booking.find({
         property_id,
         status: { $in: ["active", "confirmed", "pending"] },
@@ -206,27 +207,16 @@ exports.confirmPropertyBooking = async (req, res) => {
 
     await sendPropertyBookingConfirmationEmail(booking);
 
-    //--------------------- ✅ Send Notification to User---------------------
-    await Notification.create({
-      user: booking.user_id,
-      notification_type: "booking",
-      reference_id: booking._id,
-      title: "Booking Confirmed",
-      message: `Your booking has been confirmed! Your confirmation ticket is ${booking.confirmation_ticket}.`,
-    });
+    //--------------------- ✅ Notification and Payment---------------------
+    await sendNotification(booking.user_id, "booking", booking._id, "Booking Confirmed",
+      `Your booking has been confirmed! Your confirmation ticket is ${booking.confirmation_ticket}.`
+    );
     // ✅ Send Notification to Realtor
-    await Notification.create({
-      user: booking.owner_id,
-      notification_type: "booking",
-      reference_id: booking._id,
-      title: "Booking Confirmed",
-      message: `A booking for your property has been confirmed.`,
-    });
-    // --------------------------- Send Notification end here------------------------
-
-    // --------------log payment history-----------------
+    await sendNotification(booking.owner_id, "booking", booking._id,"Booking Confirmed",
+      "A booking for your property has been confirmed."
+    );
     await logPaymentHistory(booking, payment_detail, "booking_property");
-    // -------------------------------------------------
+    // ------------------------------------------------------------------------
 
     res.status(200).json({
       message: "Booking confirmed successfully",

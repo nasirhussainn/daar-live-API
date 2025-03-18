@@ -303,11 +303,45 @@ async function sendAccountStatusUpdateEmail(user) {
   }
 }
 
+// Function to send approval/disapproval emails
+async function sendPropertyStatusEmail(email, propertyTitle, status, reason = "") {
+  try {
+    const subject =
+      status === "approved"
+        ? "Your Property has been Approved"
+        : "Your Property has been Disapproved";
+
+    let message =
+      status === "approved"
+        ? `Congratulations! Your property "${propertyTitle}" has been approved and is now live.`
+        : `Unfortunately, your property "${propertyTitle}" has been disapproved.`;
+
+    if (status === "disapproved" && reason) {
+      message += `\nReason: ${reason}`;
+    }
+
+    message += `\n\nIf you have any questions, please contact our support team.`;
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: subject,
+      text: message,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`Email sent to ${email} for property status: ${status}`);
+  } catch (error) {
+    console.error("Error sending email:", error);
+  }
+}
+
 
 module.exports = {
   sendVerificationEmail,
   sendPasswordResetEmail,
   sendPropertyBookingConfirmationEmail,
   sendEventBookingConfirmationEmail,
-  sendAccountStatusUpdateEmail
+  sendAccountStatusUpdateEmail,
+  sendPropertyStatusEmail
 };

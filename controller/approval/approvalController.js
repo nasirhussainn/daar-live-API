@@ -1,16 +1,44 @@
 const Property = require("../../models/Properties");
+const mailer = require("../../config/mailer"); // Import mailer functions
+const sendNotification = require("../notification/sendNotification"); // Import the notification function
+const User = require("../../models/User"); // Assuming you have a User model
 
 exports.approveProperty = async (req, res) => {
   try {
     const propertyId = req.params.id;
-    const property = await Property.findById(propertyId);
+    const property = await Property.findById(propertyId).populate("owner_id");
+
     if (!property) {
       return res.status(404).json({ message: "Property not found" });
     }
+
     property.property_status = "approved";
     await property.save();
+
+    if (!property) {
+      return res.status(404).json({ message: "Property not found" });
+    }
+
+    property.property_status = "approved";
+    await property.save();
+
+    // Send email notification
+    if (property.owner_id && property.owner_id.email) {
+      await mailer.sendPropertyStatusEmail(property.owner_id.email, property.title, "approved");
+    }
+
+    // Create in-app notification
+    await sendNotification(
+      property.owner_id._id, 
+      "property_approval", 
+      property._id, 
+      "Property Approved", 
+      `Your property "${property.title}" has been approved and is now live.`
+    );
+
     res.json({ message: "Property approved successfully" });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
@@ -18,17 +46,38 @@ exports.approveProperty = async (req, res) => {
 exports.disapproveProperty = async (req, res) => {
   try {
     const propertyId = req.params.id;
-    const property = await Property.findById(propertyId);
+    const cancelation_reason = req.body.cancelation_reason;
+    const property = await Property.findById(propertyId).populate("owner_id");
+
     if (!property) {
       return res.status(404).json({ message: "Property not found" });
     }
+
     property.property_status = "disapproved";
+    property.cancelation_reason = cancelation_reason;
     await property.save();
+
+    // Send email notification
+    if (property.owner_id && property.owner_id.email) {
+      await mailer.sendPropertyStatusEmail(property.owner_id.email, property.title, "disapproved", cancelation_reason);
+    }
+
+    // Create in-app notification
+    await sendNotification(
+      property.owner_id._id, 
+      "property_disapproval", 
+      property._id, 
+      "Property Disapproved", 
+      `Unfortunately, your property "${property.title}" has been disapproved. Please contact support for more details.`
+    );
+
     res.json({ message: "Property disapproved successfully" });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
 
 exports.soldPropertyStatus = async (req, res) => {
   try {
