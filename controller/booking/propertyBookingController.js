@@ -268,7 +268,7 @@ exports.cancelPropertyBooking = async (req, res) => {
     // ✅ Send Notification to User
     await Notification.create({
       user: booking.user_id,
-      notification_type: "booking",
+      notification_type: "Booking",
       reference_id: booking._id,
       title: "Booking Canceled",
       message: `Your booking has been canceled!`,
@@ -277,7 +277,7 @@ exports.cancelPropertyBooking = async (req, res) => {
     // ✅ Send Notification to Realtor
     await Notification.create({
       user: booking.realtor_id,
-      notification_type: "booking",
+      notification_type: "Booking",
       reference_id: booking._id,
       title: "Booking Canceled",
       message: `A booking for your property has been canceled.`,

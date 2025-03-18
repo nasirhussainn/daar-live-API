@@ -117,7 +117,7 @@ exports.addReview = async (req, res) => {
     if (recipientUserId) {
       const notification = new Notification({
         user: recipientUserId,
-        notification_type: "review",
+        notification_type: "Review",
         reference_id: review._id,
         title: isNewReview ? "New Review Received" : "Review Updated",
         message: isNewReview

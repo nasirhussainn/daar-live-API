@@ -593,6 +593,16 @@ exports.featureProperty = async (req, res) => {
     await paymentEntry.save(); // Save payment history
     // -------------------------------------------------
 
+     // --------------Send Notification-----------------
+     await sendNotification(
+      property.owner_id._id,
+      "Property",
+      property._id,
+      "Your Property is Now Featured",
+      `Congratulations! Your property "${property.title}" has been successfully featured for ${no_of_days} days.`
+    );
+    // -------------------------------------------------
+
     res.status(200).json({
       message: "Property has been successfully featured.",
       feature_details: savedFeatureEntity,
