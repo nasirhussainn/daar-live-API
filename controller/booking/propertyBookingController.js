@@ -514,10 +514,12 @@ exports.getSlots = async (req, res) => {
     const { property_id, date } = req.query;
 
     if (!property_id || !date) {
-      return res.status(400).json({ message: "Property ID and date are required" });
+      return res
+        .status(400)
+        .json({ message: "Property ID and date are required" });
     }
 
-    // Convert date string to Date object
+    // Convert date string to a Date object
     const selectedDate = new Date(date);
 
     // Find property
@@ -528,21 +530,38 @@ exports.getSlots = async (req, res) => {
 
     // Check if the property is hourly-based
     if (property.charge_per !== "per_hour") {
-      return res.status(400).json({ message: "This property does not support hourly booking" });
+      return res
+        .status(400)
+        .json({ message: "This property does not support hourly booking" });
     }
 
-    // Get all booked slots for the given date
+    // Define the start and end of the selected date
+    const startOfDay = new Date(selectedDate);
+    startOfDay.setUTCHours(0, 0, 0, 0); // Start of the day (00:00 UTC)
+    const endOfDay = new Date(selectedDate);
+    endOfDay.setUTCHours(23, 59, 59, 999); // End of the day (23:59 UTC)
+    console.log("Start of Day:", startOfDay);
+    console.log("End of Day:", endOfDay);
+
+    // Query bookings within this date range
     const bookedSlots = await Booking.find({
       property_id,
-      status: { $in: ["active", "confirmed", "pending"] },
-      start_date: selectedDate, // Since per_hour bookings have start_date = end_date
-    }).select("slots");
+      status: { $in: ["active", "confirmed", "pending", "completed"] }, // Include "completed"
+      start_date: { $gte: startOfDay, $lt: endOfDay }, // Ensure only the selected date
+    }).select("slots start_date"); // Include start_date in the selection
+
+    // Log start_date for each booking
+    bookedSlots.forEach((booking) => {
+      console.log("Booking Start Date:", booking.start_date);
+    });
 
     // Convert booked slots into a flat array
     let bookedTimes = [];
     bookedSlots.forEach((booking) => {
       bookedTimes.push(...booking.slots);
     });
+
+    console.log("All Booked Slots:", bookedTimes);
 
     // Define property working hours (example: 8 AM - 8 PM)
     const openingTime = "00:00 AM";
@@ -562,29 +581,48 @@ exports.getSlots = async (req, res) => {
 
     // Generate all possible 1-hour slots within working hours
     let allSlots = [];
-    for (let start = openingMinutes; start + 60 <= closingMinutes; start += 60) {
+    for (
+      let start = openingMinutes;
+      start + 60 <= closingMinutes;
+      start += 60
+    ) {
       const end = start + 60;
       allSlots.push({
-        start_time: `${Math.floor(start / 60) % 12 || 12}:${(start % 60).toString().padStart(2, "0")} ${start < 720 ? "AM" : "PM"}`,
-        end_time: `${Math.floor(end / 60) % 12 || 12}:${(end % 60).toString().padStart(2, "0")} ${end < 720 ? "AM" : "PM"}`
+        start_time: `${Math.floor(start / 60) % 12 || 12}:${(start % 60)
+          .toString()
+          .padStart(2, "0")} ${start < 720 ? "AM" : "PM"}`,
+        end_time: `${Math.floor(end / 60) % 12 || 12}:${(end % 60)
+          .toString()
+          .padStart(2, "0")} ${end < 720 ? "AM" : "PM"}`,
       });
     }
 
     // Filter out booked slots
     const availableSlots = allSlots.filter((slot) => {
-      return !bookedTimes.some(
-        (booked) =>
-          timeToMinutes(booked.start_time) < timeToMinutes(slot.end_time) &&
-          timeToMinutes(booked.end_time) > timeToMinutes(slot.start_time)
-      );
+      // Check if the slot overlaps with any booked slot
+      return !bookedTimes.some((booked) => {
+        const bookedStart = timeToMinutes(booked.start_time);
+        const bookedEnd = timeToMinutes(booked.end_time);
+        const slotStart = timeToMinutes(slot.start_time);
+        const slotEnd = timeToMinutes(slot.end_time);
+
+        // Check for overlap
+        return (
+          (slotStart >= bookedStart && slotStart < bookedEnd) || // Slot starts during a booked slot
+          (slotEnd > bookedStart && slotEnd <= bookedEnd) || // Slot ends during a booked slot
+          (slotStart <= bookedStart && slotEnd >= bookedEnd) // Slot completely overlaps a booked slot
+        );
+      });
     });
+
+    console.log("Available Slots:", availableSlots);
+    console.log("Booked Slots:", bookedTimes);
 
     res.status(200).json({
       message: "Slots fetched successfully",
       available_slots: availableSlots,
       booked_slots: bookedTimes, // Send booked slots separately
     });
-
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
