@@ -7,7 +7,18 @@ const { sendPropertyBookingConfirmationEmail } = require("../../config/mailer");
 const Notification = require("../../models/Notification");
 const { logPaymentHistory } = require("./paymentHistoryService");
 
-// Book a Property
+const normalizeTime = (time) => {
+  let date = new Date(`1970-01-01 ${time}`);
+  let hours = date.getHours();
+  let minutes = date.getMinutes().toString().padStart(2, "0");
+  let period = hours >= 12 ? "PM" : "AM";
+
+  // Convert hours to 12-hour format without leading zero
+  hours = hours % 12 || 12;
+
+  return `${hours}:${minutes} ${period}`;
+};
+
 exports.bookProperty = async (req, res) => {
   try {
     const {
@@ -34,7 +45,9 @@ exports.bookProperty = async (req, res) => {
       });
     }
     if (!property.allow_booking) {
-      return res.status(400).json({ message: "This property cannot be booked" });
+      return res
+        .status(400)
+        .json({ message: "This property cannot be booked" });
     }
 
     // Ensure per_hour bookings have the same start and end date
@@ -74,6 +87,7 @@ exports.bookProperty = async (req, res) => {
     let bookingConflict = false;
 
     if (property.charge_per !== "per_hour") {
+      // Check for conflicts in daily bookings
       const startDate = new Date(start_date);
       const endDate = new Date(end_date);
 
@@ -84,23 +98,27 @@ exports.bookProperty = async (req, res) => {
         end_date: { $gt: startDate },
       });
     } else if (property.charge_per === "per_hour" && slots?.length) {
-      for (const slot of slots) {
-        const startTime = slot.start_time;
-        const endTime = slot.end_time;
+      const startDateOnly = new Date(start_date);
+      startDateOnly.setUTCHours(0, 0, 0, 0); // Normalize to start of day
+      const nextDay = new Date(startDateOnly);
+      nextDay.setUTCDate(nextDay.getUTCDate() + 1); // Move to next day
+    
+      const existingBookings = await Booking.find({
+        property_id,
+        status: { $in: ["active", "confirmed", "pending"] },
+        start_date: { $gte: startDateOnly, $lt: nextDay }, // Match only the specific date
+      });
 
-        const conflict = await Booking.findOne({
-          property_id,
-          status: { $in: ["active", "confirmed", "pending"] },
-          start_date: start_date, // Ensure we only check for conflicts on the same day
-          "slots.start_time": { $lt: endTime },
-          "slots.end_time": { $gt: startTime },
-        });
-
-        if (conflict) {
-          bookingConflict = true;
-          break;
-        }
-      }
+      bookingConflict = existingBookings.some((booking) =>
+        booking.slots.some((slot) =>
+          slots.some(
+            (newSlot) =>
+              normalizeTime(slot.start_time) ===
+                normalizeTime(newSlot.start_time) ||
+              normalizeTime(slot.end_time) === normalizeTime(newSlot.end_time)
+          )
+        )
+      );
     }
 
     if (bookingConflict) {
@@ -156,7 +174,6 @@ exports.bookProperty = async (req, res) => {
   }
 };
 
-
 exports.confirmPropertyBooking = async (req, res) => {
   try {
     const { booking_id, payment_detail } = req.body;
@@ -189,7 +206,6 @@ exports.confirmPropertyBooking = async (req, res) => {
 
     await sendPropertyBookingConfirmationEmail(booking);
 
-
     //--------------------- ✅ Send Notification to User---------------------
     await Notification.create({
       user: booking.user_id,
@@ -211,8 +227,6 @@ exports.confirmPropertyBooking = async (req, res) => {
     // --------------log payment history-----------------
     await logPaymentHistory(booking, payment_detail, "booking_property");
     // -------------------------------------------------
-
-
 
     res.status(200).json({
       message: "Booking confirmed successfully",
@@ -313,7 +327,7 @@ exports.getAllPropertyBookings = async (req, res) => {
       .populate({
         path: "user_id",
         select: "full_name email profile_picture", // User details
-      })
+      });
 
     if (bookings.length === 0) {
       return res
@@ -380,7 +394,7 @@ exports.getPropertyBookingById = async (req, res) => {
       .populate({
         path: "user_id",
         select: "full_name email profile_picture", // User details
-      })
+      });
 
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
@@ -449,8 +463,7 @@ exports.getBookingsByEntitiesId = async (req, res) => {
       .populate({
         path: "user_id",
         select: "full_name email profile_picture", // User details
-      })
-
+      });
 
     if (bookings.length === 0) {
       return res
@@ -546,10 +559,11 @@ exports.getSlots = async (req, res) => {
     // Query bookings within this date range
     const bookedSlots = await Booking.find({
       property_id,
-      status: { $in: ["active", "confirmed", "pending"] }, // Include "completed"
+      status: { $in: ["active", "confirmed", "pending", "completed"] }, // Include "completed"
       start_date: { $gte: startOfDay, $lt: endOfDay }, // Ensure only the selected date
     }).select("slots start_date"); // Include start_date in the selection
 
+    console.log(JSON.stringify(bookedSlots));
     // Convert booked slots into a flat array
     let bookedTimes = [];
     bookedSlots.forEach((booking) => {
@@ -617,4 +631,3 @@ exports.getSlots = async (req, res) => {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
-
