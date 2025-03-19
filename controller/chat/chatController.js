@@ -338,3 +338,131 @@ exports.getChatsByParticipant = async (req, res) => {
       .json({ message: "Error fetching chats", error: error.message });
   }
 };
+
+exports.getChatHeadersByReferenceId = async (req, res) => {
+  try {
+    const { referenceId } = req.params;
+
+    if (!referenceId) {
+      return res.status(400).json({ message: "Reference ID is required" });
+    }
+
+    // Find all chats matching the referenceId
+    const chats = await Chat.find({ referenceId }).exec();
+
+    if (!chats || chats.length === 0) {
+      return res.status(404).json({ message: "No chats found for this reference" });
+    }
+
+    // Populate participant details
+    const formattedChats = await Promise.all(
+      chats.map(async (chat) => {
+        const participants = await Promise.all(
+          chat.participants.map(async (participant) => {
+            let userDetails = null;
+
+            if (participant.participant_type === "User" || participant.participant_type === "Realtor") {
+              userDetails = await User.findById(participant.participant_id, {
+                full_name: 1,
+                profile_picture: 1,
+              }).exec();
+            } else if (participant.participant_type === "Admin") {
+              userDetails = await Admin.findById(participant.participant_id, {
+                full_name: 1,
+                profile_picture: 1,
+              }).exec();
+            }
+
+            return userDetails
+              ? {
+                  participant_id: participant.participant_id,
+                  full_name: userDetails.full_name,
+                  profile_picture: userDetails.profile_picture,
+                  participant_type: participant.participant_type,
+                }
+              : null;
+          })
+        );
+
+        return {
+          chat_id: chat._id,
+          reference_id: chat.referenceId,
+          reference_type: chat.referenceType || null,
+          participants: participants.filter((p) => p !== null), // Filter out null values
+        };
+      })
+    );
+
+    return res.status(200).json(formattedChats);
+  } catch (error) {
+    console.error("Error fetching chat headers:", error);
+    res.status(500).json({ message: "Error fetching chat headers", error: error.message });
+  }
+};
+
+exports.getChatDetailsById = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+
+    if (!chatId) {
+      return res.status(400).json({ message: "Chat ID is required" });
+    }
+
+    // Find chat by ID
+    const chat = await Chat.findById(chatId).exec();
+
+    if (!chat) {
+      return res.status(404).json({ message: "Chat not found" });
+    }
+
+    // Populate participant details
+    const participants = await Promise.all(
+      chat.participants.map(async (participant) => {
+        let userDetails = null;
+
+        if (participant.participant_type === "User" || participant.participant_type === "Realtor") {
+          userDetails = await User.findById(participant.participant_id, {
+            full_name: 1,
+            profile_picture: 1,
+          }).exec();
+        } else if (participant.participant_type === "Admin") {
+          userDetails = await Admin.findById(participant.participant_id, {
+            full_name: 1,
+            profile_picture: 1,
+          }).exec();
+        }
+
+        return userDetails
+          ? {
+              participant_id: participant.participant_id,
+              full_name: userDetails.full_name,
+              profile_picture: userDetails.profile_picture,
+              participant_type: participant.participant_type,
+            }
+          : null;
+      })
+    );
+
+    // Mark all messages as read
+    let updated = false;
+    chat.messages.forEach((msg) => {
+      if (!msg.is_read) {
+        msg.is_read = true;
+        updated = true;
+      }
+    });
+
+    if (updated) await chat.save();
+
+    return res.status(200).json({
+      chat_id: chat._id,
+      reference_id: chat.referenceId,
+      reference_type: chat.referenceType || null,
+      participants: participants.filter((p) => p !== null), // Filter out null values
+      messages: chat.messages, // All chat messages
+    });
+  } catch (error) {
+    console.error("Error fetching chat details:", error);
+    res.status(500).json({ message: "Error fetching chat details", error: error.message });
+  }
+};

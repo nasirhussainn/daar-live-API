@@ -21,7 +21,7 @@ const getRealtorStats = async (realtorId) => {
           { $group: { _id: null, soldCount: { $sum: 1 }, soldRevenue: { $sum: { $toDouble: "$price" } } } },
         ]),
         Booking.aggregate([
-          { $match: { realtor_id: realtorObjectId, status: { $in: ["active", "completed", "confirmed"] } } },
+          { $match: { owner_id: realtorObjectId, status: { $in: ["active", "completed", "confirmed"] } } },
           { $group: { _id: null, rentedCount: { $sum: 1 }, rentedRevenue: { $sum: { $toDouble: "$payment_detail.amount" } } } },
         ]),
       ]);

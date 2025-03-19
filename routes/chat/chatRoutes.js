@@ -1,5 +1,5 @@
 const express = require("express");
-const { sendMessage, getChatById, getChatsByParticipant } = require("../../controller/chat/chatController");
+const { sendMessage, getChatById, getChatsByParticipant, getChatHeadersByReferenceId, getChatDetailsById } = require("../../controller/chat/chatController");
 const { upload } = require("../../middlewares/multerConfig");
 
 module.exports = (io) => {
@@ -11,6 +11,10 @@ module.exports = (io) => {
   router.get('/viaChat/:userId/:chatId?', getChatById);
 
   router.get("/viaUser/:participantId", getChatsByParticipant);
+
+  router.get("/viaRef/:referenceId", getChatHeadersByReferenceId);
+
+  router.get("/:chatId", getChatDetailsById);
 
   return router;
 };
