@@ -11,7 +11,7 @@ const activateOngoingBookings = async () => {
 
     // Find confirmed bookings where start date has arrived
     const startingBookings = await Booking.find({
-      start_date: { $lte: now },
+      start_date: { $lt: now },
       status: "confirmed",
     });
 
@@ -38,7 +38,7 @@ const expireCompletedBookings = async () => {
 
     // Find ongoing bookings where end date has passed
     const expiredBookings = await Booking.find({
-      end_date: { $lte: now },
+      end_date: { $lt: now },
       status: "active",
     });
 

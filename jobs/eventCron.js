@@ -10,7 +10,7 @@ const updateEventStatuses = async () => {
 
     // 1️⃣ Change "upcoming" → "live" if the event start date has arrived
     const liveEvents = await Event.updateMany(
-      { status: "upcoming", start_date: { $lte: now } },
+      { status: "upcoming", start_date: { $lt: now } },
       { status: "live" }
     );
     console.log(`✅ Updated ${liveEvents.modifiedCount} events to "live".`);
