@@ -7,6 +7,7 @@ const { sendPropertyBookingConfirmationEmail } = require("../../config/mailer");
 const Notification = require("../../models/Notification");
 const { logPaymentHistory } = require("./paymentHistoryService");
 const sendNotification = require("../notification/sendNotification");
+const updateRevenue = require("./updateRevenue");
 
 const normalizeTime = (time) => {
   let date = new Date(`1970-01-01 ${time}`);
@@ -199,6 +200,8 @@ exports.confirmPropertyBooking = async (req, res) => {
     booking.status = "confirmed";
     booking.payment_detail = payment_detail;
     await booking.save(); // This will trigger the pre-validation hook to generate a ticket
+
+    const result = await updateRevenue(booking_id, 10); // 10% admin fee
 
     // Find associated property
     const property = await Property.findById(booking.property_id);

@@ -7,6 +7,7 @@ const Admin = require("../models/Admin");
 const fs = require("fs");
 const path = require("path");
 const PDFDocument = require("pdfkit");
+const Withdraw = require("../models/Withdraw");
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -15,6 +16,17 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS,
   },
 });
+
+async function sendEmail(to, subject, html) {
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to,
+    subject,
+    html,
+  };
+
+  await transporter.sendMail(mailOptions);
+}
 
 async function sendVerificationEmail(email, verificationLink) {
   const mailOptions = {
@@ -337,11 +349,83 @@ async function sendPropertyStatusEmail(email, propertyTitle, status, reason = ""
 }
 
 
+// Function to notify Realtor and Admin about withdrawal request
+async function sendWithdrawalRequestEmail(withdrawRequest, realtor) {
+  try {
+    const admin = await Admin.findOne({ role: "super" }); // Fetch admin details
+    if (!admin) throw new Error("Admin not found");
+
+    // Email to Realtor
+    const realtorSubject = "Withdrawal Request Submitted";
+    const realtorHtml = `
+      <p>Dear ${realtor.full_name},</p>
+      <p>Your withdrawal request of <strong>$${withdrawRequest.amount}</strong> has been submitted successfully.</p>
+      <p><strong>Request Details:</strong></p>
+      <ul>
+        <li><strong>Amount:</strong> $${withdrawRequest.amount}</li>
+        <li><strong>Bank Details:</strong> ${withdrawRequest.bank_details}</li>
+        <li><strong>Status:</strong> ${withdrawRequest.status}</li>
+      </ul>
+      <p>You will be notified once the request is processed.</p>
+      <p>Best regards,</p>
+      <p>Your Platform Team</p>
+    `;
+    await sendEmail(realtor.email, realtorSubject, realtorHtml);
+
+    // Email to Admin
+    const adminSubject = "New Withdrawal Request";
+    const adminHtml = `
+      <p>Dear Admin,</p>
+      <p>A new withdrawal request has been submitted by <strong>${realtor.full_name}</strong>.</p>
+      <p><strong>Request Details:</strong></p>
+      <ul>
+        <li><strong>Realtor:</strong> ${realtor.full_name} (${realtor.email})</li>
+        <li><strong>Amount:</strong> $${withdrawRequest.amount}</li>
+        <li><strong>Bank Details:</strong> ${withdrawRequest.bank_details}</li>
+        <li><strong>Status:</strong> ${withdrawRequest.status}</li>
+      </ul>
+      <p>Please review and update the status accordingly.</p>
+      <p>Best regards,</p>
+      <p>Your Platform Team</p>
+    `;
+    await sendEmail(admin.email, adminSubject, adminHtml);
+  } catch (error) {
+    console.error("Error sending withdrawal request notification emails:", error);
+  }
+}
+
+// Function to notify Realtor about withdrawal status update
+async function sendWithdrawalStatusUpdateEmail(withdrawRequest, realtor) {
+  try {
+    const status = withdrawRequest.status;
+    const subject = `Withdrawal Request ${status.charAt(0).toUpperCase() + status.slice(1)}`;
+    const html = `
+      <p>Dear ${realtor.full_name},</p>
+      <p>Your withdrawal request of <strong>$${withdrawRequest.amount}</strong> has been <strong>${status}</strong>.</p>
+      <p><strong>Request Details:</strong></p>
+      <ul>
+        <li><strong>Amount:</strong> $${withdrawRequest.amount}</li>
+        <li><strong>Bank Details:</strong> ${withdrawRequest.bank_details}</li>
+        <li><strong>Status:</strong> ${withdrawRequest.status}</li>
+      </ul>
+      <p>If you have any questions, please contact our support team.</p>
+      <p>Best regards,</p>
+      <p>Your Platform Team</p>
+    `;
+    await sendEmail(realtor.email, subject, html);
+  } catch (error) {
+    console.error("Error sending withdrawal status update email:", error);
+  }
+}
+
 module.exports = {
   sendVerificationEmail,
   sendPasswordResetEmail,
   sendPropertyBookingConfirmationEmail,
   sendEventBookingConfirmationEmail,
   sendAccountStatusUpdateEmail,
-  sendPropertyStatusEmail
+  sendPropertyStatusEmail,
+  sendWithdrawalRequestEmail,
+  sendWithdrawalStatusUpdateEmail,
+
 };

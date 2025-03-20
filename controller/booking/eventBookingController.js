@@ -6,6 +6,7 @@ const { sendEventBookingConfirmationEmail } = require("../../config/mailer");
 const Notification = require("../../models/Notification");
 const { logPaymentHistory } = require("./paymentHistoryService");
 const sendNotification = require("../notification/sendNotification");
+const updateRevenue = require("./updateRevenue");
 
 // ✅ Book an Event
 const generateTickets = (numTickets) => {
@@ -140,6 +141,8 @@ exports.confirmEventBooking = async (req, res) => {
 
     // Send confirmation email
     await sendEventBookingConfirmationEmail(booking);
+
+    const result = await updateRevenue(booking_id, 10); 
 
     //--------------------- ✅ Notification and Payment---------------------
     await sendNotification(booking.user_id, "booking", booking._id, "Booking Confirmed",

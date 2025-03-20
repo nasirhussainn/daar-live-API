@@ -93,6 +93,8 @@ const paymentHistoryRoutes = require("./routes/payment/paymentHistoryRoutes")
 
 const userApprovalRoutes = require("./routes/admin/userApprovalRoutes");
 
+const realtorRoutes = require("./routes/realtor/realtorRoutes")
+
 app.use("/auth", [
   authLoginRoutes,
   authEmailVerificationRoutes,
@@ -128,7 +130,7 @@ app.use("/event", [eventRoutes, eventBookingRoutes]);
 
 app.use("/review", [reviewRoutes]);
 
-app.use("/realtor", [subscriptionRoute]);
+app.use("/realtor", [subscriptionRoute, realtorRoutes]);
 
 app.use("/admin-settings", [adminSettingRoute]);
 app.use("/admin", [admin])
