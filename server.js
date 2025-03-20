@@ -95,6 +95,8 @@ const userApprovalRoutes = require("./routes/admin/userApprovalRoutes");
 
 const realtorRoutes = require("./routes/realtor/realtorRoutes")
 
+const withdrawRoutes = require("./routes/withdraw/withdrawRoutes")
+
 app.use("/auth", [
   authLoginRoutes,
   authEmailVerificationRoutes,
@@ -150,6 +152,8 @@ app.use("/stats", [subscriptionStatRoutes, realtorHostStatRoutes]);
 
 app.use("/notifications", notificationRoutes);
 app.use("/payment-history", paymentHistoryRoutes);
+
+app.use("/withdraw", withdrawRoutes);
 
 // Start the Server
 server.listen(PORT, () => {
