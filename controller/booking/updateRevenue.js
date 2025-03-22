@@ -55,7 +55,7 @@ const updateRevenue = async (booking_id, adminPercentage = 10) => {
 
       // Update Realtor revenue
       realtor.total_revenue = (realtor.total_revenue || 0) + realtorRevenue;
-      realtor.available_revenue = (realtor.total_revenue || 0) + realtorRevenue;
+      realtor.available_revenue = (realtor.available_revenue || 0) + realtorRevenue;
       await realtor.save();
 
       console.log(`Updated Realtor ${realtor._id} revenue by ${realtorRevenue}.`);

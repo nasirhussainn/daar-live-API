@@ -30,7 +30,7 @@ exports.approveProperty = async (req, res) => {
     // Create in-app notification
     await sendNotification(
       property.owner_id._id, 
-      "property_approval", 
+      "Property", 
       property._id, 
       "Property Approved", 
       `Your property "${property.title}" has been approved and is now live.`

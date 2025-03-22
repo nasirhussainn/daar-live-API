@@ -17,8 +17,19 @@ const getTotalRevenue = async (userId) => {
       (realtorStats?.soldRevenue || 0) + 
       (realtorStats?.rentedRevenue || 0);
 
+    // Calculate total listed properties and events
+    const totalCurrentListed = 
+      (hostStats?.currentHosted || 0) + 
+      (realtorStats?.currentListed || 0);
+
+    const totalAllListed = 
+      (hostStats?.totalHosted || 0) + 
+      (realtorStats?.allListed || 0);
+
     return {
       totalRevenue,
+      totalCurrentListed,
+      totalAllListed,
       hostStats,
       realtorStats,
     };
