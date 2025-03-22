@@ -3,6 +3,7 @@ const Admin = require("../../models/Admin");
 const User = require("../../models/User");
 const Realtor = require("../../models/Realtor");
 const { uploadChatMedia } = require("../../config/cloudinary");
+const logNotification = require("./logNotification");
 
 async function getSuperAdminId() {
   try {
@@ -98,6 +99,9 @@ exports.sendAdminDirectMessage = async (req, res, next, io) => {
 
     // **Emit event for real-time chat update**
     io.to(`chat:${chat._id}`).emit("newMessage", { chatId: chat._id, message });
+
+    // **Log notification for receiver**
+    logNotification(receiverId, senderId, senderType, text || "New media message", chat._id);
 
     res.status(200).json({ message: "Message sent", chat });
   } catch (error) {

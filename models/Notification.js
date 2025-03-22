@@ -7,7 +7,7 @@ const NotificationSchema = new Schema(
 
     notification_type: {
       type: String,
-      enum: ["Booking", "Review", "Property", "Event"], // Type of notification
+      enum: ["Booking", "Review", "Property", "Event", "Chat"], // Type of notification
       required: true,
     },
 
