@@ -516,7 +516,7 @@ exports.featureEvent = async (req, res) => {
        payer_type: "Realtor",
        payer_id: realtor_id,
        recipient_type: "Admin",
-       recipient_id: "daarlive@admin", // Update this with your Admin ID
+       recipient_id: "67cf2566c17e98f39288671b", // Update this with your Admin ID
        transaction_id: transaction_id,
        amount: transaction_price,
        entity_type: "freatured_property",
