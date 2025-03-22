@@ -23,6 +23,7 @@ const ChatSchema = new Schema(
         sender_type: { type: String, enum: ['User', 'Realtor', 'Admin'], required: true },
         content: { type: String, required: true }, // Text or media URL
         message_type: { type: String, enum: ['text', 'audio', 'image'], required: true }, // New field
+        audio_duration: { type: Number }, // New field
         timestamp: { type: Date, default: Date.now },
         is_read: { type: Boolean, default: false }
       }

@@ -15,6 +15,7 @@ exports.sendMessage = async (req, res, next, io) => {
       senderType,
       text,
       message_type, // Now directly from req.body
+      audio_duration
     } = req.body;
     
     let mediaUrl = null;
@@ -43,6 +44,10 @@ exports.sendMessage = async (req, res, next, io) => {
     if ((message_type === "image" || message_type === "audio") && !mediaUrl) {
       return res.status(400).json({ message: "Media file is required" });
     }
+
+    if( message_type === "audio" && !audio_duration) {
+      return res.status(400).json({ message: "Audio duration is required" });
+      }
 
     let chat;
 
@@ -100,6 +105,7 @@ exports.sendMessage = async (req, res, next, io) => {
       sender_type: senderType,
       content: mediaUrl || text,
       message_type, // Now set based on req.body
+      audio_duration: audio_duration || null,
       timestamp: new Date(),
       is_read: false,
     };

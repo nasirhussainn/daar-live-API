@@ -17,7 +17,7 @@ async function getSuperAdminId() {
 
 exports.sendAdminDirectMessage = async (req, res, next, io) => {
   try {
-    const { senderId, senderType, text, chatId, message_type } = req.body;
+    const { senderId, senderType, text, chatId, message_type, audio_duration } = req.body;
     let mediaUrl = null;
 
     // Ensure senderType is valid
@@ -46,6 +46,10 @@ exports.sendAdminDirectMessage = async (req, res, next, io) => {
     if ((message_type === "image" || message_type === "audio") && !mediaUrl) {
       return res.status(400).json({ message: "Media message must contain a file" });
     }
+
+    if(message_type === "audio" && !audio_duration) {
+      return res.status(400).json({ message: "Audio message must contain a duration" });
+      }
 
     let chat;
 
@@ -86,6 +90,7 @@ exports.sendAdminDirectMessage = async (req, res, next, io) => {
       sender_type: senderType,
       content: message_type === "text" ? text : mediaUrl, // Store text or media URL
       message_type, // Add message_type to the message object
+      audio_duration: audio_duration || null, // Add audio_duration to the message object
       timestamp: new Date(),
       is_read: false,
     };
