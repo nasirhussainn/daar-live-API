@@ -1,4 +1,5 @@
 const ContactUs = require("../../models/admin/ContactUs");
+const { forwardContactMessageToAdmin } = require("../../config/mailer");
 
 // Handle contact form submission
 exports.submitContactForm = async (req, res) => {
@@ -13,11 +14,16 @@ exports.submitContactForm = async (req, res) => {
     // Create new contact message
     const newMessage = new ContactUs({ name, email, subject, message });
     await newMessage.save();
-
-    res.status(201).json({ message: "Message sent successfully", data: newMessage });
+    // Forward the message to the admin email
+    await forwardContactMessageToAdmin(name, email, subject, message);
+    res
+      .status(201)
+      .json({ message: "Message sent successfully", data: newMessage });
   } catch (error) {
     console.error("Error submitting contact form:", error);
-    res.status(500).json({ message: "Error submitting message", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error submitting message", error: error.message });
   }
 };
 
@@ -28,7 +34,9 @@ exports.getAllMessages = async (req, res) => {
     res.status(200).json(messages);
   } catch (error) {
     console.error("Error fetching messages:", error);
-    res.status(500).json({ message: "Error fetching messages", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching messages", error: error.message });
   }
 };
 
@@ -42,7 +50,9 @@ exports.getMessageById = async (req, res) => {
     res.status(200).json(message);
   } catch (error) {
     console.error("Error fetching message:", error);
-    res.status(500).json({ message: "Error fetching message", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching message", error: error.message });
   }
 };
 
@@ -56,6 +66,8 @@ exports.deleteMessage = async (req, res) => {
     res.status(200).json({ message: "Message deleted successfully" });
   } catch (error) {
     console.error("Error deleting message:", error);
-    res.status(500).json({ message: "Error deleting message", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error deleting message", error: error.message });
   }
 };

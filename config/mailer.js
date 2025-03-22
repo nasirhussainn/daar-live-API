@@ -418,6 +418,33 @@ async function sendWithdrawalStatusUpdateEmail(withdrawRequest, realtor) {
   }
 }
 
+async function forwardContactMessageToAdmin(name, email, subject, message) {
+  try {
+    const mailOptions = {
+      from: process.env.EMAIL_USER, // Sender email
+      to: "daarlive@gmail.com", // Admin email
+      subject: `New Contact Form Submission: ${subject}`,
+      html: `
+        <p>You have received a new contact form submission:</p>
+        <ul>
+          <li><strong>Name:</strong> ${name}</li>
+          <li><strong>Email:</strong> ${email}</li>
+          <li><strong>Subject:</strong> ${subject}</li>
+          <li><strong>Message:</strong> ${message}</li>
+        </ul>
+        <p>Please respond to the sender at the earliest convenience.</p>
+      `,
+    };
+
+    // Send the email
+    await transporter.sendMail(mailOptions);
+    console.log("Contact form submission forwarded to admin successfully.");
+  } catch (error) {
+    console.error("Error forwarding contact form submission to admin:", error);
+    throw error; // Re-throw the error to handle it in the main function
+  }
+}
+
 module.exports = {
   sendVerificationEmail,
   sendPasswordResetEmail,
@@ -427,5 +454,6 @@ module.exports = {
   sendPropertyStatusEmail,
   sendWithdrawalRequestEmail,
   sendWithdrawalStatusUpdateEmail,
-
+  forwardContactMessageToAdmin,
+  
 };
