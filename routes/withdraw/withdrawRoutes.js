@@ -6,10 +6,10 @@ const withdrawController = require("../../controller/withdraw/withdrawController
 router.post("/request", withdrawController.requestWithdraw);
 
 // withdraw request by it id
-router.get("/:id", withdrawController.getWithdrawRequestById);
+router.get("/:withdraw_id", withdrawController.getWithdrawRequestById);
 
 // update withdraw request by user
-router.put("/:id", withdrawController.updateWithdrawRequest);
+router.put("/:withdraw_id", withdrawController.updateWithdrawRequest);
 
 // Admin fetches all withdrawal requests
 router.get("/all", withdrawController.getAllWithdrawals);
