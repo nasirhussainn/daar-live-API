@@ -6,53 +6,81 @@ const {  sendWithdrawalRequestEmail, sendWithdrawalStatusUpdateEmail } = require
 
 // Request a withdrawal
 exports.requestWithdraw = async (req, res) => {
-    try {
+  try {
       const { user_id, amount, bank_details } = req.body;
-  
+
       if (!user_id || !amount || !bank_details) {
-        return res.status(400).json({ message: "All fields are required" });
+          return res.status(400).json({ message: "All fields are required" });
       }
-  
+
       const user = await User.findById(user_id);
       if (!user) {
-        return res.status(404).json({ message: "User not found" });
+          return res.status(404).json({ message: "User not found" });
       }
-  
+
       // Check if user is a Realtor and fetch total_revenue
       const realtor = await Realtor.findOne({ user_id });
-      const actual_user = await User.findById(user_id);
-  
       if (!realtor) {
-        return res.status(403).json({ message: "User is not a Realtor" });
+          return res.status(403).json({ message: "User is not a Realtor" });
       }
-  
+
+      // Check if the user already has a pending withdrawal request
+      const existingPendingRequest = await Withdraw.findOne({ user_id, status: "pending" });
+
+      if (existingPendingRequest) {
+          return res.status(400).json({ message: "You already have a pending withdrawal request" });
+      }
+
       // Validate available balance
       if (amount > realtor.available_revenue) {
-        return res.status(400).json({ message: "Insufficient balance for withdrawal" });
+          return res.status(400).json({ message: "Insufficient balance for withdrawal" });
       }
-  
+
       // Create withdrawal request
       const withdrawRequest = new Withdraw({
-        user_id,
-        amount,
-        bank_details,
-        status: "pending",
+          user_id,
+          amount,
+          bank_details,
+          status: "pending",
       });
-  
+
       await withdrawRequest.save();
-      await sendWithdrawalRequestEmail(withdrawRequest, actual_user);
+      await sendWithdrawalRequestEmail(withdrawRequest, user);
+
       res.status(201).json({ message: "Withdrawal request submitted", data: withdrawRequest });
-    } catch (error) {
+  } catch (error) {
       console.error("Error requesting withdrawal:", error);
       res.status(500).json({ message: "Error processing request", error: error.message });
+  }
+};
+
+exports.getWithdrawRequestById = async (req, res) => {
+  try {
+    const { withdraw_id } = req.params;
+
+    // Find withdrawal request by ID
+    const withdrawRequest = await Withdraw.findById(withdraw_id);
+
+    if (!withdrawRequest) {
+      return res.status(404).json({ message: "Withdrawal request not found" });
     }
-  };
-  
+
+    res.status(200).json(withdrawRequest);
+  } catch (error) {
+    console.error("Error fetching withdrawal request details:", error);
+    res.status(500).json({ message: "Error fetching withdrawal request", error: error.message });
+  }
+};
+
 
 // Get all withdrawals (Admin)
 exports.getAllWithdrawals = async (req, res) => {
+  let query = {}
+  const { status } = req.query; // Optional status filter
+
+  if (status) query.status = status; // Apply status filter if provided
   try {
-    const withdrawals = await Withdraw.find().sort({ created_at: -1 });
+    const withdrawals = await Withdraw.find(query).sort({ created_at: -1 });
     res.status(200).json(withdrawals);
   } catch (error) {
     console.error("Error fetching withdrawals:", error);
@@ -64,14 +92,58 @@ exports.getAllWithdrawals = async (req, res) => {
 exports.getUserWithdrawals = async (req, res) => {
   try {
     const { user_id } = req.params;
+    const { status } = req.query; // Optional status filter
 
-    const withdrawals = await Withdraw.find({ user_id }).sort({ created_at: -1 });
+    let query = { user_id }; // Ensure filtering by user_id
+
+    if (status) {
+      query.status = status; // Apply status filter if provided
+    }
+
+    const withdrawals = await Withdraw.find(query).sort({ created_at: -1 });
+
     res.status(200).json(withdrawals);
   } catch (error) {
     console.error("Error fetching user withdrawals:", error);
     res.status(500).json({ message: "Error fetching withdrawals", error: error.message });
   }
 };
+
+
+exports.updateWithdrawRequest = async (req, res) => {
+  try {
+    const { withdraw_id } = req.params;
+    const { amount, bank_details } = req.body;
+
+    // Find the withdrawal request
+    const withdrawRequest = await Withdraw.findById(withdraw_id);
+
+    if (!withdrawRequest) {
+      return res.status(404).json({ message: "Withdrawal request not found" });
+    }
+
+    // Check if the request is still pending
+    if (withdrawRequest.status !== "pending") {
+      return res.status(400).json({ message: "Only pending requests can be updated" });
+    }
+
+    // Update fields if provided
+    if (amount) withdrawRequest.amount = amount;
+    if (bank_details) withdrawRequest.bank_details = bank_details;
+
+    // Update the timestamp
+    withdrawRequest.updated_at = new Date();
+
+    // Save the updated request
+    await withdrawRequest.save();
+
+    res.status(200).json({ message: "Withdrawal request updated", data: withdrawRequest });
+  } catch (error) {
+    console.error("Error updating withdrawal request:", error);
+    res.status(500).json({ message: "Error updating request", error: error.message });
+  }
+};
+
 
 // Approve or Reject Withdrawal (Admin)
 exports.updateWithdrawStatus = async (req, res) => {
