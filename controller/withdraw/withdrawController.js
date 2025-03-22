@@ -151,28 +151,39 @@ exports.updateWithdrawStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
+    // Validate status input
     if (!["approved", "rejected"].includes(status)) {
       return res.status(400).json({ message: "Invalid status value" });
     }
 
+    // Find the withdrawal request
     const withdrawRequest = await Withdraw.findById(id);
     if (!withdrawRequest) {
       return res.status(404).json({ message: "Withdrawal request not found" });
     }
 
+    // Check if it's already processed
+    if (withdrawRequest.status !== "pending") {
+      return res.status(400).json({ message: "Only pending requests can be updated" });
+    }
+
+    // Update the status
     withdrawRequest.status = status;
     withdrawRequest.updated_at = Date.now();
     await withdrawRequest.save();
 
-    const realtor = await Realtor.findOne({ user_id });
-    const actual_user = await User.findById(user_id);
-    if (status === "approved") {
-        realtor.available_revenue -= withdrawRequest.amount;
-        await realtor.save();
+    // Fetch the user and realtor details
+    const realtor = await Realtor.findOne({ user_id: withdrawRequest.user_id });
+    const actual_user = await User.findById(withdrawRequest.user_id);
+
+    // Deduct balance if approved
+    if (status === "approved" && realtor) {
+      realtor.available_revenue -= withdrawRequest.amount;
+      await realtor.save();
     }
 
-    await sendWithdrawalStatusUpdateEmail(withdrawRequest, actual_user)
-
+    // Send email notification
+    await sendWithdrawalStatusUpdateEmail(withdrawRequest, actual_user);
 
     res.status(200).json({ message: `Withdrawal ${status}`, data: withdrawRequest });
   } catch (error) {
@@ -180,6 +191,7 @@ exports.updateWithdrawStatus = async (req, res) => {
     res.status(500).json({ message: "Error updating withdrawal", error: error.message });
   }
 };
+
 
 // Delete Withdrawal (Admin)
 exports.deleteWithdraw = async (req, res) => {
