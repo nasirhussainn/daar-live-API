@@ -1,6 +1,6 @@
 const express = require("express");
 const { sendMessage, getChatById, getChatsByParticipant, getChatHeadersByReferenceId, getChatDetailsById } = require("../../controller/chat/chatController");
-const {sendAdminDirectMessage } = require('../../controller/chat/chatAdminController')
+const {sendAdminDirectMessage, getAdminChatsByParticipant, getChatByIdForUser, getChatByIdForAdmin  } = require('../../controller/chat/adminChatController')
 const { upload } = require("../../middlewares/multerConfig");
 
 module.exports = (io) => {
@@ -8,7 +8,6 @@ module.exports = (io) => {
 
   // Pass io to controller properly
   router.post("/send", upload.single("media"), (req, res, next) => sendMessage(req, res, next, io));
-  router.post("/admin", upload.single("media"), (req, res, next) => sendAdminDirectMessage(req, res, next, io));
 
   router.get('/viaChat/:userId/:chatId?', getChatById);
 
@@ -17,6 +16,14 @@ module.exports = (io) => {
   router.get("/viaRef/:referenceId", getChatHeadersByReferenceId);
 
   router.get("/:chatId", getChatDetailsById);
+
+  // -----------------------------------------------------------------------------
+  // Admin Chat
+  router.post("/admin/send", upload.single("media"), (req, res, next) => sendAdminDirectMessage(req, res, next, io));
+  router.get("/admin/viaUser/:participantId", getAdminChatsByParticipant)
+  router.get("/admin/viaChatUser/:userId", getChatByIdForUser)
+  router.get("/admin/viaChatAdmin/:chatId", getChatByIdForAdmin)
+
 
   return router;
 };

@@ -1,14 +1,9 @@
 const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
-const ChatSchema = new Schema(
+const AdminChatSchema = new Schema(
   {
     referenceId: { type: Schema.Types.ObjectId, required: true }, 
-    referenceType: { 
-      type: String, 
-      enum: ['Property', 'Event'],
-      required: true 
-    },
 
     participants: [
       {
@@ -36,5 +31,5 @@ const ChatSchema = new Schema(
   { timestamps: true }
 );
 
-const Chat = mongoose.model('Chat', ChatSchema);
-module.exports = Chat;
+const AdminChat = mongoose.model('AdminChat', AdminChatSchema);
+module.exports = AdminChat;

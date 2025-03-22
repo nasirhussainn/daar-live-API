@@ -219,7 +219,10 @@ exports.getChatsByParticipant = async (req, res) => {
 
         // Fetch receiver details manually
         let receiverDetails = null;
-        if (receiver.participant_type === "User" || receiver.participant_type === "Realtor") {
+        if (
+          receiver.participant_type === "User" ||
+          receiver.participant_type === "Realtor"
+        ) {
           receiverDetails = await User.findById(receiver.participant_id, {
             full_name: 1,
             profile_picture: 1,
@@ -231,6 +234,10 @@ exports.getChatsByParticipant = async (req, res) => {
             profile_picture: 1,
             email: 1,
           }).exec();
+          if (receiverDetails) {
+            receiverDetails.full_name =
+              receiverDetails.full_name || "Daar Live"; // Default name if not present
+          }
         }
 
         if (!receiverDetails) {
@@ -246,7 +253,10 @@ exports.getChatsByParticipant = async (req, res) => {
         );
 
         if (sender) {
-          if (sender.participant_type === "User" || sender.participant_type === "Realtor") {
+          if (
+            sender.participant_type === "User" ||
+            sender.participant_type === "Realtor"
+          ) {
             senderDetails = await User.findById(sender.participant_id, {
               full_name: 1,
               profile_picture: 1,
@@ -258,6 +268,9 @@ exports.getChatsByParticipant = async (req, res) => {
               profile_picture: 1,
               email: 1,
             }).exec();
+            if (senderDetails) {
+              senderDetails.full_name = senderDetails.full_name || "Daar Live"; // Default name if not present
+            }
           }
         }
 
@@ -351,7 +364,9 @@ exports.getChatHeadersByReferenceId = async (req, res) => {
     const chats = await Chat.find({ referenceId }).exec();
 
     if (!chats || chats.length === 0) {
-      return res.status(404).json({ message: "No chats found for this reference" });
+      return res
+        .status(404)
+        .json({ message: "No chats found for this reference" });
     }
 
     // Populate participant details
@@ -361,7 +376,10 @@ exports.getChatHeadersByReferenceId = async (req, res) => {
           chat.participants.map(async (participant) => {
             let userDetails = null;
 
-            if (participant.participant_type === "User" || participant.participant_type === "Realtor") {
+            if (
+              participant.participant_type === "User" ||
+              participant.participant_type === "Realtor"
+            ) {
               userDetails = await User.findById(participant.participant_id, {
                 full_name: 1,
                 profile_picture: 1,
@@ -371,6 +389,9 @@ exports.getChatHeadersByReferenceId = async (req, res) => {
                 full_name: 1,
                 profile_picture: 1,
               }).exec();
+              if (userDetails) {
+                userDetails.full_name = userDetails.full_name || "Daar Live"; // Default name if not present
+              }
             }
 
             return userDetails
@@ -396,7 +417,9 @@ exports.getChatHeadersByReferenceId = async (req, res) => {
     return res.status(200).json(formattedChats);
   } catch (error) {
     console.error("Error fetching chat headers:", error);
-    res.status(500).json({ message: "Error fetching chat headers", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching chat headers", error: error.message });
   }
 };
 
@@ -420,7 +443,10 @@ exports.getChatDetailsById = async (req, res) => {
       chat.participants.map(async (participant) => {
         let userDetails = null;
 
-        if (participant.participant_type === "User" || participant.participant_type === "Realtor") {
+        if (
+          participant.participant_type === "User" ||
+          participant.participant_type === "Realtor"
+        ) {
           userDetails = await User.findById(participant.participant_id, {
             full_name: 1,
             profile_picture: 1,
@@ -430,6 +456,9 @@ exports.getChatDetailsById = async (req, res) => {
             full_name: 1,
             profile_picture: 1,
           }).exec();
+          if (userDetails) {
+            userDetails.full_name = userDetails.full_name || "Daar Live"; // Default name if not present
+          }
         }
 
         return userDetails
@@ -463,6 +492,8 @@ exports.getChatDetailsById = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching chat details:", error);
-    res.status(500).json({ message: "Error fetching chat details", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching chat details", error: error.message });
   }
 };
