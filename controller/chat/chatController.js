@@ -7,8 +7,16 @@ const { uploadChatMedia } = require("../../config/cloudinary"); // Utility for m
 
 exports.sendMessage = async (req, res, next, io) => {
   try {
-    const { chatId, referenceId, referenceType, senderId, senderType, text } =
-      req.body;
+    const {
+      chatId,
+      referenceId,
+      referenceType,
+      senderId,
+      senderType,
+      text,
+      message_type, // Now directly from req.body
+    } = req.body;
+    
     let mediaUrl = null;
 
     if (!["User", "Realtor", "Admin"].includes(senderType)) {
@@ -19,15 +27,21 @@ exports.sendMessage = async (req, res, next, io) => {
       return res.status(400).json({ message: "Invalid referenceType" });
     }
 
-    if (req.file) {
-      const messageType = "image";
-      mediaUrl = await uploadChatMedia(req.file.buffer, messageType);
+    if (!["text", "image", "audio"].includes(message_type)) {
+      return res.status(400).json({ message: "Invalid message_type" });
     }
 
-    if (!text && !mediaUrl) {
-      return res
-        .status(400)
-        .json({ message: "Message must contain text or media" });
+    // Handle media upload if applicable
+    if (req.file) {
+      mediaUrl = await uploadChatMedia(req.file.buffer, message_type);
+    }
+
+    if (message_type === "text" && !text) {
+      return res.status(400).json({ message: "Text message cannot be empty" });
+    }
+
+    if ((message_type === "image" || message_type === "audio") && !mediaUrl) {
+      return res.status(400).json({ message: "Media file is required" });
     }
 
     let chat;
@@ -85,7 +99,7 @@ exports.sendMessage = async (req, res, next, io) => {
       sender_id: senderId,
       sender_type: senderType,
       content: mediaUrl || text,
-      is_media: !!mediaUrl,
+      message_type, // Now set based on req.body
       timestamp: new Date(),
       is_read: false,
     };
@@ -116,6 +130,7 @@ exports.sendMessage = async (req, res, next, io) => {
       .json({ message: "Error sending message", error: error.message });
   }
 };
+
 
 // Get Chat by ID
 exports.getChatById = async (req, res) => {
@@ -195,146 +210,89 @@ exports.getChatsByParticipant = async (req, res) => {
         .json({ message: "No chats found for this participant" });
     }
 
-    // Manually populate participant details
+    // Function to fetch participant details
+    const getParticipantDetails = async (participant) => {
+      if (!participant || !participant.participant_id) return null;
+
+      let details = null;
+      if (["User", "Realtor"].includes(participant.participant_type)) {
+        details = await User.findById(participant.participant_id, {
+          full_name: 1,
+          profile_picture: 1,
+          email: 1,
+        }).exec();
+      } else if (participant.participant_type === "Admin") {
+        details = await Admin.findById(participant.participant_id, {
+          full_name: 1,
+          profile_picture: 1,
+          email: 1,
+        }).exec();
+        if (details) {
+          details.full_name = details.full_name || "Daar Live"; // Default name
+        }
+      }
+
+      return details;
+    };
+
+    // Process chats
     const formattedChats = await Promise.all(
       chats.map(async (chat) => {
         if (!chat.participants || chat.participants.length !== 2) {
-          console.warn(
-            `Chat ${chat._id} has invalid participants:`,
-            chat.participants
-          );
+          console.warn(`Chat ${chat._id} has invalid participants:`, chat.participants);
           return null;
         }
 
-        // Determine the other participant (receiver)
-        const receiver = chat.participants.find(
-          (p) =>
-            p.participant_id && p.participant_id.toString() !== participantId
-        );
+        // Determine sender and receiver
+        const sender = chat.participants.find((p) => p.participant_id.toString() === participantId);
+        const receiver = chat.participants.find((p) => p.participant_id.toString() !== participantId);
 
         if (!receiver) {
           console.warn(`Chat ${chat._id} is missing a receiver`);
           return null;
         }
 
-        // Fetch receiver details manually
-        let receiverDetails = null;
-        if (
-          receiver.participant_type === "User" ||
-          receiver.participant_type === "Realtor"
-        ) {
-          receiverDetails = await User.findById(receiver.participant_id, {
-            full_name: 1,
-            profile_picture: 1,
-            email: 1,
-          }).exec();
-        } else if (receiver.participant_type === "Admin") {
-          receiverDetails = await Admin.findById(receiver.participant_id, {
-            full_name: 1,
-            profile_picture: 1,
-            email: 1,
-          }).exec();
-          if (receiverDetails) {
-            receiverDetails.full_name =
-              receiverDetails.full_name || "Daar Live"; // Default name if not present
-          }
-        }
+        // Fetch participant details
+        const senderDetails = await getParticipantDetails(sender);
+        const receiverDetails = await getParticipantDetails(receiver);
 
-        if (!receiverDetails) {
-          console.warn(`Receiver details not found for chat ${chat._id}`);
+        if (!senderDetails || !receiverDetails) {
+          console.warn(`Participant details missing for chat ${chat._id}`);
           return null;
         }
 
-        // Fetch sender details manually
-        let senderDetails = null;
-        const sender = chat.participants.find(
-          (p) =>
-            p.participant_id && p.participant_id.toString() === participantId
-        );
-
-        if (sender) {
-          if (
-            sender.participant_type === "User" ||
-            sender.participant_type === "Realtor"
-          ) {
-            senderDetails = await User.findById(sender.participant_id, {
-              full_name: 1,
-              profile_picture: 1,
-              email: 1,
-            }).exec();
-          } else if (sender.participant_type === "Admin") {
-            senderDetails = await Admin.findById(sender.participant_id, {
-              full_name: 1,
-              profile_picture: 1,
-              email: 1,
-            }).exec();
-            if (senderDetails) {
-              senderDetails.full_name = senderDetails.full_name || "Daar Live"; // Default name if not present
-            }
-          }
-        }
-
-        if (!senderDetails) {
-          console.warn(`Sender details not found for chat ${chat._id}`);
-          return null;
-        }
-
-        const lastMessage =
-          chat.messages.length > 0
-            ? chat.messages[chat.messages.length - 1]
-            : null;
+        // Extract last message
+        const lastMessage = chat.messages.length > 0 ? chat.messages[chat.messages.length - 1] : null;
         const unreadCount = chat.unreadCount?.get(participantId) || 0;
 
         let lastMessageText = null;
 
-        if (lastMessage && lastMessage.content) {
-          const mediaExtensions = {
-            image: [".png", ".jpg", ".jpeg", ".gif", ".webp"],
-            video: [".mp4", ".mov", ".avi", ".mkv"],
-            audio: [".mp3", ".wav", ".ogg", ".m4a"],
-            document: [".pdf", ".docx", ".xlsx", ".pptx"],
-          };
-
-          // Check if the content is a URL or plain text
-          if (lastMessage.content.startsWith("http")) {
-            const extension = lastMessage.content
-              .split(".")
-              .pop()
-              .toLowerCase();
-
-            if (mediaExtensions.image.includes(`.${extension}`)) {
-              lastMessageText = "📷 Photo";
-            } else if (mediaExtensions.video.includes(`.${extension}`)) {
-              lastMessageText = "🎥 Video";
-            } else if (mediaExtensions.audio.includes(`.${extension}`)) {
-              lastMessageText = "🎵 Audio";
-            } else if (mediaExtensions.document.includes(`.${extension}`)) {
-              lastMessageText = "📄 Document";
-            } else {
-              lastMessageText = "📎 Attachment";
-            }
-          } else {
-            // If content is not a URL, assume it's plain text
+        if (lastMessage) {
+          if (lastMessage.message_type === "text") {
             lastMessageText = lastMessage.content;
+          } else if (lastMessage.message_type === "image") {
+            lastMessageText = "📷 Photo";
+          } else if (lastMessage.message_type === "audio") {
+            lastMessageText = "🎵 Audio";
+          } else {
+            lastMessageText = "📎 Attachment";
           }
         }
 
         return {
           chat_id: chat._id,
           sender_id: participantId,
-          sender_name: senderDetails.full_name, // Sender's full name
-          sender_profilePic: senderDetails.profile_picture, // Sender's profile picture
-          sender_email: senderDetails.email, // Sender's email
+          sender_name: senderDetails.full_name,
+          sender_profilePic: senderDetails.profile_picture,
+          sender_email: senderDetails.email,
           receiver_id: receiver.participant_id,
-          receiver_name: receiverDetails.full_name, // Receiver's full name
-          receiver_profilePic: receiverDetails.profile_picture, // Receiver's profile picture
-          receiver_email: receiverDetails.email, // Receiver's email
+          receiver_name: receiverDetails.full_name,
+          receiver_profilePic: receiverDetails.profile_picture,
+          receiver_email: receiverDetails.email,
           reference_id: chat.referenceId || null,
           reference_type: chat.referenceType || null,
           last_message: lastMessageText,
-          last_message_time: lastMessage
-            ? lastMessage.timestamp
-            : chat.updatedAt,
+          last_message_time: lastMessage ? lastMessage.timestamp : chat.updatedAt,
           unread_count: unreadCount,
         };
       })
@@ -346,11 +304,10 @@ exports.getChatsByParticipant = async (req, res) => {
     res.status(200).json(filteredChats);
   } catch (error) {
     console.error("Error fetching chats:", error);
-    res
-      .status(500)
-      .json({ message: "Error fetching chats", error: error.message });
+    res.status(500).json({ message: "Error fetching chats", error: error.message });
   }
 };
+
 
 exports.getChatHeadersByReferenceId = async (req, res) => {
   try {

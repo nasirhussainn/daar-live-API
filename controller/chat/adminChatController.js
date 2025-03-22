@@ -17,7 +17,7 @@ async function getSuperAdminId() {
 
 exports.sendAdminDirectMessage = async (req, res, next, io) => {
   try {
-    const { senderId, senderType, text, chatId } = req.body;
+    const { senderId, senderType, text, chatId, message_type } = req.body;
     let mediaUrl = null;
 
     // Ensure senderType is valid
@@ -27,15 +27,24 @@ exports.sendAdminDirectMessage = async (req, res, next, io) => {
       });
     }
 
-    // Upload media if provided
-    if (req.file) {
-      mediaUrl = await uploadChatMedia(req.file.buffer, "image");
+    // Ensure message_type is valid
+    if (!["text", "audio", "image"].includes(message_type)) {
+      return res.status(400).json({
+        message: "Invalid message_type. Must be text, audio, or image.",
+      });
     }
 
-    if (!text && !mediaUrl) {
-      return res
-        .status(400)
-        .json({ message: "Message must contain text or media" });
+    // Upload media if provided and message_type is image or audio
+    if (req.file && (message_type === "image" || message_type === "audio")) {
+      mediaUrl = await uploadChatMedia(req.file.buffer, message_type);
+    }
+
+    // Validate message content
+    if (message_type === "text" && !text) {
+      return res.status(400).json({ message: "Text message must contain content" });
+    }
+    if ((message_type === "image" || message_type === "audio") && !mediaUrl) {
+      return res.status(400).json({ message: "Media message must contain a file" });
     }
 
     let chat;
@@ -56,7 +65,6 @@ exports.sendAdminDirectMessage = async (req, res, next, io) => {
       chat = await AdminChat.findOne({
         "participants.participant_id": { $all: [senderId, superAdminId] },
       });
-      
 
       if (!chat) {
         // **New chat is created if it doesn't exist**
@@ -76,8 +84,8 @@ exports.sendAdminDirectMessage = async (req, res, next, io) => {
     const message = {
       sender_id: senderId,
       sender_type: senderType,
-      content: mediaUrl || text,
-      is_media: !!mediaUrl,
+      content: message_type === "text" ? text : mediaUrl, // Store text or media URL
+      message_type, // Add message_type to the message object
       timestamp: new Date(),
       is_read: false,
     };
@@ -101,7 +109,13 @@ exports.sendAdminDirectMessage = async (req, res, next, io) => {
     io.to(`chat:${chat._id}`).emit("newMessage", { chatId: chat._id, message });
 
     // **Log notification for receiver**
-    logNotification(receiverId, senderId, senderType, text || "New media message", chat._id);
+    logNotification(
+      receiverId,
+      senderId,
+      senderType,
+      message_type === "text" ? text : "New media message",
+      chat._id
+    );
 
     res.status(200).json({ message: "Message sent", chat });
   } catch (error) {
@@ -221,35 +235,21 @@ exports.getAdminChatsByParticipant = async (req, res) => {
 
         let lastMessageText = null;
 
-        if (lastMessage && lastMessage.content) {
-          const mediaExtensions = {
-            image: [".png", ".jpg", ".jpeg", ".gif", ".webp"],
-            video: [".mp4", ".mov", ".avi", ".mkv"],
-            audio: [".mp3", ".wav", ".ogg", ".m4a"],
-            document: [".pdf", ".docx", ".xlsx", ".pptx"],
-          };
-
-          // Check if the content is a URL or plain text
-          if (lastMessage.content.startsWith("http")) {
-            const extension = lastMessage.content
-              .split(".")
-              .pop()
-              .toLowerCase();
-
-            if (mediaExtensions.image.includes(`.${extension}`)) {
+        if (lastMessage) {
+          // Use message_type to determine the type of the last message
+          switch (lastMessage.message_type) {
+            case "text":
+              lastMessageText = lastMessage.content;
+              break;
+            case "image":
               lastMessageText = "📷 Photo";
-            } else if (mediaExtensions.video.includes(`.${extension}`)) {
-              lastMessageText = "🎥 Video";
-            } else if (mediaExtensions.audio.includes(`.${extension}`)) {
+              break;
+            case "audio":
               lastMessageText = "🎵 Audio";
-            } else if (mediaExtensions.document.includes(`.${extension}`)) {
-              lastMessageText = "📄 Document";
-            } else {
+              break;
+            default:
               lastMessageText = "📎 Attachment";
-            }
-          } else {
-            // If content is not a URL, assume it's plain text
-            lastMessageText = lastMessage.content;
+              break;
           }
         }
 

@@ -17,7 +17,7 @@ const AdminChatSchema = new Schema(
         sender_id: { type: Schema.Types.ObjectId, required: true, refPath: "messages.sender_type" },
         sender_type: { type: String, enum: ['User', 'Realtor', 'Admin'], required: true },
         content: { type: String, required: true }, // Text or media URL
-        is_media: { type: Boolean, default: false },
+        message_type: { type: String, enum: ['text', 'audio', 'image'], required: true }, // New field
         timestamp: { type: Date, default: Date.now },
         is_read: { type: Boolean, default: false }
       }
