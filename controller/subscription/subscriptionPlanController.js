@@ -3,9 +3,9 @@ const SubscriptionPlan = require('../../models/admin/SubscriptionPlan');
 // Create a new subscription plan (SuperAdmin Only)
 exports.createPlan = async (req, res) => {
     try {
-        const { name, duration, price, details, price_id } = req.body;
+        const { productId, days, planName, planDescription, noOfListings, planAmount } = req.body;
 
-        const plan = new SubscriptionPlan({ name, duration, price, details, price_id });
+        const plan = new SubscriptionPlan({ productId, days, planName, planDescription, noOfListings, planAmount });
         await plan.save();
 
         res.status(201).json({ message: "Subscription Plan Created", plan });
@@ -39,10 +39,10 @@ exports.getPlanById = async (req, res) => {
 // Update a subscription plan (SuperAdmin Only)
 exports.updatePlan = async (req, res) => {
     try {
-        const { name, duration, price, details } = req.body;
+        const { productId, days, planName, planDescription, noOfListings, planAmount } = req.body;
         const plan = await SubscriptionPlan.findByIdAndUpdate(
             req.params.id,
-            { name, duration, price, details },
+            { productId, days, planName, planDescription, noOfListings, planAmount },
             { new: true }
         );
 

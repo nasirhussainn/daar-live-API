@@ -14,7 +14,7 @@ const {
 router.get('/', getAllPlans);
 router.get('/:id', getPlanById);
 
-// Admin-Only Routes
+// Admin-Only Routes (Should be protected by authMiddleware)
 router.post('/', createPlan);
 router.put('/:id', updatePlan);
 router.delete('/:id', deletePlan);
