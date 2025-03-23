@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const Event = require("../../models/Events");
 const Booking = require("../../models/Booking");
+const Realtor = require("../../models/Realtor"); // Assuming the Host model contains revenue fields
 
 const getHostsStats = async (hostId) => {
   try {
@@ -10,14 +11,14 @@ const getHostsStats = async (hostId) => {
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
 
-    const [currentHosted, totalHosted, ticketData] = await Promise.all([
+    const [currentHosted, totalHosted, ticketData, hostData] = await Promise.all([
       // Events hosted in the last month
       Event.countDocuments({ host_id: hostObjectId, created_at: { $gte: oneMonthAgo } }),
 
       // Total events hosted by the user
       Event.countDocuments({ host_id: hostObjectId }),
 
-      // Total tickets sold & revenue from ticket sales
+      // Total tickets sold
       Booking.aggregate([
         {
           $match: {
@@ -30,17 +31,20 @@ const getHostsStats = async (hostId) => {
           $group: {
             _id: null,
             totalTicketsSold: { $sum: "$number_of_tickets" },
-            totalTicketRevenue: { $sum: { $toDouble: "$payment_detail.amount" } },
           },
         },
       ]),
+
+      // Fetch total and available revenue from the Host model
+      Realtor.findOne({ user_id: hostObjectId }).select("total_revenue available_revenue").lean(),
     ]);
 
     return {
       currentHosted,
       totalHosted,
       totalTicketsSold: ticketData.length > 0 ? ticketData[0].totalTicketsSold : 0,
-      totalTicketRevenue: ticketData.length > 0 ? ticketData[0].totalTicketRevenue : 0,
+      totalRevenue: hostData?.total_revenue || 0,
+      availableRevenue: hostData?.available_revenue || 0,
     };
   } catch (error) {
     console.error("Error fetching host stats:", error);

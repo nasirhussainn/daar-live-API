@@ -1,16 +1,17 @@
 const mongoose = require("mongoose");
 const Property = require("../../models/Properties");
 const Booking = require("../../models/Booking");
+const Realtor = require("../../models/Realtor")
 
 const getRealtorStats = async (realtorId) => {
     try {
       if (!realtorId) return null;
-  
+
       const realtorObjectId = new mongoose.Types.ObjectId(realtorId);
       const oneMonthAgo = new Date();
       oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-  
-      const [currentListed, allListed, soldData, rentedData] = await Promise.all([
+
+      const [currentListed, allListed, soldData, rentedData, realtorData] = await Promise.all([
         Property.countDocuments({
           owner_id: realtorObjectId,
           created_at: { $gte: oneMonthAgo },
@@ -24,22 +25,25 @@ const getRealtorStats = async (realtorId) => {
           { $match: { owner_id: realtorObjectId, status: { $in: ["active", "completed", "confirmed"] } } },
           { $group: { _id: null, rentedCount: { $sum: 1 }, rentedRevenue: { $sum: { $toDouble: "$payment_detail.amount" } } } },
         ]),
+        Realtor.findOne({ user_id: realtorObjectId }).select('total_revenue available_revenue').lean(),
       ]);
-  
+
+      const totalRevenue = realtorData?.total_revenue || 0;
+      const availableRevenue = realtorData?.available_revenue || 0;
+
       return {
         currentListed,
         allListed,
         soldCount: soldData.length > 0 ? soldData[0].soldCount : 0,
-        soldRevenue: soldData.length > 0 ? soldData[0].soldRevenue : 0,
         rentedCount: rentedData.length > 0 ? rentedData[0].rentedCount : 0,
-        rentedRevenue: rentedData.length > 0 ? rentedData[0].rentedRevenue : 0,
+        totalRevenue,
+        availableRevenue,
       };
     } catch (error) {
       console.error("Error fetching realtor stats:", error);
       return null;
     }
   };
-  
+
   // Export function
   module.exports = { getRealtorStats };
-  
