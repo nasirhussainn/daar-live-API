@@ -107,22 +107,27 @@ exports.getBankDetailsById = async (req, res) => {
 
 exports.updateBankDetails = async (req, res) => {
   try {
-    const { user_id, bank_id, account_holder_name, bank_name, account_number, branch_name } = req.body;
+    const { bank_id } = req.params; // Get from URL parameters
+    const { bank_name, account_holder_name, account_number, branch_name } = req.body;
 
-    if (!user_id || !bank_id || !account_holder_name || !bank_name || !account_number) {
-      return res.status(400).json({ message: "All required fields must be provided" });
+    if (!bank_id) {
+      return res.status(400).json({ message: "Bank ID is required" });
+    }
+
+    // Build dynamic update query only for provided fields
+    const updateQuery = {};
+    if (bank_name !== undefined) updateQuery["bank_details.$.bank_name"] = bank_name;
+    if (account_holder_name !== undefined) updateQuery["bank_details.$.account_holder_name"] = account_holder_name;
+    if (account_number !== undefined) updateQuery["bank_details.$.account_number"] = account_number;
+    if (branch_name !== undefined) updateQuery["bank_details.$.branch_name"] = branch_name;
+
+    if (Object.keys(updateQuery).length === 0) {
+      return res.status(400).json({ message: "No fields provided to update" });
     }
 
     const realtor = await Realtor.findOneAndUpdate(
-      { user_id, "bank_details._id": bank_id }, // Find user & matching bank ID
-      {
-        $set: {
-          "bank_details.$.account_holder_name": account_holder_name,
-          "bank_details.$.bank_name": bank_name,
-          "bank_details.$.account_number": account_number,
-          "bank_details.$.branch_name": branch_name
-        }
-      },
+      { "bank_details._id": bank_id }, // Find by bank ID
+      { $set: updateQuery }, // Only update provided fields
       { new: true } // Return updated document
     );
 
@@ -136,4 +141,5 @@ exports.updateBankDetails = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 

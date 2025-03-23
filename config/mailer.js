@@ -61,7 +61,7 @@ async function sendPropertyBookingConfirmationEmail(booking) {
     // Fetch realtor details
     if (booking.owner_type === "Admin") {
       realtor = await Admin.findById(booking.owner_id);
-      realtor.full_name = "Admin"
+      realtor.full_name = "Admin";
     } else {
       realtor = await User.findById(booking.owner_id);
     }
@@ -142,7 +142,7 @@ async function sendEventBookingConfirmationEmail(booking) {
     // Fetch host (event organizer) details
     if (booking.owner_type === "Admin") {
       host = await Admin.findById(booking.owner_id);
-      host.full_name = "Admin"
+      host.full_name = "Admin";
     } else {
       host = await User.findById(booking.owner_id);
     }
@@ -309,14 +309,18 @@ async function sendAccountStatusUpdateEmail(user) {
       subject: emailSubject,
       html: emailBody,
     });
-    
   } catch (error) {
     console.error("Error sending account status update email:", error.message);
   }
 }
 
 // Function to send approval/disapproval emails
-async function sendPropertyStatusEmail(email, propertyTitle, status, reason = "") {
+async function sendPropertyStatusEmail(
+  email,
+  propertyTitle,
+  status,
+  reason = ""
+) {
   try {
     const subject =
       status === "approved"
@@ -348,7 +352,6 @@ async function sendPropertyStatusEmail(email, propertyTitle, status, reason = ""
   }
 }
 
-
 // Function to notify Realtor and Admin about withdrawal request
 async function sendWithdrawalRequestEmail(withdrawRequest, realtor) {
   try {
@@ -363,9 +366,17 @@ async function sendWithdrawalRequestEmail(withdrawRequest, realtor) {
       <p><strong>Request Details:</strong></p>
       <ul>
         <li><strong>Amount:</strong> $${withdrawRequest.amount}</li>
-        <li><strong>Bank Details:</strong> ${withdrawRequest.bank_details}</li>
+        <li><strong>Bank Details:</strong>
+          <ul>
+            <li><strong>Account Holder:</strong> ${withdrawRequest.bank_details.account_holder_name}</li>
+            <li><strong>Bank Name:</strong> ${withdrawRequest.bank_details.bank_name}</li>
+            <li><strong>Account Number:</strong> ${withdrawRequest.bank_details.account_number}</li>
+            <li><strong>Branch Name:</strong> ${withdrawRequest.bank_details.branch_name}</li>
+          </ul>
+        </li>
         <li><strong>Status:</strong> ${withdrawRequest.status}</li>
       </ul>
+
       <p>You will be notified once the request is processed.</p>
       <p>Best regards,</p>
       <p>Your Platform Team</p>
@@ -381,16 +392,27 @@ async function sendWithdrawalRequestEmail(withdrawRequest, realtor) {
       <ul>
         <li><strong>Realtor:</strong> ${realtor.full_name} (${realtor.email})</li>
         <li><strong>Amount:</strong> $${withdrawRequest.amount}</li>
-        <li><strong>Bank Details:</strong> ${withdrawRequest.bank_details}</li>
+        <li><strong>Bank Details:</strong>
+          <ul>
+            <li><strong>Account Holder:</strong> ${withdrawRequest.bank_details.account_holder_name}</li>
+            <li><strong>Bank Name:</strong> ${withdrawRequest.bank_details.bank_name}</li>
+            <li><strong>Account Number:</strong> ${withdrawRequest.bank_details.account_number}</li>
+            <li><strong>Branch Name:</strong> ${withdrawRequest.bank_details.branch_name}</li>
+          </ul>
+        </li>
         <li><strong>Status:</strong> ${withdrawRequest.status}</li>
       </ul>
+
       <p>Please review and update the status accordingly.</p>
       <p>Best regards,</p>
       <p>Your Platform Team</p>
     `;
     await sendEmail(admin.email, adminSubject, adminHtml);
   } catch (error) {
-    console.error("Error sending withdrawal request notification emails:", error);
+    console.error(
+      "Error sending withdrawal request notification emails:",
+      error
+    );
   }
 }
 
@@ -398,16 +420,26 @@ async function sendWithdrawalRequestEmail(withdrawRequest, realtor) {
 async function sendWithdrawalStatusUpdateEmail(withdrawRequest, realtor) {
   try {
     const status = withdrawRequest.status;
-    const subject = `Withdrawal Request ${status.charAt(0).toUpperCase() + status.slice(1)}`;
+    const subject = `Withdrawal Request ${
+      status.charAt(0).toUpperCase() + status.slice(1)
+    }`;
     const html = `
       <p>Dear ${realtor.full_name},</p>
       <p>Your withdrawal request of <strong>$${withdrawRequest.amount}</strong> has been <strong>${status}</strong>.</p>
       <p><strong>Request Details:</strong></p>
       <ul>
         <li><strong>Amount:</strong> $${withdrawRequest.amount}</li>
-        <li><strong>Bank Details:</strong> ${withdrawRequest.bank_details}</li>
+        <li><strong>Bank Details:</strong>
+          <ul>
+            <li><strong>Account Holder:</strong> ${withdrawRequest.bank_details.account_holder_name}</li>
+            <li><strong>Bank Name:</strong> ${withdrawRequest.bank_details.bank_name}</li>
+            <li><strong>Account Number:</strong> ${withdrawRequest.bank_details.account_number}</li>
+            <li><strong>Branch Name:</strong> ${withdrawRequest.bank_details.branch_name}</li>
+          </ul>
+        </li>
         <li><strong>Status:</strong> ${withdrawRequest.status}</li>
       </ul>
+
       <p>If you have any questions, please contact our support team.</p>
       <p>Best regards,</p>
       <p>Your Platform Team</p>
@@ -455,5 +487,4 @@ module.exports = {
   sendWithdrawalRequestEmail,
   sendWithdrawalStatusUpdateEmail,
   forwardContactMessageToAdmin,
-  
 };
