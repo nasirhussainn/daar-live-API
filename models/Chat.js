@@ -6,7 +6,7 @@ const ChatSchema = new Schema(
     referenceId: { type: Schema.Types.ObjectId, required: true }, 
     referenceType: { 
       type: String, 
-      enum: ['Property', 'Event'],
+      enum: ['Property', 'Event', 'Admin'],
       required: true 
     },
 
