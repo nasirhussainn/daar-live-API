@@ -1,6 +1,6 @@
 const express = require("express");
 const { sendMessage, getChatById, getChatsByParticipant, getChatHeadersByReferenceId, getChatDetailsById } = require("../../controller/chat/chatController");
-const { sendAdminDirectMessage1 } = require("../../controller/admin/adminController");
+const { sendAdminDirectMessage1 } = require("../../controller/chat/chatAdminController");
 const {sendAdminDirectMessage, getAdminChatsByParticipant, getChatByIdForUser, getChatByIdForAdmin  } = require('../../controller/chat/adminChatController')
 const { upload } = require("../../middlewares/multerConfig");
 

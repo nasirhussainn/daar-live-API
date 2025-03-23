@@ -12,41 +12,47 @@ async function getSuperAdminId() {
   }
 }
 
-exports.sendAdminDirectMessage = async (req, res, next, io) => {
+exports.sendAdminDirectMessage1 = async (req, res, next, io) => {
   try {
-    const { senderId, senderType, text, chatId } = req.body;
+    const { senderId, senderType, text, chatId, message_type, audio_duration } = req.body;
     let mediaUrl = null;
 
-    // Ensure senderType is valid
+    // Validate senderType
     if (!["User", "Realtor", "Admin"].includes(senderType)) {
-      return res
-        .status(400)
-        .json({
-          message: "Invalid senderType. Must be User, Realtor, or Admin.",
-        });
+      return res.status(400).json({ message: "Invalid senderType" });
     }
 
-    // Upload media if provided
+    // Validate message_type
+    if (!["text", "image", "audio"].includes(message_type)) {
+      return res.status(400).json({ message: "Invalid message_type" });
+    }
+
+    // Handle media upload if applicable
     if (req.file) {
-      mediaUrl = await uploadChatMedia(req.file.buffer, "image");
+      mediaUrl = await uploadChatMedia(req.file.buffer, message_type);
     }
 
-    if (!text && !mediaUrl) {
-      return res
-        .status(400)
-        .json({ message: "Message must contain text or media" });
+    // Validate text or media presence
+    if (message_type === "text" && !text) {
+      return res.status(400).json({ message: "Text message cannot be empty" });
+    }
+
+    if ((message_type === "image" || message_type === "audio") && !mediaUrl) {
+      return res.status(400).json({ message: "Media file is required" });
+    }
+
+    if (message_type === "audio" && !audio_duration) {
+      return res.status(400).json({ message: "Audio duration is required" });
     }
 
     let chat;
 
     if (chatId) {
-      // **Case 1: Admin Replying (chatId is provided)**
       chat = await Chat.findById(chatId);
       if (!chat) {
         return res.status(404).json({ message: "Chat not found" });
       }
     } else {
-      // **Case 2: User/Realtor Sending a Message (First Message or Reply to Admin)**
       const superAdminId = await getSuperAdminId();
       if (!superAdminId) {
         return res.status(400).json({ message: "Super Admin not found" });
@@ -55,14 +61,12 @@ exports.sendAdminDirectMessage = async (req, res, next, io) => {
       chat = await Chat.findOne({
         referenceId: superAdminId,
         referenceType: "Admin",
-        participants: [
-          { participant_id: senderId, participant_type: senderType },
-          { participant_id: superAdminId, participant_type: "Admin" },
-        ],
+        participants: {
+          $elemMatch: { participant_id: senderId, participant_type: senderType },
+        },
       });
 
       if (!chat) {
-        // **New chat is created if it doesn't exist**
         chat = new Chat({
           referenceId: superAdminId,
           referenceType: "Admin",
@@ -76,39 +80,35 @@ exports.sendAdminDirectMessage = async (req, res, next, io) => {
       }
     }
 
-    // **Create message object**
+    // Create the message object
     const message = {
       sender_id: senderId,
       sender_type: senderType,
       content: mediaUrl || text,
-      is_media: !!mediaUrl,
+      message_type,
+      audio_duration: audio_duration || null,
       timestamp: new Date(),
       is_read: false,
     };
 
-    // **Append message to chat**
     chat.messages.push(message);
 
-    // **Update unread count for the receiver**
-    const receiverId = chat.participants.find(
-      (p) => p.participant_id.toString() !== senderId.toString()
-    ).participant_id;
-    const receiverIdStr = receiverId.toString();
-    chat.unreadCount.set(
-      receiverIdStr,
-      (chat.unreadCount.get(receiverIdStr) || 0) + 1
-    );
+    // Update unreadCount for the receiver
+    chat.participants.forEach((participant) => {
+      const participantId = participant.participant_id.toString();
+      if (participantId !== senderId) {
+        chat.unreadCount.set(participantId, (chat.unreadCount.get(participantId) || 0) + 1);
+      }
+    });
 
     await chat.save();
 
-    // **Emit event for real-time chat update**
+    // Emit real-time event
     io.to(`chat:${chat._id}`).emit("newMessage", { chatId: chat._id, message });
 
     res.status(200).json({ message: "Message sent", chat });
   } catch (error) {
     console.error("Error sending direct message:", error);
-    res
-      .status(500)
-      .json({ message: "Error sending message", error: error.message });
+    res.status(500).json({ message: "Error sending message", error: error.message });
   }
 };
