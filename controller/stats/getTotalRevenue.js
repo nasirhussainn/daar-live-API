@@ -7,17 +7,17 @@ const getTotalRevenue = async (userId) => {
     if (!userId) return null;
 
     // Fetch stats for both hosts (events) and realtors (properties)
-    const [hostStats, realtorStats] = await Promise.all([
+    const [eventStats, propertyStats] = await Promise.all([
       getHostsStats(userId),
       getRealtorStats(userId),
     ]);
 
     // Calculate total listed properties and events
     const totalCurrentListed =
-      (hostStats?.currentHosted || 0) + (realtorStats?.currentListed || 0);
+      (eventStats?.currentHosted || 0) + (propertyStats?.currentListed || 0);
 
     const totalAllListed =
-      (hostStats?.totalHosted || 0) + (realtorStats?.allListed || 0);
+      (eventStats?.totalHosted || 0) + (propertyStats?.allListed || 0);
 
     const result = await Realtor.findOne({ user_id: userId })
       .select("total_revenue available_revenue")
@@ -31,8 +31,8 @@ const getTotalRevenue = async (userId) => {
       availableRevenue,
       totalCurrentListed,
       totalAllListed,
-      hostStats,
-      realtorStats,
+      eventStats,
+      propertyStats,
     };
   } catch (error) {
     console.error("Error fetching total revenue:", error);
