@@ -12,6 +12,9 @@ const SubscriptionPlanSchema = new mongoose.Schema(
       type: Number,
       required: true
     },
+    months: {
+      type: String,
+    },
     planName: {
       type: String,
       required: true,

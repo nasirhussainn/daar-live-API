@@ -16,7 +16,7 @@ router.get('/:id', getPlanById);
 
 // Admin-Only Routes (Should be protected by authMiddleware)
 router.post('/', createPlan);
-router.put('/:id', updatePlan);
+router.put('/:plan_id', updatePlan);
 router.delete('/:id', deletePlan);
 
 module.exports = router;
