@@ -10,7 +10,8 @@ router.get("/bank-details-viaUserId/:user_id", realtorController.getBankDetailsB
 router.get("/bank-details-viaBankId/:bank_id", realtorController.getBankDetailsById);
 
 // Delete bank details by user ID
-router.delete("/bank-details/:user_id", realtorController.deleteBankDetailsByUserId);
+router.delete("/bank-details/:user_id/:bank_id", realtorController.deleteBankDetailById);
+router.delete("/bank-details/:user_id", realtorController.deleteAllBankDetails);
 
 // Get all realtors' bank details
 router.get("/all-bank-details", realtorController.getAllBankDetails);

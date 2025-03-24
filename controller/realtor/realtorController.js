@@ -49,26 +49,48 @@ exports.getBankDetailsByUserId = async (req, res) => {
   }
 };
 
-// 3. Delete Bank Details by User ID
-exports.deleteBankDetailsByUserId = async (req, res) => {
-  try {
-    const { user_id } = req.params;
-    const realtor = await Realtor.findOneAndUpdate(
-      { user_id },
-      { $unset: { bank_details: "" } }, // Remove bank details
-      { new: true }
-    );
+// 1️⃣ Delete all bank details using user_id
+exports.deleteAllBankDetails = async (req, res) => {
+    try {
+        const { user_id } = req.params;
 
-    if (!realtor) {
-      return res.status(404).json({ message: "Realtor not found" });
+        const realtor = await Realtor.findOneAndUpdate(
+            { user_id },
+            { $set: { bank_details: [] } }, // Set bank_details to an empty array
+            { new: true }
+        );
+
+        if (!realtor) {
+            return res.status(404).json({ message: "Realtor not found" });
+        }
+
+        res.status(200).json({ message: "All bank details deleted", realtor });
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
     }
-
-    res.status(200).json({ message: "Bank details deleted successfully" });
-  } catch (error) {
-    console.error("Error deleting bank details:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
 };
+
+// 2️⃣ Delete a specific bank detail using its _id
+exports.deleteBankDetailById = async (req, res) => {
+    try {
+        const { user_id, bank_id } = req.params;
+
+        const realtor = await Realtor.findOneAndUpdate(
+            { user_id },
+            { $pull: { bank_details: { _id: bank_id } } }, // Remove the bank detail with the given _id
+            { new: true }
+        );
+
+        if (!realtor) {
+            return res.status(404).json({ message: "Realtor or bank detail not found" });
+        }
+
+        res.status(200).json({ message: "Bank detail deleted", realtor });
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
 
 // 4. Get All Realtors' Bank Details
 exports.getAllBankDetails = async (req, res) => {
