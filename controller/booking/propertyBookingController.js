@@ -3,10 +3,11 @@ const Property = require("../../models/Properties");
 const User = require("../../models/User");
 const Admin = require("../../models/Admin");
 const Review = require("../../models/Review");
-const { sendPropertyBookingConfirmationEmail } = require("../../config/mailer");
+const { sendPropertyBookingConfirmationEmail, sendPropertyBookingCancellationEmail } = require("../../config/mailer");
 const Notification = require("../../models/Notification");
 const { logPaymentHistory } = require("./paymentHistoryService");
 const sendNotification = require("../notification/sendNotification");
+const Settings = require("../../models/admin/Settings");
 const updateRevenue = require("./updateRevenue");
 
 const normalizeTime = (time) => {
@@ -201,7 +202,10 @@ exports.confirmPropertyBooking = async (req, res) => {
     booking.payment_detail = payment_detail;
     await booking.save(); // This will trigger the pre-validation hook to generate a ticket
 
-    const result = await updateRevenue(booking_id, 10); // 10% admin fee
+    const setting = await Settings.findOne().select("booking_percentage -_id");
+    const booking_percentage = setting ? setting.booking_percentage : null;
+
+    const result = await updateRevenue(booking_id, booking_percentage); // 10% admin fee
 
     // Find associated property
     const property = await Property.findById(booking.property_id);
@@ -211,11 +215,19 @@ exports.confirmPropertyBooking = async (req, res) => {
     await sendPropertyBookingConfirmationEmail(booking);
 
     //--------------------- ✅ Notification and Payment---------------------
-    await sendNotification(booking.user_id, "booking", booking._id, "Booking Confirmed",
+    await sendNotification(
+      booking.user_id,
+      "booking",
+      booking._id,
+      "Booking Confirmed",
       `Your booking has been confirmed! Your confirmation ticket is ${booking.confirmation_ticket}.`
     );
     // ✅ Send Notification to Realtor
-    await sendNotification(booking.owner_id, "booking", booking._id,"Booking Confirmed",
+    await sendNotification(
+      booking.owner_id,
+      "booking",
+      booking._id,
+      "Booking Confirmed",
       "A booking for your property has been confirmed."
     );
     await logPaymentHistory(booking, payment_detail, "booking_property");
@@ -267,6 +279,13 @@ exports.cancelPropertyBooking = async (req, res) => {
     } catch (error) {
       console.error("Error canceling booking:", error);
     }
+
+    const setting = await Settings.findOne().select("booking_percentage -_id");
+    const booking_percentage = setting ? setting.booking_percentage : null;
+
+    const result = await updateRevenue(booking_id, booking_percentage, true); 
+
+    await sendPropertyBookingCancellationEmail(booking);
 
     // ✅ Send Notification to User
     await Notification.create({

@@ -2,11 +2,12 @@ const Booking = require("../../models/Booking");
 const Event = require("../../models/Events");
 const User = require("../../models/User");
 const Review = require("../../models/Review");
-const { sendEventBookingConfirmationEmail } = require("../../config/mailer");
+const { sendEventBookingConfirmationEmail, sendEventBookingCancellationEmail } = require("../../config/mailer");
 const Notification = require("../../models/Notification");
 const { logPaymentHistory } = require("./paymentHistoryService");
 const sendNotification = require("../notification/sendNotification");
 const updateRevenue = require("./updateRevenue");
+const Settings = require("../../models/admin/Settings");
 
 // ✅ Book an Event
 const generateTickets = (numTickets) => {
@@ -142,7 +143,10 @@ exports.confirmEventBooking = async (req, res) => {
     // Send confirmation email
     await sendEventBookingConfirmationEmail(booking);
 
-    const result = await updateRevenue(booking_id, 10); 
+    const setting = await Settings.findOne().select("booking_percentage -_id");
+    const booking_percentage = setting ? setting.booking_percentage : null;
+
+    const result = await updateRevenue(booking_id, booking_percentage); 
 
     //--------------------- ✅ Notification and Payment---------------------
     await sendNotification(booking.user_id, "booking", booking._id, "Booking Confirmed",
@@ -194,6 +198,12 @@ exports.cancelEventBooking = async (req, res) => {
       console.error("Error canceling booking:", error);
     }
 
+    const setting = await Settings.findOne().select("booking_percentage -_id");
+    const booking_percentage = setting ? setting.booking_percentage : null;
+
+    const result = await updateRevenue(booking_id, booking_percentage, true); 
+
+    await sendEventBookingCancellationEmail(booking);
     // ✅ Send Notification to User
     await Notification.create({
       user: booking.user_id,

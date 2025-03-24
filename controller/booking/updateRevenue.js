@@ -3,7 +3,7 @@ const User = require("../../models/User"); // User model
 const Realtor = require("../../models/Realtor"); // Realtor model
 const Admin = require("../../models/Admin"); // Admin model
 
-const updateRevenue = async (booking_id, adminPercentage = 10) => {
+const updateRevenue = async (booking_id, adminPercentage, isCanceled = false) => {
   try {
     // Find the booking by ID
     const booking = await Booking.findById(booking_id);
@@ -27,11 +27,17 @@ const updateRevenue = async (booking_id, adminPercentage = 10) => {
         return { success: false, message: "Admin not found" };
       }
 
-      admin.total_revenue = (admin.total_revenue || 0) + amount;
+      if (isCanceled) {
+        // Deduct amount from admin revenue
+        admin.total_revenue = Math.max((admin.total_revenue || 0) - amount, 0);
+      } else {
+        // Add amount to admin revenue
+        admin.total_revenue = (admin.total_revenue || 0) + amount;
+      }
       await admin.save();
 
-      console.log(`Updated Admin ${admin._id} revenue by ${amount}.`);
-      return { success: true, message: "Admin revenue updated", admin_revenue: amount };
+      console.log(`Updated Admin ${admin._id} revenue by ${isCanceled ? `-${amount}` : amount}.`);
+      return { success: true, message: `Admin revenue ${isCanceled ? "deducted" : "updated"}`, admin_revenue: amount };
     }
 
     // If owner_type is "User", process Realtor and Admin revenue
@@ -53,13 +59,6 @@ const updateRevenue = async (booking_id, adminPercentage = 10) => {
       const adminCut = (amount * adminPercentage) / 100;
       const realtorRevenue = amount - adminCut;
 
-      // Update Realtor revenue
-      realtor.total_revenue = (realtor.total_revenue || 0) + realtorRevenue;
-      realtor.available_revenue = (realtor.available_revenue || 0) + realtorRevenue;
-      await realtor.save();
-
-      console.log(`Updated Realtor ${realtor._id} revenue by ${realtorRevenue}.`);
-
       // Find Admin with role "super"
       const admin = await Admin.findOne({ role: "super" });
       if (!admin) {
@@ -67,16 +66,29 @@ const updateRevenue = async (booking_id, adminPercentage = 10) => {
         return { success: false, message: "Admin with role 'super' not found" };
       }
 
-      // Update Admin revenue
-      admin.total_revenue = (admin.total_revenue || 0) + adminCut;
-      admin.available_revenue = (admin.total_revenue || 0) + adminCut;
+      if (isCanceled) {
+        // Deduct from realtor and admin revenue on cancellation
+        realtor.total_revenue = Math.max((realtor.total_revenue || 0) - realtorRevenue, 0);
+        realtor.available_revenue = Math.max((realtor.available_revenue || 0) - realtorRevenue, 0);
+
+        admin.total_revenue = Math.max((admin.total_revenue || 0) - adminCut, 0);
+      } else {
+        // Add to realtor and admin revenue
+        realtor.total_revenue = (realtor.total_revenue || 0) + realtorRevenue;
+        realtor.available_revenue = (realtor.available_revenue || 0) + realtorRevenue;
+
+        admin.total_revenue = (admin.total_revenue || 0) + adminCut;
+      }
+
+      await realtor.save();
       await admin.save();
 
-      console.log(`Updated Admin ${admin._id} revenue by ${adminCut}.`);
+      console.log(`Updated Realtor ${realtor._id} revenue by ${isCanceled ? `-${realtorRevenue}` : realtorRevenue}.`);
+      console.log(`Updated Admin ${admin._id} revenue by ${isCanceled ? `-${adminCut}` : adminCut}.`);
 
       return {
         success: true,
-        message: "Total revenue updated successfully",
+        message: `Total revenue ${isCanceled ? "reversed" : "updated"} successfully`,
         realtor_revenue: realtorRevenue,
         admin_revenue: adminCut,
       };
@@ -90,5 +102,6 @@ const updateRevenue = async (booking_id, adminPercentage = 10) => {
     return { success: false, message: "Server error", error: error.message };
   }
 };
+
 
 module.exports = updateRevenue;

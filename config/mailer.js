@@ -249,6 +249,164 @@ async function sendEventBookingConfirmationEmail(booking) {
   }
 }
 
+async function sendPropertyBookingCancellationEmail(booking) {
+  try {
+    // Fetch buyer (user) details
+    const buyer = await User.findById(booking.user_id);
+    if (!buyer) throw new Error("Buyer not found");
+
+    // Fetch realtor details
+    let realtor;
+    if (booking.owner_type === "Admin") {
+      realtor = await Admin.findById(booking.owner_id);
+      realtor.full_name = "Admin";
+    } else {
+      realtor = await User.findById(booking.owner_id);
+    }
+    if (!realtor) throw new Error("Realtor not found");
+
+    // Fetch property details
+    const property = await Property.findById(booking.property_id);
+    if (!property) throw new Error("Property not found");
+
+    // Construct email content for buyer
+    const buyerEmailSubject = "Booking Cancellation - Important Update";
+    const buyerEmailBody = `
+      <p>Dear ${buyer.full_name},</p>
+      <p>We regret to inform you that your booking has been canceled.</p>
+      <p><strong>Booking Details:</strong></p>
+      <ul>
+        <li><strong>Property:</strong> ${property.title}</li>
+        <li><strong>Location:</strong> ${property.city}, ${property.state}, ${property.country}</li>
+        <li><strong>Booking Start Date:</strong> ${new Date(booking.start_date).toLocaleDateString()}</li>
+        <li><strong>Booking End Date:</strong> ${new Date(booking.end_date).toLocaleDateString()}</li>
+        <li><strong>Security Deposit Refund:</strong> ${booking.security_deposit ? `$${booking.security_deposit}` : "N/A"}</li>
+        <li><strong>Cancellation Reason:</strong> ${booking.cancelation_reason || "Not provided"}</li>
+      </ul>
+      <p>For any further assistance, feel free to contact us.</p>
+      <p>Thank you for choosing our service.</p>
+    `;
+
+    // Construct email content for realtor
+    const realtorEmailSubject = "Booking Cancellation Notification";
+    const realtorEmailBody = `
+      <p>Dear ${realtor.full_name},</p>
+      <p>A booking for your property has been canceled.</p>
+      <p><strong>Booking Details:</strong></p>
+      <ul>
+        <li><strong>Property:</strong> ${property.title}</li>
+        <li><strong>Booked by:</strong> ${buyer.full_name} (${buyer.email})</li>
+        <li><strong>Booking Start Date:</strong> ${new Date(booking.start_date).toLocaleDateString()}</li>
+        <li><strong>Booking End Date:</strong> ${new Date(booking.end_date).toLocaleDateString()}</li>
+        <li><strong>Cancellation Reason:</strong> ${booking.cancelation_reason || "Not provided"}</li>
+      </ul>
+      <p>The property is now available for new bookings.</p>
+      <p>Best regards,</p>
+      <p>Your Platform Team</p>
+    `;
+
+    // Send email to buyer
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: buyer.email,
+      subject: buyerEmailSubject,
+      html: buyerEmailBody,
+    });
+
+    // Send email to realtor
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: realtor.email,
+      subject: realtorEmailSubject,
+      html: realtorEmailBody,
+    });
+
+    console.log("Booking cancellation emails sent successfully.");
+  } catch (error) {
+    console.error("Error sending booking cancellation emails:", error.message);
+  }
+}
+
+async function sendEventBookingCancellationEmail(booking) {
+  try {
+    // Fetch buyer (user) details
+    const buyer = await User.findById(booking.user_id);
+    if (!buyer) throw new Error("Buyer not found");
+
+    // Fetch event details
+    const event = await Event.findById(booking.event_id).populate("location");
+    if (!event) throw new Error("Event not found");
+
+    // Fetch host (event organizer) details
+    let host;
+    if (booking.owner_type === "Admin") {
+      host = await Admin.findById(booking.owner_id);
+      host.full_name = "Admin";
+    } else {
+      host = await User.findById(booking.owner_id);
+    }
+    if (!host) throw new Error("Host not found");
+
+    // Generate email content
+    const emailSubject = "Event Booking Cancellation - Confirmation";
+
+    let ticketDetailsHTML = "";
+    booking.tickets.forEach((ticket, index) => {
+      ticketDetailsHTML += `<li><strong>Ticket ${index + 1}:</strong> ${ticket.ticket_id}</li>`;
+    });
+
+    const emailBody = `
+      <p>Dear ${buyer.full_name},</p>
+      <p>We regret to inform you that your booking for the event <strong>${event.title}</strong> has been canceled.</p>
+      <p><strong>Event Details:</strong></p>
+      <ul>
+        <li><strong>Event:</strong> ${event.title}</li>
+        <li><strong>Date:</strong> ${new Date(event.start_date).toLocaleDateString()}</li>
+        <li><strong>Location:</strong> ${event.location.address}, ${event.city}, ${event.state}</li>
+        <li><strong>Number of Tickets Canceled:</strong> ${booking.tickets.length}</li>
+        <li><strong>Guest Name:</strong> ${booking.guest_name || buyer.full_name}</li>
+        <li><strong>Guest Email:</strong> ${booking.guest_email || buyer.email}</li>
+        <li><strong>Cancellation Reason:</strong> ${booking.cancelation_reason || "Not provided"}</li>
+        ${ticketDetailsHTML}
+      </ul>
+      <p>${booking.refund_status ? "A refund will be processed as per our policy." : "Please contact support for refund-related queries."}</p>
+      <p>For any further assistance, please reach out to the event host:</p>
+      <p><strong>Host:</strong> ${host.full_name} (${host.email})</p>
+      <p>We hope to see you at future events!</p>
+    `;
+
+    // Send cancellation email to buyer
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: buyer.email,
+      subject: emailSubject,
+      html: emailBody,
+    });
+
+    // Send email to event host
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: host.email,
+      subject: "Event Booking Cancellation Notification",
+      html: `
+        <p>Dear ${host.full_name},</p>
+        <p>We would like to inform you that a booking for your event <strong>${event.title}</strong> has been canceled.</p>
+        <p><strong>Canceled By:</strong> ${buyer.full_name} (${buyer.email})</p>
+        <p><strong>Number of Tickets Canceled:</strong> ${booking.tickets.length}</p>
+        <p><strong>Cancelation Reason:</strong> ${booking.cancelation_reason || "Not provided"}</p>
+        ${ticketDetailsHTML}
+        <p>Best regards,</p>
+        <p>Your Platform Team</p>
+      `,
+    });
+
+    console.log("Event booking cancellation emails sent successfully.");
+  } catch (error) {
+    console.error("Error sending event booking cancellation emails:", error.message);
+  }
+}
+
+
 /**
  * Generates a PDF file with ticket details
  */
@@ -484,7 +642,9 @@ module.exports = {
   sendVerificationEmail,
   sendPasswordResetEmail,
   sendPropertyBookingConfirmationEmail,
+  sendPropertyBookingCancellationEmail,
   sendEventBookingConfirmationEmail,
+  sendEventBookingCancellationEmail,
   sendAccountStatusUpdateEmail,
   sendPropertyStatusEmail,
   sendWithdrawalRequestEmail,
