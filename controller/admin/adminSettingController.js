@@ -1,6 +1,7 @@
 const Contact = require('../../models/admin/Contact');
 const About = require('../../models/admin/About');
 const Faq = require('../../models/admin/Faq');
+const Settings = require('../../models/admin/Settings');
 
 // Contact Us CRUD Operations
 exports.createContact = async (req, res) => {
@@ -119,3 +120,45 @@ exports.deleteFaq = async (req, res) => {
   await Faq.findByIdAndDelete(req.params.id);
   res.json({ message: 'FAQ deleted' });
 };
+
+exports.getSettings = async (req, res) => {
+  try {
+      const { field } = req.query; // Get the requested field (optional)
+
+      // Fetch the settings document
+      const settings = await Settings.findOne();
+
+      if (!settings) return res.status(404).json({ message: "Settings not found" });
+
+      // If a field is provided, return only that field
+      if (field) {
+          if (settings[field] === undefined) {
+              return res.status(400).json({ message: `Field '${field}' not found in settings` });
+          }
+          return res.status(200).json({ [field]: settings[field] });
+      }
+
+      // If no field is specified, return the full settings document
+      res.status(200).json(settings);
+  } catch (error) {
+      res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+
+exports.addOrUpdateSettings = async (req, res) => {
+  try {
+      const { contact_email, price_per_day, booking_percentage } = req.body;
+
+      const settings = await Settings.findOneAndUpdate(
+          {}, // Find any existing settings
+          { contact_email, price_per_day, booking_percentage },
+          { new: true, upsert: true } // Create if not exists
+      );
+
+      res.status(200).json({ message: "Settings updated successfully", settings });
+  } catch (error) {
+      res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+

@@ -23,4 +23,8 @@ router.get('/faqs/:id', adminSettingController.getFaqById);
 router.put('/faqs/:id', adminSettingController.updateFaq);
 router.delete('/faqs/:id', adminSettingController.deleteFaq);
 
+// Settings Routes
+router.post('/settings', adminSettingController.addOrUpdateSettings);
+router.get('/settings', adminSettingController.getSettings);
+
 module.exports = router;
