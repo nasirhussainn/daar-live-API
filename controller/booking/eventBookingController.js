@@ -135,18 +135,19 @@ exports.confirmEventBooking = async (req, res) => {
     const event = await Event.findById(booking.event_id);
     if (!event) return res.status(404).json({ message: "Event not found" });
 
+    const setting = await Settings.findOne().select("booking_percentage -_id");
+    const booking_percentage = setting ? setting.booking_percentage : null;
+
     // Update booking status
     booking.status = "confirmed";
     booking.payment_detail = payment_detail;
+    booking.admin_percentage = booking_percentage;
     await booking.save();
 
     // Send confirmation email
     await sendEventBookingConfirmationEmail(booking);
 
-    const setting = await Settings.findOne().select("booking_percentage -_id");
-    const booking_percentage = setting ? setting.booking_percentage : null;
-
-    const result = await updateRevenue(booking_id, booking_percentage); 
+    const result = await updateRevenue(booking_id); 
 
     //--------------------- ✅ Notification and Payment---------------------
     await sendNotification(booking.user_id, "booking", booking._id, "Booking Confirmed",
@@ -198,10 +199,7 @@ exports.cancelEventBooking = async (req, res) => {
       console.error("Error canceling booking:", error);
     }
 
-    const setting = await Settings.findOne().select("booking_percentage -_id");
-    const booking_percentage = setting ? setting.booking_percentage : null;
-
-    const result = await updateRevenue(booking_id, booking_percentage, true); 
+    const result = await updateRevenue(booking_id, true); 
 
     await sendEventBookingCancellationEmail(booking);
     // ✅ Send Notification to User

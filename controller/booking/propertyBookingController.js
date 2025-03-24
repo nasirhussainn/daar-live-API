@@ -197,15 +197,16 @@ exports.confirmPropertyBooking = async (req, res) => {
       return res.status(400).json({ message: "Booking already confirmed" });
     }
 
-    // Update booking details
-    booking.status = "confirmed";
-    booking.payment_detail = payment_detail;
-    await booking.save(); // This will trigger the pre-validation hook to generate a ticket
-
     const setting = await Settings.findOne().select("booking_percentage -_id");
     const booking_percentage = setting ? setting.booking_percentage : null;
 
-    const result = await updateRevenue(booking_id, booking_percentage); // 10% admin fee
+    // Update booking details
+    booking.status = "confirmed";
+    booking.payment_detail = payment_detail;
+    booking.admin_percentage = booking_percentage;
+    await booking.save(); // This will trigger the pre-validation hook to generate a ticket
+
+    const result = await updateRevenue(booking_id); // 10% admin fee
 
     // Find associated property
     const property = await Property.findById(booking.property_id);
@@ -280,10 +281,7 @@ exports.cancelPropertyBooking = async (req, res) => {
       console.error("Error canceling booking:", error);
     }
 
-    const setting = await Settings.findOne().select("booking_percentage -_id");
-    const booking_percentage = setting ? setting.booking_percentage : null;
-
-    const result = await updateRevenue(booking_id, booking_percentage, true); 
+    const result = await updateRevenue(booking_id, true); 
 
     await sendPropertyBookingCancellationEmail(booking);
 

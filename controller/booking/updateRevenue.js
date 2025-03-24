@@ -3,7 +3,7 @@ const User = require("../../models/User"); // User model
 const Realtor = require("../../models/Realtor"); // Realtor model
 const Admin = require("../../models/Admin"); // Admin model
 
-const updateRevenue = async (booking_id, adminPercentage, isCanceled = false) => {
+const updateRevenue = async (booking_id, isCanceled = false) => {
   try {
     // Find the booking by ID
     const booking = await Booking.findById(booking_id);
@@ -14,6 +14,7 @@ const updateRevenue = async (booking_id, adminPercentage, isCanceled = false) =>
 
     // Check payment amount
     const amount = booking.payment_detail?.amount || 0;
+    const adminPercentage = booking.admin_percentage;
     if (amount <= 0) {
       console.error(`Invalid payment amount for booking ${booking_id}.`);
       return { success: false, message: "Invalid payment amount" };
