@@ -3,7 +3,7 @@ const Realtor = require("../../models/Realtor");
 const Subscription = require("../../models/Subscription");
 const Plan = require("../../models/admin/SubscriptionPlan");
 const Review = require("../../models/Review");
-const { getRealtorStats } = require("../stats/getRealtorStats");
+const { getTotalRevenue } = require("../stats/getTotalRevenue");
 const { getReviewsWithCount } = require("../reviews/getReviewsWithCount");
 
 // Get user via login token
@@ -126,7 +126,7 @@ exports.getRealtors = async (req, res) => {
         }
 
         const reviewData = await getReviewsWithCount(user._id, "User");
-        const stats = await getRealtorStats(user._id);
+        const stats = await getTotalRevenue(user._id);
 
         return {
           ...user,
@@ -181,7 +181,7 @@ const enrichUserData = async (user) => {
       const reviewData = await getReviewsWithCount(user._id, "User");
       responseData.reviews = reviewData;
 
-      const stats = await getRealtorStats(user._id);
+      const stats = await getTotalRevenue(user._id);
       responseData.stats = stats;
     }
   }
