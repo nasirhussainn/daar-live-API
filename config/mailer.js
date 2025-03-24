@@ -8,6 +8,7 @@ const fs = require("fs");
 const path = require("path");
 const PDFDocument = require("pdfkit");
 const Withdraw = require("../models/Withdraw");
+const Settings = require("../models/admin/Settings");
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -452,9 +453,11 @@ async function sendWithdrawalStatusUpdateEmail(withdrawRequest, realtor) {
 
 async function forwardContactMessageToAdmin(name, email, subject, message) {
   try {
+    const setting = await Settings.findOne().select("contact_email -_id");
+    const admin_email = setting ? setting.contact_email : null;
     const mailOptions = {
       from: process.env.EMAIL_USER, // Sender email
-      to: "daarlive@gmail.com", // Admin email
+      to: admin_email, // Admin email
       subject: `New Contact Form Submission: ${subject}`,
       html: `
         <p>You have received a new contact form submission:</p>
