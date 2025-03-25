@@ -4,7 +4,7 @@ const Location = require("../../models/Location");
 exports.findNearbyProperties = async (req, res) => {
   try {
     const { latitude, longitude } = req.body;
-    const maxDistance = 5000; // Default to 5km
+    const maxDistance = 50000; // Default to 5km
 
     if (!latitude || !longitude) {
       return res.status(400).json({ error: "Latitude and Longitude are required" });

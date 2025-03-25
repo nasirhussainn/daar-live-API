@@ -97,6 +97,8 @@ const realtorRoutes = require("./routes/realtor/realtorRoutes")
 
 const withdrawRoutes = require("./routes/withdraw/withdrawRoutes")
 
+const analyticRoutes = require("./routes/analytic/analyticRoutes")
+
 app.use("/auth", [
   authLoginRoutes,
   authEmailVerificationRoutes,
@@ -154,6 +156,8 @@ app.use("/notifications", notificationRoutes);
 app.use("/payment-history", paymentHistoryRoutes);
 
 app.use("/withdraw", withdrawRoutes);
+
+app.use("/analytic", analyticRoutes);
 
 // Start the Server
 server.listen(PORT, () => {
