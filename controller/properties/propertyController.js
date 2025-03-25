@@ -10,7 +10,7 @@ const Realtor = require("../../models/Realtor");
 const Review = require("../../models/Review");
 const Booking = require("../../models/Booking");
 const PaymentHistory = require("../../models/PaymentHistory");
-const { uploadMultipleToCloudinary } = require("../../config/cloudinary"); // Import cloudinary helper
+const { uploadMultipleToCloudinary, deleteFromCloudinary  } = require("../../config/cloudinary"); // Import cloudinary helper
 const { getRealtorStats } = require("../../controller/stats/getRealtorStats"); // Import the function
 const {
   getReviewsWithCount,
@@ -237,7 +237,8 @@ exports.addProperty = async (req, res) => {
 
 exports.getAllProperties = async (req, res) => {
   try {
-    let { page, limit, featured, user_id, created_by, property_status } = req.query;
+    let { page, limit, featured, user_id, created_by, property_status } =
+      req.query;
     page = parseInt(page) || 1; // Default page = 1
     limit = parseInt(limit) || 10; // Default limit = 10
     const skip = (page - 1) * limit;
@@ -343,7 +344,7 @@ exports.getPropertyById = async (req, res) => {
       .populate("media")
       .populate("feature_details")
       .populate("property_type")
-      .populate("property_subtype")
+      .populate("property_subtype");
 
     if (!property) {
       return res.status(404).json({ message: "Property not found" });
@@ -593,8 +594,8 @@ exports.featureProperty = async (req, res) => {
     await paymentEntry.save(); // Save payment history
     // -------------------------------------------------
 
-     // --------------Send Notification-----------------
-     await sendNotification(
+    // --------------Send Notification-----------------
+    await sendNotification(
       property.owner_id._id,
       "Property",
       property._id,
@@ -619,113 +620,307 @@ exports.featureProperty = async (req, res) => {
 };
 
 exports.updateProperty = async (req, res) => {
-  const { propertyId } = req.params;
-
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    // Step 1: Fetch the existing property
-    let property = await Property.findById(propertyId).session(session);
-    if (!property) {
+    const { propertyId } = req.params;
+    const {
+      owner_id,
+      title,
+      description,
+      property_purpose,
+      property_duration,
+      property_type,
+      property_subtype,
+      price,
+      country,
+      state,
+      city,
+      area_size,
+      bedrooms,
+      bathrooms,
+      charge_per,
+      security_deposit,
+      no_of_days,
+      transaction_id,
+      payment_date,
+      transaction_price,
+      is_feature,
+      amenities,
+      remove_images, // Array of image URLs to remove
+      remove_videos, // Array of video URLs to remove
+    } = req.body;
+
+    // Step 1: Find the existing property
+    const existingProperty = await Property.findById(propertyId).session(
+      session
+    );
+    if (!existingProperty) {
       return res.status(404).json({ message: "Property not found" });
     }
 
-    // Step 2: Extract and update only provided fields while keeping original values
-    Object.keys(req.body).forEach((key) => {
-      if (req.body[key] !== undefined) {
-        property[key] = req.body[key];
+    // Step 2: Validate property_subtype against property_purpose if subtype is being updated
+    if (
+      property_subtype &&
+      property_subtype !== existingProperty.property_subtype.toString()
+    ) {
+      const subType = await PropertySubtype.findById(property_subtype);
+      if (!subType) {
+        return res.status(400).json({ message: "Invalid property subtype" });
       }
-    });
 
-    // Step 3: Validate property_subtype against property_purpose if provided
-    if (req.body.property_subtype) {
-      const subType = await PropertySubtype.findById(req.body.property_subtype);
-      if (!subType || subType.property_for !== property.property_purpose) {
+      if (property_purpose && subType.property_for !== property_purpose) {
         return res.status(400).json({
-          message: "Invalid property subtype or mismatch with property_purpose",
+          message: `Selected property subtype does not match property_purpose: ${property_purpose}`,
+        });
+      } else if (
+        !property_purpose &&
+        subType.property_for !== existingProperty.property_purpose
+      ) {
+        return res.status(400).json({
+          message: `Selected property subtype does not match existing property_purpose: ${existingProperty.property_purpose}`,
         });
       }
     }
 
-    // Step 4: Handle amenities update if provided
-    if (req.body.amenities) {
-      const amenitiesArray = Array.isArray(req.body.amenities)
-        ? req.body.amenities
-        : JSON.parse(req.body.amenities || "[]");
+    // Step 3: Validate amenities if being updated
+    let validAmenities = existingProperty.amenities;
+    if (amenities) {
+      const amenitiesArray = Array.isArray(amenities)
+        ? amenities
+        : JSON.parse(amenities || "[]");
 
-      const validAmenities = await Amenities.find({
-        _id: { $in: amenitiesArray.map((id) => mongoose.Types.ObjectId.createFromHexString(id)) },
-      });
+      validAmenities = await Amenities.find({
+        _id: {
+          $in: amenitiesArray.map((id) =>
+            mongoose.Types.ObjectId.createFromHexString(id)
+          ),
+        },
+      }).session(session);
 
       if (validAmenities.length !== amenitiesArray.length) {
-        return res.status(400).json({ message: "One or more amenities are invalid" });
+        return res
+          .status(400)
+          .json({ message: "One or more amenities are invalid" });
       }
-
-      property.amenities = validAmenities.map((a) => a._id);
     }
 
-    // Step 5: Handle location update if provided
+    // Step 4: Handle location update
+    let locationUpdate = {};
     if (req.body.location) {
-      const nearbyLocationsArray = Array.isArray(req.body.location.nearbyLocations)
+      const nearbyLocationsArray = Array.isArray(
+        req.body.location?.nearbyLocations
+      )
         ? req.body.location.nearbyLocations
         : JSON.parse(req.body.location?.nearbyLocations || "[]");
 
-      const locationData = new Location({
+      locationUpdate = {
         ...req.body.location,
         nearbyLocations: nearbyLocationsArray,
-      });
+      };
 
-      const savedLocation = await locationData.save({ session });
-      property.location = savedLocation._id;
+      await Location.findByIdAndUpdate(
+        existingProperty.location,
+        locationUpdate,
+        { session }
+      );
     }
 
-    // Step 6: Handle media update (images/videos) if provided
+    // Step 5: Handle Media updates - Fresh only approach
+    let mediaUpdate = {};
     if (req.files && (req.files.images || req.files.videos)) {
-      let mediaUrls = { images: [], videos: [] };
       const mediaFiles = [];
+      const folderName = "property_media_daar_live";
 
       if (req.files.images) {
-        req.files.images.forEach((img) => mediaFiles.push({ buffer: img.buffer, fieldname: "images" }));
+        req.files.images.forEach((img) => {
+          mediaFiles.push({ buffer: img.buffer, fieldname: "images" });
+        });
       }
+
       if (req.files.videos) {
-        req.files.videos.forEach((vid) => mediaFiles.push({ buffer: vid.buffer, fieldname: "videos" }));
+        req.files.videos.forEach((vid) => {
+          mediaFiles.push({ buffer: vid.buffer, fieldname: "videos" });
+        });
       }
 
-      const folderName = "property_media_daar_live";
-      mediaUrls = await uploadMultipleToCloudinary(mediaFiles, folderName);
+      // Upload new media
+      const mediaUrls = await uploadMultipleToCloudinary(
+        mediaFiles,
+        folderName
+      );
 
-      // Save new media record
-      const mediaData = new Media({ images: mediaUrls.images, videos: mediaUrls.videos });
-      const savedMedia = await mediaData.save({ session });
+      // Delete old media from Cloudinary if it exists
 
-      property.media = savedMedia._id;
-    }
+      // Set fresh media only
+      mediaUpdate = {
+        images: mediaUrls.images || [],
+        videos: mediaUrls.videos || [],
+      };
 
-    // Step 7: Update `is_feature` and `property_status` if applicable
-    if (req.body.is_feature !== undefined) {
-      if (req.body.is_feature === "true" || req.body.is_feature === true) {
-        property.property_status = "approved"; // Mark as approved if featured
-      } else {
-        property.is_feature = false;
+      await Media.findByIdAndUpdate(existingProperty.media, mediaUpdate, {
+        session,
+      });
+    } else if (remove_images || remove_videos) {
+      // Handle selective removal if no new files but removal requested
+      const existingMedia = await Media.findById(
+        existingProperty.media
+      ).session(session);
+
+      if (existingMedia) {
+        let updatedImages = existingMedia.images || [];
+        let updatedVideos = existingMedia.videos || [];
+
+        // Remove specified images
+        if (remove_images) {
+          const imagesToRemove = Array.isArray(remove_images)
+            ? remove_images
+            : [remove_images];
+          updatedImages = updatedImages.filter(
+            (img) => !imagesToRemove.includes(img)
+          );
+
+          // Delete from Cloudinary
+          await Promise.all(
+            imagesToRemove.map((url) => deleteFromCloudinary(url))
+          );
+        }
+
+        // Remove specified videos
+        if (remove_videos) {
+          const videosToRemove = Array.isArray(remove_videos)
+            ? remove_videos
+            : [remove_videos];
+          updatedVideos = updatedVideos.filter(
+            (vid) => !videosToRemove.includes(vid)
+          );
+
+          // Delete from Cloudinary
+          await Promise.all(
+            videosToRemove.map((url) => deleteFromCloudinary(url))
+          );
+        }
+
+        mediaUpdate = {
+          images: updatedImages,
+          videos: updatedVideos,
+        };
+
+        await Media.findByIdAndUpdate(existingProperty.media, mediaUpdate, {
+          session,
+        });
       }
     }
 
-    // Step 8: Save updated property
-    await property.save({ session });
+    // Step 6: Handle featured status changes
+    let featureUpdate = {};
+    let featureMessage = null;
+
+    if (is_feature === "true" || is_feature === true) {
+      // Check if property is already featured
+      if (!existingProperty.is_featured) {
+        try {
+          const featureEntity = new FeaturedEntity({
+            transaction_id,
+            transaction_price,
+            payment_date,
+            no_of_days,
+            is_active: true,
+            property_id: existingProperty._id,
+            entity_type: "property",
+          });
+
+          const savedFeaturedEntity = await featureEntity.save({ session });
+          featureUpdate = {
+            feature_details: savedFeaturedEntity._id,
+            is_featured: true,
+            property_status: "approved", // Auto-approve when featured
+          };
+        } catch (featureError) {
+          console.error("Error adding FeaturedEntity:", featureError.message);
+          featureMessage =
+            "Property could not be featured. You can request a feature again.";
+        }
+      }
+    } else if (is_feature === "false" || is_feature === false) {
+      // Remove featured status if it exists
+      if (existingProperty.is_featured && existingProperty.feature_details) {
+        await FeaturedEntity.findByIdAndUpdate(
+          existingProperty.feature_details,
+          { is_active: false },
+          { session }
+        );
+        featureUpdate = {
+          is_featured: false,
+          feature_details: null,
+        };
+      }
+    }
+
+    // Step 7: Update property status if needed
+    let statusUpdate = {};
+    if (
+      existingProperty.property_status === "approved" &&
+      (title || description || property_type || property_subtype)
+    ) {
+      // If changing important fields on an approved property, set back to pending
+      statusUpdate.property_status = "pending";
+    }
+
+    // Step 8: Update the property
+    const updatedProperty = await Property.findByIdAndUpdate(
+      propertyId,
+      {
+        $set: {
+          title: title || existingProperty.title,
+          description: description || existingProperty.description,
+          property_purpose:
+            property_purpose || existingProperty.property_purpose,
+          property_duration:
+            property_duration || existingProperty.property_duration,
+          property_type: property_type || existingProperty.property_type,
+          property_subtype:
+            property_subtype || existingProperty.property_subtype,
+          price: price || existingProperty.price,
+          country: country || existingProperty.country,
+          state: state || existingProperty.state,
+          city: city || existingProperty.city,
+          area_size: area_size || existingProperty.area_size,
+          bedrooms: bedrooms || existingProperty.bedrooms,
+          bathrooms: bathrooms || existingProperty.bathrooms,
+          charge_per: charge_per || existingProperty.charge_per,
+          security_deposit:
+            security_deposit || existingProperty.security_deposit,
+          amenities: validAmenities.map((a) => a._id),
+          ...statusUpdate,
+          ...featureUpdate,
+        },
+      },
+      { new: true, session }
+    );
 
     // Commit the transaction
     await session.commitTransaction();
     session.endSession();
 
-    res.status(200).json({ message: "Property updated successfully", property });
+    // Step 9: Return success response
+    res.status(200).json({
+      message:
+        "Property updated successfully!" +
+        (featureMessage ? ` ${featureMessage}` : ""),
+      property: updatedProperty,
+      media: mediaUpdate, // Return the updated media in response
+    });
   } catch (error) {
-    // Rollback transaction in case of an error
+    // If any error occurs, roll back the transaction
     await session.abortTransaction();
     session.endSession();
 
     console.error(error);
-    res.status(500).json({ message: "Error updating property", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error updating property", error: error.message });
   }
 };
 

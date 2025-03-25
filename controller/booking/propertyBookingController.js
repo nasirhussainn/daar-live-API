@@ -34,6 +34,8 @@ exports.bookProperty = async (req, res) => {
       guest_name,
       guest_email,
       guest_phone,
+      id_number,
+      phone_number
     } = req.body;
 
     // Check if property exists
@@ -76,6 +78,8 @@ exports.bookProperty = async (req, res) => {
       existingPendingBooking.guest_name = guest_name || null;
       existingPendingBooking.guest_email = guest_email || null;
       existingPendingBooking.guest_phone = guest_phone || null;
+      existingPendingBooking.id_number = id_number || null;
+      existingPendingBooking.phone_number = phone_number || null;
       existingPendingBooking.updated_at = new Date();
 
       await existingPendingBooking.save();
@@ -164,6 +168,8 @@ exports.bookProperty = async (req, res) => {
       guest_name: guest_name || null,
       guest_email: guest_email || null,
       guest_phone: guest_phone || null,
+      id_number,
+      phone_number,
     });
 
     await newBooking.save();
