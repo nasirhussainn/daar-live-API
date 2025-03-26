@@ -146,19 +146,38 @@ exports.getSettings = async (req, res) => {
 };
 
 
+const Settings = require("../models/Settings");
+
 exports.addOrUpdateSettings = async (req, res) => {
   try {
-      const { contact_email, price_per_day, booking_percentage } = req.body;
+    const {
+      contact_email,
+      price_per_day,
+      booking_percentage,
+      free_trial_days,
+      free_trial_properties,
+      free_trial_events,
+      days_to_hide_after_expiry,
+    } = req.body;
 
-      const settings = await Settings.findOneAndUpdate(
-          {}, // Find any existing settings
-          { contact_email, price_per_day, booking_percentage },
-          { new: true, upsert: true } // Create if not exists
-      );
+    const settings = await Settings.findOneAndUpdate(
+      {}, // Find any existing settings
+      {
+        contact_email,
+        price_per_day,
+        booking_percentage,
+        free_trial_days,
+        free_trial_properties,
+        free_trial_events,
+        days_to_hide_after_expiry,
+      },
+      { new: true, upsert: true, setDefaultsOnInsert: true } // Create if not exists, set defaults
+    );
 
-      res.status(200).json({ message: "Settings updated successfully", settings });
+    res.status(200).json({ message: "Settings updated successfully", settings });
   } catch (error) {
-      res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 

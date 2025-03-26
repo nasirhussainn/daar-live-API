@@ -107,7 +107,6 @@ const BookingSchema = new Schema({
   admin_percentage: { type: Number, default: 0 },
 
   id_number: { type: String, default: null },
-  phone_number: { type: String, default: null },
 
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now },
