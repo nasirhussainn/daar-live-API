@@ -2,11 +2,12 @@ const Subscription = require('../../models/Subscription');
 const Realtor = require('../../models/Realtor');
 const SubscriptionPlan = require('../../models/admin/SubscriptionPlan');
 const PaymentHistory = require("../../models/PaymentHistory");
+const logPaymentHistory = require("./paymentHistoryService");
 
 // 📌 Controller to subscribe a realtor
 const subscribeRealtor = async (req, res) => {
   try {
-    const { realtor_id, subscription_id, customer_id, plan_id, start_date, end_date } = req.body;
+    const { realtor_id, subscription_id, customer_id, start_date, end_date, plan_id } = req.body;
 
     // Check if the realtor exists
     const realtor = await Realtor.findById(realtor_id);
@@ -31,13 +32,13 @@ const subscribeRealtor = async (req, res) => {
       await existingSubscription.save();
     }
 
-    // Create a new subscription
+    // Create a new subscription with full plan details
     const subscription = new Subscription({
       realtor_id,
       subscription_id,
       customer_id,
-      plan_id,
-      price_id: plan.price_id, // Ensure price_id from plan is stored
+      productId: plan.productId, // Ensure price_id from plan is stored
+      plan_details: { ...plan.toObject() }, // Store full plan object
       start_date,
       end_date,
       status: "active",
@@ -49,31 +50,29 @@ const subscribeRealtor = async (req, res) => {
     // Update the realtor's `is_subscribed` status
     await Realtor.findByIdAndUpdate(realtor_id, { is_subscribed: true });
 
-    // --------------log payment history-----------------
-    const paymentEntry = new PaymentHistory({
+    // -------------- Log Payment History -----------------
+    await logPaymentHistory({
       payer_type: "Realtor",
       payer_id: realtor_id,
-      recipient_type: "Admin",
-      recipient_id: "67cf2566c17e98f39288671b", // Update this with your Admin ID
       transaction_id: subscription_id,
-      amount: plan.price,
+      amount: plan.planAmount,
       entity_type: "subscription",
-      entity_id: subscription._id, // Link to the subscription
-      status: "completed",
+      entity_id: subscription._id,
     });
-    await paymentEntry.save(); // Save payment history
-    // -------------------------------------------------
+    // ---------------------------------------------------
 
     return res.status(201).json({
       message: "Subscription successfully created",
       previous_subscription_status: existingSubscription ? "canceled" : "none",
       new_subscription: subscription,
     });
+
   } catch (error) {
     console.error("Error:", error);
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
 
 // 📌 Controller to get all active subscriptions (with plan details)
 const getAllSubscriptions = async (req, res) => {

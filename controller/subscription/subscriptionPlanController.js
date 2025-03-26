@@ -3,9 +3,9 @@ const SubscriptionPlan = require('../../models/admin/SubscriptionPlan');
 // Create a new subscription plan (SuperAdmin Only)
 exports.createPlan = async (req, res) => {
     try {
-        const { productId, days, months, planName, planDescription, noOfListings, planAmount } = req.body;
+        const { productId, days, months, planName, planDescription, noOfPropertyListing, noOfEventListing, planAmount } = req.body;
 
-        const plan = new SubscriptionPlan({ productId, days, months, planName, planDescription, noOfListings, planAmount });
+        const plan = new SubscriptionPlan({ productId, days, months, planName, planDescription, noOfPropertyListing, noOfEventListing, planAmount });
         await plan.save();
 
         res.status(201).json({ message: "Subscription Plan Created", plan });
@@ -40,7 +40,7 @@ exports.getPlanById = async (req, res) => {
 exports.updatePlan = async (req, res) => {
     try {
         const { plan_id } = req.params; // Extract plan_id from request parameters
-        const { productId, days, months, planName, planDescription, noOfListings, planAmount } = req.body;
+        const { productId, days, months, planName, planDescription, noOfPropertyListing, noOfEventListing, planAmount } = req.body;
 
         if (!plan_id) {
             return res.status(400).json({ message: "Plan ID is required" });
@@ -48,7 +48,7 @@ exports.updatePlan = async (req, res) => {
 
         const plan = await SubscriptionPlan.findByIdAndUpdate(
             plan_id, // Using _id to find the document
-            { productId, days, months, planName, planDescription, noOfListings, planAmount }, // Fields to update
+            { productId, days, months, planName, planDescription, noOfPropertyListing, noOfEventListing, planAmount }, // Fields to update
             { new: true } // Return updated document
         );
 

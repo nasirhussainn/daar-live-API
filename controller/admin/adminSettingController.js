@@ -146,8 +146,6 @@ exports.getSettings = async (req, res) => {
 };
 
 
-const Settings = require("../models/Settings");
-
 exports.addOrUpdateSettings = async (req, res) => {
   try {
     const {

@@ -24,7 +24,11 @@ const SubscriptionPlanSchema = new mongoose.Schema(
       type: String,
       required: true
     },
-    noOfListings: {
+    noOfPropertyListing: {
+      type: Number,
+      required: true
+    },
+    noOfEventListing: {
       type: Number,
       required: true
     },
