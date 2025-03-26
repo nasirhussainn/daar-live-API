@@ -16,9 +16,10 @@ const {
 } = require("../../controller/reviews/getReviewsWithCount"); // Import the function
 const { getAvgRating } = require("../user/getAvgRating"); // Import the function
 
+const { validateSubscriptionLimits } = require("../../services/subscriptionLimits");
+
 const Admin = require("../../models/Admin"); // Import the Admin model
 async function determineCreatedBy(owner_id) {
-  if (!owner_id) return "realtor"; // If owner_id is not provided, assume it's a realtor
   const isAdmin = await Admin.exists({ _id: owner_id }); // Check if owner_id exists in Admin collection
   return isAdmin ? "Admin" : "User"; // Return "admin" if exists in Admin, otherwise "realtor"
 }
@@ -49,6 +50,13 @@ exports.addEvent = async (req, res) => {
       is_feature,
       allow_booking,
     } = req.body;
+
+    // Validate subscription/trial limits (throws error if limit reached)
+    await validateSubscriptionLimits({
+      userId: host_id,
+      entityType: "event",
+      session,
+    });
 
     if (entry_type === "paid" && (!entry_price || entry_price == 0)) {
       return res.status(400).json({

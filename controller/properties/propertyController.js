@@ -18,9 +18,11 @@ const {
 } = require("../../controller/reviews/getReviewsWithCount"); // Import the function
 const { getAvgRating } = require("../user/getAvgRating"); // Import the function
 
+const { validateSubscriptionLimits } = require("../../services/subscriptionLimits");
+
 const Admin = require("../../models/Admin"); // Import the Admin model
+
 async function determineCreatedBy(owner_id) {
-  if (!owner_id) return "realtor"; // If owner_id is not provided, assume it's a realtor
   const isAdmin = await Admin.exists({ _id: owner_id }); // Check if owner_id exists in Admin collection
   return isAdmin ? "Admin" : "User"; // Return "admin" if exists in Admin, otherwise "realtor"
 }
@@ -55,6 +57,13 @@ exports.addProperty = async (req, res) => {
       transaction_price,
       is_feature,
     } = req.body;
+
+    // Validate subscription/trial limits (throws error if limit reached)
+    await validateSubscriptionLimits({
+      userId: owner_id,
+      entityType: "property",
+      session,
+    });
 
     // Step 2: Validate property_subtype against property_purpose
     const subType = await PropertySubtype.findById(property_subtype);
