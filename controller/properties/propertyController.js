@@ -11,8 +11,12 @@ const Review = require("../../models/Review");
 const Booking = require("../../models/Booking");
 const PaymentHistory = require("../../models/PaymentHistory");
 const AdminRevenue = require("../../models/admin/AdminRevenue"); // AdminRevenue model
+const { updateAdminRevenue } = require("../../services/updateAdminRevenue"); // AdminRevenue service
 
-const { uploadMultipleToCloudinary, deleteFromCloudinary  } = require("../../config/cloudinary"); // Import cloudinary helper
+const {
+  uploadMultipleToCloudinary,
+  deleteFromCloudinary,
+} = require("../../config/cloudinary"); // Import cloudinary helper
 const { getRealtorStats } = require("../../controller/stats/getRealtorStats"); // Import the function
 const {
   getReviewsWithCount,
@@ -20,7 +24,9 @@ const {
 } = require("../../controller/reviews/getReviewsWithCount"); // Import the function
 const { getAvgRating } = require("../user/getAvgRating"); // Import the function
 
-const { validateSubscriptionLimits } = require("../../services/subscriptionLimits");
+const {
+  validateSubscriptionLimits,
+} = require("../../services/subscriptionLimits");
 
 const Admin = require("../../models/Admin"); // Import the Admin model
 
@@ -585,11 +591,8 @@ exports.featureProperty = async (req, res) => {
     await property.save({ session });
 
     // --------------Update Featured Listing Revenue-----------------
-    await AdminRevenue.findOneAndUpdate(
-      {}, 
-      { $inc: { featured_revenue: transaction_price } }, 
-      { upsert: true, new: true }
-    );
+    const currentDate = new Date().toISOString().split("T")[0];
+    await updateAdminRevenue(transaction_price, "featured_revenue", currentDate);
     // ------------------------------------------------------------
 
     // Commit transaction
@@ -942,4 +945,3 @@ exports.updateProperty = async (req, res) => {
       .json({ message: "Error updating property", error: error.message });
   }
 };
-

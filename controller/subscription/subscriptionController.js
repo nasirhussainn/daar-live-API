@@ -1,14 +1,22 @@
-const Subscription = require('../../models/Subscription');
-const Realtor = require('../../models/Realtor');
-const SubscriptionPlan = require('../../models/admin/SubscriptionPlan');
+const Subscription = require("../../models/Subscription");
+const Realtor = require("../../models/Realtor");
+const SubscriptionPlan = require("../../models/admin/SubscriptionPlan");
 const PaymentHistory = require("../../models/PaymentHistory");
 const AdminRevenue = require("../../models/admin/AdminRevenue"); // AdminRevenue model
+const { updateAdminRevenue } = require("../../services/updateAdminRevenue"); // AdminRevenue service
 const logPaymentHistory = require("./paymentHistoryService");
 
 // 📌 Controller to subscribe a realtor
 const subscribeRealtor = async (req, res) => {
   try {
-    const { realtor_id, subscription_id, customer_id, start_date, end_date, plan_id } = req.body;
+    const {
+      realtor_id,
+      subscription_id,
+      customer_id,
+      start_date,
+      end_date,
+      plan_id,
+    } = req.body;
 
     // Check if the realtor exists
     const realtor = await Realtor.findById(realtor_id);
@@ -23,7 +31,10 @@ const subscribeRealtor = async (req, res) => {
     }
 
     // Check if the realtor already has an active subscription
-    const existingSubscription = await Subscription.findOne({ realtor_id, status: "active" });
+    const existingSubscription = await Subscription.findOne({
+      realtor_id,
+      status: "active",
+    });
 
     if (existingSubscription) {
       // Cancel the existing active subscription before adding a new one
@@ -63,11 +74,10 @@ const subscribeRealtor = async (req, res) => {
     // ---------------------------------------------------
 
     // ----------------- Update Subscription Revenue -----------------
-    await AdminRevenue.findOneAndUpdate(
-      {}, 
-      { $inc: { subscription_revenue: plan.planAmount } }, 
-      { upsert: true, new: true }
-    );
+    // Get the current date in YYYY-MM-DD format
+    const currentDate = new Date().toISOString().split("T")[0];
+    await updateAdminRevenue(plan.planAmount, "subscription_revenue", currentDate);
+
     // ----------------------------------------------------------------
 
     return res.status(201).json({
@@ -75,38 +85,36 @@ const subscribeRealtor = async (req, res) => {
       previous_subscription_status: existingSubscription ? "canceled" : "none",
       new_subscription: subscription,
     });
-
   } catch (error) {
     console.error("Error:", error);
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
-
 // 📌 Controller to get all active subscriptions (with plan details)
 const getAllSubscriptions = async (req, res) => {
   try {
-    const subscriptions = await Subscription.find({ status: 'active' })
-      .populate('realtor_id', 'business_name')
-      .populate('plan_id'); // Include subscription plan details
+    const subscriptions = await Subscription.find({ status: "active" })
+      .populate("realtor_id", "business_name")
+      .populate("plan_id"); // Include subscription plan details
 
     res.status(200).json(subscriptions);
   } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
+    console.error("Error:", error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
 const getAllSubscriptionsFull = async (req, res) => {
   try {
     const subscriptions = await Subscription.find()
-      .populate('realtor_id', 'business_name')
-      .populate('plan_id'); // Include subscription plan details
+      .populate("realtor_id", "business_name")
+      .populate("plan_id"); // Include subscription plan details
 
     res.status(200).json(subscriptions);
   } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
+    console.error("Error:", error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
@@ -116,25 +124,30 @@ const getRealtorSubscriptions = async (req, res) => {
     const { realtor_id } = req.params;
 
     // Find subscriptions and populate both the realtor and user details
-    const subscriptions = await Subscription.find({ realtor_id, status: 'active' })
+    const subscriptions = await Subscription.find({
+      realtor_id,
+      status: "active",
+    })
       .populate({
-        path: 'realtor_id',
-        select: 'business_name is_subscribed user_id',  
+        path: "realtor_id",
+        select: "business_name is_subscribed user_id",
         populate: {
-          path: 'user_id',
-          select: 'full_name email',  
+          path: "user_id",
+          select: "full_name email",
         },
       })
-      .populate('plan_id'); // Include subscription plan details
+      .populate("plan_id"); // Include subscription plan details
 
     if (!subscriptions.length) {
-      return res.status(404).json({ message: 'No active subscriptions found for this realtor' });
+      return res
+        .status(404)
+        .json({ message: "No active subscriptions found for this realtor" });
     }
 
     res.status(200).json(subscriptions);
   } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
+    console.error("Error:", error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
@@ -146,28 +159,30 @@ const cancelSubscription = async (req, res) => {
     // Find the subscription
     const subscription = await Subscription.findById(subscription_id);
     if (!subscription) {
-      return res.status(404).json({ message: 'Subscription not found' });
+      return res.status(404).json({ message: "Subscription not found" });
     }
 
     // Update the status to 'inactive'
-    subscription.status = 'canceled';
+    subscription.status = "canceled";
     await subscription.save();
 
     // Check if the realtor has any other active subscriptions
     const activeSubscriptions = await Subscription.findOne({
       realtor_id: subscription.realtor_id,
-      status: 'active',
+      status: "active",
     });
 
     // If no active subscriptions remain, update is_subscribed to false
     if (!activeSubscriptions) {
-      await Realtor.findByIdAndUpdate(subscription.realtor_id, { is_subscribed: false });
+      await Realtor.findByIdAndUpdate(subscription.realtor_id, {
+        is_subscribed: false,
+      });
     }
 
-    res.status(200).json({ message: 'Subscription cancelled successfully' });
+    res.status(200).json({ message: "Subscription cancelled successfully" });
   } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
+    console.error("Error:", error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
@@ -176,5 +191,5 @@ module.exports = {
   getAllSubscriptions,
   getRealtorSubscriptions,
   cancelSubscription,
-  getAllSubscriptionsFull
+  getAllSubscriptionsFull,
 };
