@@ -1012,14 +1012,28 @@ exports.getFilteredProperties = async (req, res) => {
       filter.bathrooms = { $gte: parseInt(bathrooms) };
     }
 
-    // Property type filter
+    // Property type filter (multiple allowed)
     if (propertyType) {
-      filter.property_type = propertyType;
+      // Convert comma-separated string to array if needed
+      const typeIds = Array.isArray(propertyType)
+        ? propertyType
+        : propertyType.split(",");
+
+      filter.property_type = {
+        $in: typeIds.map((id) => new mongoose.Types.ObjectId(id)),
+      };
     }
 
-    // Property subtype filter
+    // Property subtype filter (multiple allowed)
     if (propertySubtype) {
-      filter.property_subtype = propertySubtype;
+      // Convert comma-separated string to array if needed
+      const subtypeIds = Array.isArray(propertySubtype)
+        ? propertySubtype
+        : propertySubtype.split(",");
+
+      filter.property_subtype = {
+        $in: subtypeIds.map((id) => new mongoose.Types.ObjectId(id)),
+      };
     }
 
     // Purpose filter (sell/rent)
@@ -1033,10 +1047,21 @@ exports.getFilteredProperties = async (req, res) => {
     }
 
     // Amenities filter (if any amenities are selected)
-    if (amenities.length > 0) {
-      filter.amenities = {
-        $all: Array.isArray(amenities) ? amenities : [amenities],
-      };
+    if (amenities) {
+      const amenityIds = Array.isArray(amenities) 
+        ? amenities 
+        : amenities.split(',');
+      
+      const validIds = amenityIds.filter(id => 
+        mongoose.Types.ObjectId.isValid(id) && 
+        (new mongoose.Types.ObjectId(id)).toString() === id
+      );
+      
+      if (validIds.length > 0) {
+        filter.amenities = {
+          $all: validIds.map(id => new mongoose.Types.ObjectId(id))
+        };
+      }
     }
 
     // Location filters

@@ -7,7 +7,7 @@ const { uploadMultipleToCloudinary } = require("../../config/cloudinary");
 const FeaturedEntity = require("../../models/FeaturedEntity");
 const Review = require("../../models/Review");
 const PaymentHistory = require("../../models/PaymentHistory");
-const Realtor = require("../../models/Realtor")
+const Realtor = require("../../models/Realtor");
 const AdminRevenue = require("../../models/admin/AdminRevenue"); // AdminRevenue model
 const { updateAdminRevenue } = require("../../services/updateAdminRevenue"); // AdminRevenue service
 
@@ -18,7 +18,9 @@ const {
 } = require("../../controller/reviews/getReviewsWithCount"); // Import the function
 const { getAvgRating } = require("../user/getAvgRating"); // Import the function
 
-const { validateSubscriptionLimits } = require("../../services/subscriptionLimits");
+const {
+  validateSubscriptionLimits,
+} = require("../../services/subscriptionLimits");
 
 const Admin = require("../../models/Admin"); // Import the Admin model
 async function determineCreatedBy(owner_id) {
@@ -232,7 +234,7 @@ exports.getAllEvents = async (req, res) => {
       if (created_by) query.$or.push({ created_by });
     }
 
-    if(status) query.status = status;
+    if (status) query.status = status;
 
     const totalEvents = await Event.countDocuments(query);
 
@@ -322,8 +324,8 @@ exports.getEventById = async (req, res) => {
     // Fetch host stats
     const hostId = event.host_id._id.toString();
     const hostStats = await getHostsStats(hostId);
-    const hostReviewCount = await getReviewCount(hostId, "User");  // Fixed
-    const hostAvgRating = await getAvgRating(hostId);  // Fixed
+    const hostReviewCount = await getReviewCount(hostId, "User"); // Fixed
+    const hostAvgRating = await getAvgRating(hostId); // Fixed
 
     res.status(200).json({
       ...event.toObject(),
@@ -339,7 +341,6 @@ exports.getEventById = async (req, res) => {
       .json({ message: "Error fetching event", error: error.message });
   }
 };
-
 
 // ✅ Fetch all events by host ID + Host Stats
 exports.getAllEventsByHostId = async (req, res) => {
@@ -402,7 +403,6 @@ exports.getAllEventsByHostId = async (req, res) => {
       .json({ message: "Error fetching events", error: error.message });
   }
 };
-
 
 exports.deleteEvent = async (req, res) => {
   const session = await mongoose.startSession();
@@ -517,29 +517,33 @@ exports.featureEvent = async (req, res) => {
 
     // --------------Update Featured Listing Revenue-----------------
     const currentDate = new Date().toISOString().split("T")[0];
-    await updateAdminRevenue(transaction_price, "featured_revenue", currentDate);
+    await updateAdminRevenue(
+      transaction_price,
+      "featured_revenue",
+      currentDate
+    );
     // ------------------------------------------------------------
 
     // Commit transaction
     await session.commitTransaction();
     session.endSession();
 
-     // --------------log payment history-----------------
-     const realtor = await Realtor.findById(event.host_id);
-     const realtor_id = realtor._id;
-     const paymentEntry = new PaymentHistory({
-       payer_type: "Realtor",
-       payer_id: realtor_id,
-       recipient_type: "Admin",
-       recipient_id: "67cf2566c17e98f39288671b", // Update this with your Admin ID
-       transaction_id: transaction_id,
-       amount: transaction_price,
-       entity_type: "freatured_property",
-       entity_id: subscription._id, // Link to the subscription
-       status: "completed",
-     });
-     await paymentEntry.save(); // Save payment history
-     // -------------------------------------------------
+    // --------------log payment history-----------------
+    const realtor = await Realtor.findById(event.host_id);
+    const realtor_id = realtor._id;
+    const paymentEntry = new PaymentHistory({
+      payer_type: "Realtor",
+      payer_id: realtor_id,
+      recipient_type: "Admin",
+      recipient_id: "67cf2566c17e98f39288671b", // Update this with your Admin ID
+      transaction_id: transaction_id,
+      amount: transaction_price,
+      entity_type: "freatured_property",
+      entity_id: subscription._id, // Link to the subscription
+      status: "completed",
+    });
+    await paymentEntry.save(); // Save payment history
+    // -------------------------------------------------
 
     res.status(200).json({
       message: "Event has been successfully featured.",
@@ -553,5 +557,166 @@ exports.featureEvent = async (req, res) => {
     res
       .status(500)
       .json({ message: "Error featuring event", error: error.message });
+  }
+};
+
+exports.getFilteredEvents = async (req, res) => {
+  try {
+    // Extract query parameters
+    const {
+      page = 1,
+      limit = 10,
+      start_price,
+      end_price,
+      start_date,
+      end_date,
+      event_types,
+      status,
+      featured,
+      country,
+      city,
+      min_rating,
+      host_id,
+      created_by,
+      time_range,
+      entry_type
+    } = req.query;
+
+    // Build the filter object
+    const filter = {
+      status: { 
+        $in: ['upcoming', 'live']  // Default filter
+      }
+    };
+
+    // Price filter
+    if (start_price !== undefined || end_price !== undefined) {
+      filter.$expr = { $and: [] };
+      
+      if (start_price !== undefined) {
+        filter.$expr.$and.push({
+          $gte: [
+            {
+              $cond: {
+                if: { $eq: [{ $type: "$entry_price" }, "string"] },
+                then: { $toDouble: "$entry_price" },
+                else: "$entry_price"
+              }
+            },
+            Number(start_price)
+          ]
+        });
+      }
+      
+      if (end_price !== undefined) {
+        filter.$expr.$and.push({
+          $lte: [
+            {
+              $cond: {
+                if: { $eq: [{ $type: "$entry_price" }, "string"] },
+                then: { $toDouble: "$entry_price" },
+                else: "$entry_price"
+              }
+            },
+            Number(end_price)
+          ]
+        });
+      }
+
+      if (filter.$expr.$and.length === 0) {
+        delete filter.$expr;
+      }
+    }
+
+    // Date filter - FIXED HANDLING
+    if (start_date || end_date) {
+      if (start_date) {
+        filter.start_date = filter.start_date || {};
+        filter.start_date.$gte = new Date(start_date);
+      }
+      if (end_date) {
+        filter.end_date = filter.end_date || {};
+        filter.end_date.$lte = new Date(end_date);
+      }
+    }
+
+    // Event types filter
+    if (event_types) {
+      filter.event_type = {
+        $in: event_types.split(",").map(id => new mongoose.Types.ObjectId(id))
+      };
+    }
+
+    // Entry type filter
+    if (entry_type) {
+      filter.entry_type = entry_type; // 'free' or 'paid'
+    }
+
+    // Optional filters
+    if (status) filter.status = status;
+    if (featured) filter.is_feature = featured === "true";
+    if (country) filter.country = country;
+    if (city) filter.city = city;
+    if (min_rating) filter.avg_rating = { $gte: Number(min_rating) };
+    if (host_id) filter.host_id = new mongoose.Types.ObjectId(host_id);
+    if (created_by) filter.created_by = created_by;
+
+    // Time range filter
+    if (time_range) {
+      const [startTime, endTime] = time_range.split("-");
+      filter.start_time = { $gte: startTime };
+      filter.end_time = { $lte: endTime };
+    }
+
+    // Pagination
+    const skip = (Number(page) - 1) * Number(limit);
+    const totalEvents = await Event.countDocuments(filter);
+
+    // Query with population
+    const events = await Event.find(filter)
+      .populate({
+        path: "host_id",
+        select: "email full_name phone_number profile_picture"
+      })
+      .populate("event_type")
+      .populate("location")
+      .populate("media")
+      .populate("feature_details")
+      .skip(skip)
+      .limit(Number(limit))
+      .sort({ start_date: 1 });
+
+    // Response
+    res.status(200).json({
+      success: true,
+      totalEvents,
+      page: Number(page),
+      results_per_page: Number(limit),
+      events: events.map(event => ({
+        id: event._id,
+        title: event.title,
+        description: event.description,
+        start_date: event.start_date,
+        end_date: event.end_date,
+        start_time: event.start_time,
+        end_time: event.end_time,
+        entry_price: event.entry_price,
+        entry_type: event.entry_type,
+        event_type: event.event_type,
+        location: event.location,
+        host: event.host_id,
+        featured: event.is_feature,
+        status: event.status,
+        rating: event.avg_rating
+      }))
+    });
+
+  } catch (error) {
+    console.error("Error filtering events:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error filtering events",
+      error: error.message
+    });
   }
 };
