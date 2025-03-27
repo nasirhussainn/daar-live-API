@@ -16,114 +16,125 @@ admin.initializeApp({
 
 // Manual Signup with Profile Picture Upload
 exports.signup = async (req, res) => {
-    const signup_type = "manual";
-    let phone_issue = false;
-    const session = await mongoose.startSession();
-  
-    try {
+  const signup_type = "manual";
+  let phone_issue = false;
+  const session = await mongoose.startSession();
+
+  try {
       session.startTransaction(); // Start transaction
-  
-      const { full_name, email, password, role, business_name, phone_number, tax_id } = req.body;
-  
+
+      const { full_name, email, password, role, business_name, phone_number } = req.body;
+
       // Validate required fields
       if (!full_name || !email || !password || !role) {
-        return res.status(400).json({ message: "Missing required fields." });
+          return res.status(400).json({ message: "Missing required fields." });
       }
-  
+
       if (role !== "buyer") {
-        phone_issue = false;
+          phone_issue = false;
       }
-  
+
       // Ensure business details for realtors
-      if (role === "realtor" && !business_name) {
-        return res.status(400).json({ message: "Business name is required for realtors." });
+      if (role === "realtor" && !business_type) {
+          return res.status(400).json({ message: "Business type is required for realtors." });
       }
-  
+
       // Check if user already exists
       let existingUser = await User.findOne({ email, role });
       if (existingUser) {
-        return res.status(400).json({ message: `User with this email already exists` });
+          return res.status(400).json({ message: `User with this email already exists` });
       }
-  
+
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
-  
+
       // Upload profile picture to Cloudinary
       let imageUrl = null;
       if (req.files["profile_picture"]) {
-        const folderName = role === "realtor" ? "realtors_profiles" : "buyers_profiles";
-        imageUrl = await uploadToCloudinary(req.files["profile_picture"][0].buffer, folderName);
+          const folderName = role === "realtor" ? "realtors_profiles" : "buyers_profiles";
+          imageUrl = await uploadToCloudinary(req.files["profile_picture"][0].buffer, folderName);
       }
-  
-      // Upload documents to Cloudinary (only for realtors)
-      let documentUrls = [];
-      if (role === "realtor" && req.files["document_list"]) {
-        for (const file of req.files["document_list"]) {
-          const docUrl = await uploadToCloudinary(file.buffer, "realtors_documents");
-          documentUrls.push(docUrl);
-        }
+
+      // Upload Tax ID and Verification Doc (only for realtors)
+      let taxIdImageUrl = null;
+      let verificationDocImageUrl = null;
+
+      if (role === "realtor") {
+          if (req.files["tax_id_image"]) {
+              taxIdImageUrl = await uploadToCloudinary(req.files["tax_id_image"][0].buffer, "realtors_documents");
+          }
+          if (req.files["verification_doc_image"]) {
+              verificationDocImageUrl = await uploadToCloudinary(req.files["verification_doc_image"][0].buffer, "realtors_documents");
+          }
       }
-  
+
       // Generate email verification token
       const emailVerificationToken = crypto.randomBytes(32).toString("hex");
       const emailVerificationTokenExpiry = Date.now() + 2 * 60 * 1000;
-  
+
       // Create new user
       const newUser = new User({
-        full_name,
-        email,
-        password: hashedPassword,
-        phone_number: phone_number || null,
-        role,
-        account_type: signup_type,
-        profile_picture: imageUrl,
-        email_verified: false,
-        email_verification_token: emailVerificationToken,
-        email_verification_token_expiry: emailVerificationTokenExpiry,
-        phone_verified: phone_issue,
+          full_name,
+          email,
+          password: hashedPassword,
+          phone_number: phone_number || null,
+          role,
+          account_type: signup_type,
+          profile_picture: imageUrl,
+          email_verified: false,
+          email_verification_token: emailVerificationToken,
+          email_verification_token_expiry: emailVerificationTokenExpiry,
+          phone_verified: phone_issue,
       });
-  
+
       await newUser.save({ session });
-  
+
       // If the user is a realtor, create a corresponding Realtor document
       if (role === "realtor") {
-        const newRealtor = new Realtor({
-          user_id: newUser._id,
-          business_name,
-          documents_list: documentUrls,  // Store uploaded documents here
-          tax_id: tax_id || null,
-        });
-  
-        await newRealtor.save({ session });
+          const newRealtor = new Realtor({
+              user_id: newUser._id,
+              business_name,
+              business_type: "", // Set as required in future steps
+              tax_id_image: taxIdImageUrl,
+              verification_doc_image: verificationDocImageUrl,
+              avg_rating: 0,
+              is_subscribed: false,
+              bank_details: [], // Empty initially
+              total_revenue: 0,
+              available_revenue: 0,
+          });
+
+          await newRealtor.save({ session });
       }
-  
+
       await session.commitTransaction();
       session.endSession();
-  
+
       // Send email verification
       const verificationLink = `https://whale-app-4nsg6.ondigitalocean.app/auth/verify-email/${emailVerificationToken}`;
       await sendVerificationEmail(email, verificationLink);
-  
+
       return res.status(201).json({
-        message: "User registered successfully. Please verify your email.",
-        user: {
-          full_name: newUser.full_name,
-          email: newUser.email,
-          phone_number: newUser.phone_number,
-          role: newUser.role,
-          account_type: newUser.account_type,
-          profile_picture: newUser.profile_picture,
-          email_verified: newUser.email_verified,
-          phone_verified: newUser.phone_verified
-        },
-      })
-    } catch (error) {
+          message: "User registered successfully. Please verify your email.",
+          user: {
+              full_name: newUser.full_name,
+              email: newUser.email,
+              phone_number: newUser.phone_number,
+              role: newUser.role,
+              account_type: newUser.account_type,
+              profile_picture: newUser.profile_picture,
+              email_verified: newUser.email_verified,
+              phone_verified: newUser.phone_verified,
+          },
+      });
+  } catch (error) {
       await session.abortTransaction();
       session.endSession();
       console.error("Signup error:", error);
       return res.status(500).json({ message: "Server error. Please try again." });
-    }
-  };
+  }
+};
+
   
 
 // Firebase Signup/Login
