@@ -23,7 +23,7 @@ exports.signup = async (req, res) => {
   try {
       session.startTransaction(); // Start transaction
 
-      const { full_name, email, password, role, business_name, phone_number } = req.body;
+      const { full_name, email, password, role, business_name, phone_number, business_type } = req.body;
 
       // Validate required fields
       if (!full_name || !email || !password || !role) {
@@ -94,7 +94,7 @@ exports.signup = async (req, res) => {
           const newRealtor = new Realtor({
               user_id: newUser._id,
               business_name,
-              business_type: "", // Set as required in future steps
+              business_type, // Set as required in future steps
               tax_id_image: taxIdImageUrl,
               verification_doc_image: verificationDocImageUrl,
               avg_rating: 0,

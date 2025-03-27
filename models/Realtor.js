@@ -3,7 +3,7 @@ const { Schema } = mongoose;
 
 const realtorSchema = new Schema({
   user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // Link to the User model
-  business_name: { type: String, required: false }, // Realtor's business name
+  business_name: { type: String, required: false, default: null }, // Realtor's business name
   business_type: { type: String, required: true }, // Realtor's business type
   tax_id_image: { type: String, required: false }, // Realtor's tax ID
   verification_doc_image: { type: String, required: false }, // Realtor's verification document
