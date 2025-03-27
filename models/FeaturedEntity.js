@@ -3,7 +3,7 @@ const Schema = mongoose.Schema;
 
 const FeaturedEntitySchema = new Schema({
   transaction_id: { type: String, default: null, sparse: true, unique: true },
-  transaction_price: { type: String },
+  transaction_price: { type: Number },
   payment_date: { type: String },
   no_of_days: { type: Number }, 
   expiration_date: { type: Date }, 

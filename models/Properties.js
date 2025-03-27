@@ -43,7 +43,7 @@ const PropertySchema = new Schema({
   feature_details: { type: Schema.Types.ObjectId, ref: "FeaturedEntity" },
 
   area_size: { type: String, required: true }, // Changed from String to Number
-  price: { type: String, required: true },
+  price: { type: Number, required: true },
 
   bedrooms: { type: Number, required: true },
   bathrooms: { type: Number, required: true },

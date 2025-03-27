@@ -8,6 +8,7 @@ const { addProperty,
     deleteProperty, 
     featureProperty, 
     updateProperty,
+    getFilteredProperties,
  } = require('../../controller/properties/propertyController'); // Import the controller function
 
 const { findNearbyProperties } = require('../../controller/explore/exploreController')
@@ -22,5 +23,6 @@ router.delete('/delete/:id', deleteProperty)
 router.put('/update/:propertyId', updateProperty)
 router.put('/feature', featureProperty)
 router.get('/explore', findNearbyProperties)
+router.get('/filter', getFilteredProperties)
 
 module.exports = router;

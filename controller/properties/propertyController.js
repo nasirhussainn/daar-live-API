@@ -592,7 +592,11 @@ exports.featureProperty = async (req, res) => {
 
     // --------------Update Featured Listing Revenue-----------------
     const currentDate = new Date().toISOString().split("T")[0];
-    await updateAdminRevenue(transaction_price, "featured_revenue", currentDate);
+    await updateAdminRevenue(
+      transaction_price,
+      "featured_revenue",
+      currentDate
+    );
     // ------------------------------------------------------------
 
     // Commit transaction
@@ -943,5 +947,145 @@ exports.updateProperty = async (req, res) => {
     res
       .status(500)
       .json({ message: "Error updating property", error: error.message });
+  }
+};
+
+exports.getFilteredProperties = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      minPrice,
+      maxPrice,
+      bedrooms,
+      bathrooms,
+      propertyType,
+      propertySubtype,
+      purpose, // 'sell' or 'rent'
+      duration, // 'short_term' or 'long_term' (only for rent)
+      amenities = [],
+      propertyStatus = "approved", // default to approved properties
+      country,
+      state,
+      city,
+      isFeatured,
+    } = req.query;
+
+    // Build the filter object
+    const filter = { property_status: propertyStatus };
+
+    // Price range filter
+    if (minPrice || maxPrice) {
+      filter.$expr = {}; // Using $expr for aggregation-like comparisons
+
+      const conditions = [];
+
+      if (minPrice) {
+        conditions.push({
+          $gte: [
+            { $toDouble: "$price" }, // Convert string price to number
+            parseFloat(minPrice), // Convert minPrice to number
+          ],
+        });
+      }
+
+      if (maxPrice) {
+        conditions.push({
+          $lte: [
+            { $toDouble: "$price" }, // Convert string price to number
+            parseFloat(maxPrice), // Convert maxPrice to number
+          ],
+        });
+      }
+
+      // Combine conditions with AND logic
+      filter.$expr.$and = conditions;
+    }
+
+    // Bedrooms filter
+    if (bedrooms) {
+      filter.bedrooms = { $gte: parseInt(bedrooms) };
+    }
+
+    // Bathrooms filter
+    if (bathrooms) {
+      filter.bathrooms = { $gte: parseInt(bathrooms) };
+    }
+
+    // Property type filter
+    if (propertyType) {
+      filter.property_type = propertyType;
+    }
+
+    // Property subtype filter
+    if (propertySubtype) {
+      filter.property_subtype = propertySubtype;
+    }
+
+    // Purpose filter (sell/rent)
+    if (purpose) {
+      filter.property_purpose = purpose;
+
+      // Duration filter (only applicable for rentals)
+      if (purpose === "rent" && duration) {
+        filter.property_duration = duration;
+      }
+    }
+
+    // Amenities filter (if any amenities are selected)
+    if (amenities.length > 0) {
+      filter.amenities = {
+        $all: Array.isArray(amenities) ? amenities : [amenities],
+      };
+    }
+
+    // Location filters
+    if (country) filter.country = country;
+    if (state) filter.state = state;
+    if (city) filter.city = city;
+
+    // Featured properties filter
+    if (isFeatured === "true") {
+      filter.is_feature = true;
+    }
+
+    // Calculate pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const totalProperties = await Property.countDocuments(filter);
+
+    // Execute query with pagination and population
+    const properties = await Property.find(filter)
+      .populate({
+        path: "owner_id",
+        select: "email full_name phone_number profile_picture",
+      })
+      .populate("location")
+      .populate("media")
+      .populate("feature_details")
+      .populate("property_type")
+      .populate("property_subtype")
+      .populate("amenities")
+      .skip(skip)
+      .limit(parseInt(limit))
+      .sort({ created_at: -1 }); // Sort by newest first
+
+    // Format the response
+    const response = {
+      totalProperties,
+      currentPage: parseInt(page),
+      totalPages: Math.ceil(totalProperties / parseInt(limit)),
+      properties: properties.map((property) => ({
+        ...property.toObject(),
+        // You can add additional formatting here if needed
+      })),
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    console.error("Error fetching filtered properties:", error);
+    res.status(500).json({
+      message: "Error fetching filtered properties",
+      error: error.message,
+    });
   }
 };

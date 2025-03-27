@@ -27,7 +27,7 @@ const EventSchema = new Schema({
     end_time: { type: String, required: true },  
 
     entry_type: { type: String, enum:['free', 'paid'] },
-    entry_price: { type: String },
+    entry_price: { type: Number },
 
     location: { type: Schema.Types.ObjectId, ref: 'Location' },
     media: { type: Schema.Types.ObjectId, ref: 'Media' },
