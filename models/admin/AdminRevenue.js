@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 const AdminRevenueSchema = new mongoose.Schema({
-    period: { type: String, required: true }, // Format: YYYY-MM-DD, YYYY-WW, or YYYY-MM (daily, weekly, monthly)
+    period: { type: String, required: true }, // Format: YYYY-MM-DD
     total_revenue: { type: Number, default: 0 }, // Total revenue for the period
 
     // Booking revenue breakdown

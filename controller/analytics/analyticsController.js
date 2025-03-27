@@ -5,7 +5,7 @@ const User = require("../../models/User");
 const Realtor = require("../../models/Realtor");
 const Admin = require("../../models/Admin");
 const Subscription = require("../../models/Subscription");
-const PaymentHistory = require("../../models/PaymentHistory");
+const AdminRevenue = require("../../models/admin/AdminRevenue");
 const moment = require("moment");
 
 // Helper function to generate date ranges
@@ -90,6 +90,10 @@ exports.getAnalytics = async (req, res) => {
       end: dateRange.start
     };
 
+    // Format periods for AdminRevenue lookup
+    const currentPeriodStr = moment(dateRange.start).format('YYYY-MM-DD');
+    const previousPeriodStr = moment(previousPeriod.start).format('YYYY-MM-DD');
+
     // 1. Fetch all analytics data in parallel
     const [
       // Basic counts
@@ -109,11 +113,13 @@ exports.getAnalytics = async (req, res) => {
       // Subscriptions
       currentSubscriptions,
       previousSubscriptions,
-      currentSubscriptionRevenue,
-      previousSubscriptionRevenue,
       
-      // All-time metrics
-      allTimeMetrics
+      // All-time metrics (without revenue)
+      allTimeMetrics,
+
+      // Admin Revenue
+      currentAdminRevenue,
+      previousAdminRevenue
     ] = await Promise.all([
       // Current period counts
       Promise.all([
@@ -173,13 +179,13 @@ exports.getAnalytics = async (req, res) => {
         created_at: { $gte: previousPeriod.start, $lte: previousPeriod.end }
       }).distinct('property_id'),
       
-      // Current bookings for revenue calculation
+      // Current bookings
       Booking.find({
         status: { $in: ['confirmed', 'completed', 'active'] },
         created_at: { $gte: dateRange.start, $lte: dateRange.end }
       }),
       
-      // Previous bookings for revenue calculation
+      // Previous bookings
       Booking.find({
         status: { $in: ['confirmed', 'completed', 'active'] },
         created_at: { $gte: previousPeriod.start, $lte: previousPeriod.end }
@@ -197,66 +203,48 @@ exports.getAnalytics = async (req, res) => {
         created_at: { $gte: previousPeriod.start, $lte: previousPeriod.end }
       }),
       
-      // Current subscription revenue
-      PaymentHistory.aggregate([
-        {
-          $match: {
-            entity_type: 'subscription',
-            created_at: { $gte: dateRange.start, $lte: dateRange.end },
-            status: 'completed'
-          }
-        },
-        {
-          $group: {
-            _id: null,
-            total: { $sum: '$amount' }
-          }
-        }
-      ]),
-      
-      // Previous subscription revenue
-      PaymentHistory.aggregate([
-        {
-          $match: {
-            entity_type: 'subscription',
-            created_at: { $gte: previousPeriod.start, $lte: previousPeriod.end },
-            status: 'completed'
-          }
-        },
-        {
-          $group: {
-            _id: null,
-            total: { $sum: '$amount' }
-          }
-        }
-      ]),
-      
-      // All-time metrics
+      // All-time metrics (without revenue)
       Promise.all([
         Property.countDocuments(),
         Event.countDocuments(),
         User.countDocuments(),
-        Realtor.countDocuments(),
-        PaymentHistory.aggregate([
-          { $match: { status: 'completed' } },
-          { $group: { _id: null, total: { $sum: '$amount' } } }
-        ])
-      ])
+        Realtor.countDocuments()
+      ]),
+
+      // Current Admin Revenue
+      AdminRevenue.findOne({ period: currentPeriodStr }),
+      
+      // Previous Admin Revenue
+      AdminRevenue.findOne({ period: previousPeriodStr })
     ]);
 
     // 2. Process and organize the data
     // Destructure counts
     const [total_properties, total_events, total_users, total_realtors] = currentCounts;
     const [prev_total_properties, prev_total_events, prev_total_users, prev_total_realtors] = previousCounts;
-    const [allTimeProperties, allTimeEvents, allTimeUsers, allTimeRealtors, allTimeRevenue] = allTimeMetrics;
+    const [allTimeProperties, allTimeEvents, allTimeUsers, allTimeRealtors] = allTimeMetrics;
 
     const total_buyers = total_users - total_realtors;
     const prev_total_buyers = prev_total_users - prev_total_realtors;
 
-    // Process subscription revenue
-    const currentSubRevenue = currentSubscriptionRevenue[0]?.total || 0;
-    const prevSubRevenue = previousSubscriptionRevenue[0]?.total || 0;
-    const allTimeRevenueTotal = allTimeRevenue[0]?.total || 0;
+    // Process Admin Revenue data
+    const currentRevenueData = currentAdminRevenue || {
+      total_revenue: 0,
+      admin_booking_revenue: 0,
+      total_booking_revenue: 0,
+      total_percentage_revenue: 0,
+      subscription_revenue: 0,
+      featured_revenue: 0
+    };
+
+    const prevRevenueData = previousAdminRevenue || {
+      total_revenue: 0,
+      admin_booking_revenue: 0,
+      total_booking_revenue: 0,
+      total_percentage_revenue: 0,
+      subscription_revenue: 0,
+      featured_revenue: 0
+    };
 
     // Calculate growth percentages
     const growthPercentages = {
@@ -267,17 +255,14 @@ exports.getAnalytics = async (req, res) => {
       realtors: calculateGrowth(total_realtors, prev_total_realtors),
       soldProperties: calculateGrowth(soldProperties, prevSoldProperties),
       rentedProperties: calculateGrowth(rentedBookings.length, prevRentedBookings.length),
-      subscriptionRevenue: calculateGrowth(currentSubRevenue, prevSubRevenue),
+      // Admin revenue growth metrics
+      totalRevenue: calculateGrowth(currentRevenueData.total_revenue, prevRevenueData.total_revenue),
+      adminBookingRevenue: calculateGrowth(currentRevenueData.admin_booking_revenue, prevRevenueData.admin_booking_revenue),
+      totalBookingRevenue: calculateGrowth(currentRevenueData.total_booking_revenue, prevRevenueData.total_booking_revenue),
+      percentageRevenue: calculateGrowth(currentRevenueData.total_percentage_revenue, prevRevenueData.total_percentage_revenue),
+      featuredRevenue: calculateGrowth(currentRevenueData.featured_revenue, prevRevenueData.featured_revenue)
     };
 
-    // Calculate property utilization
-    const totalActiveProperties = await Property.countDocuments({
-      $or: [
-        { property_status: 'sold' },
-        { property_status: 'active' }
-      ]
-    });
-   
     // 3. Prepare the response
     const response = {
       success: true,
@@ -308,8 +293,16 @@ exports.getAnalytics = async (req, res) => {
           },
         },
         revenue: {
-          subscription: currentSubRevenue,
-          all_time: allTimeRevenueTotal
+          admin_revenue: {
+            total: currentRevenueData.total_revenue,
+            booking: {
+              admin_portion: currentRevenueData.admin_booking_revenue,
+              total: currentRevenueData.total_booking_revenue,
+              percentage: currentRevenueData.total_percentage_revenue
+            },
+            subscription: currentRevenueData.subscription_revenue,
+            featured: currentRevenueData.featured_revenue
+          }
         },
         growth: {
           properties: parseFloat(growthPercentages.properties.toFixed(2)),
@@ -319,15 +312,17 @@ exports.getAnalytics = async (req, res) => {
           realtors: parseFloat(growthPercentages.realtors.toFixed(2)),
           sold_properties: parseFloat(growthPercentages.soldProperties.toFixed(2)),
           rented_properties: parseFloat(growthPercentages.rentedProperties.toFixed(2)),
-          subscription_revenue: parseFloat(growthPercentages.subscriptionRevenue.toFixed(2)),
+          total_revenue: parseFloat(growthPercentages.totalRevenue.toFixed(2)),
+          admin_booking_revenue: parseFloat(growthPercentages.adminBookingRevenue.toFixed(2)),
+          total_booking_revenue: parseFloat(growthPercentages.totalBookingRevenue.toFixed(2)),
+          percentage_revenue: parseFloat(growthPercentages.percentageRevenue.toFixed(2)),
+          featured_revenue: parseFloat(growthPercentages.featuredRevenue.toFixed(2))
         },
-
         all_time: {
           properties: allTimeProperties,
           events: allTimeEvents,
           users: allTimeUsers,
-          realtors: allTimeRealtors,
-          revenue: allTimeRevenueTotal
+          realtors: allTimeRealtors
         }
       }
     };
