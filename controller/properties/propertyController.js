@@ -10,6 +10,8 @@ const Realtor = require("../../models/Realtor");
 const Review = require("../../models/Review");
 const Booking = require("../../models/Booking");
 const PaymentHistory = require("../../models/PaymentHistory");
+const AdminRevenue = require("../../models/admin/AdminRevenue"); // AdminRevenue model
+
 const { uploadMultipleToCloudinary, deleteFromCloudinary  } = require("../../config/cloudinary"); // Import cloudinary helper
 const { getRealtorStats } = require("../../controller/stats/getRealtorStats"); // Import the function
 const {
@@ -581,6 +583,14 @@ exports.featureProperty = async (req, res) => {
     property.feature_details = savedFeatureEntity._id;
     property.is_feature = true;
     await property.save({ session });
+
+    // --------------Update Featured Listing Revenue-----------------
+    await AdminRevenue.findOneAndUpdate(
+      {}, 
+      { $inc: { featured_revenue: transaction_price } }, 
+      { upsert: true, new: true }
+    );
+    // ------------------------------------------------------------
 
     // Commit transaction
     await session.commitTransaction();

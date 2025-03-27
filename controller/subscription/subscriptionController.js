@@ -2,6 +2,7 @@ const Subscription = require('../../models/Subscription');
 const Realtor = require('../../models/Realtor');
 const SubscriptionPlan = require('../../models/admin/SubscriptionPlan');
 const PaymentHistory = require("../../models/PaymentHistory");
+const AdminRevenue = require("../../models/admin/AdminRevenue"); // AdminRevenue model
 const logPaymentHistory = require("./paymentHistoryService");
 
 // 📌 Controller to subscribe a realtor
@@ -60,6 +61,14 @@ const subscribeRealtor = async (req, res) => {
       entity_id: subscription._id,
     });
     // ---------------------------------------------------
+
+    // ----------------- Update Subscription Revenue -----------------
+    await AdminRevenue.findOneAndUpdate(
+      {}, 
+      { $inc: { subscription_revenue: plan.planAmount } }, 
+      { upsert: true, new: true }
+    );
+    // ----------------------------------------------------------------
 
     return res.status(201).json({
       message: "Subscription successfully created",

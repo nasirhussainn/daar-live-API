@@ -8,6 +8,7 @@ const FeaturedEntity = require("../../models/FeaturedEntity");
 const Review = require("../../models/Review");
 const PaymentHistory = require("../../models/PaymentHistory");
 const Realtor = require("../../models/Realtor")
+const AdminRevenue = require("../../models/admin/AdminRevenue"); // AdminRevenue model
 
 const { getHostsStats } = require("../stats/getHostStats"); // Import the function
 const {
@@ -513,6 +514,14 @@ exports.featureEvent = async (req, res) => {
     event.is_feature = true;
     await event.save({ session });
 
+    // --------------Update Featured Listing Revenue-----------------
+    await AdminRevenue.findOneAndUpdate(
+      {}, 
+      { $inc: { featured_revenue: transaction_price } }, 
+      { upsert: true, new: true }
+    );
+    // ------------------------------------------------------------
+    
     // Commit transaction
     await session.commitTransaction();
     session.endSession();
