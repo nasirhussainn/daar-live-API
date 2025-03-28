@@ -12,7 +12,8 @@ const uploadMultiple = multer({ storage }).fields([
 
 const uploadSignup = multer({ storage }).fields([
   { name: "profile_picture", maxCount: 1 },  
-  { name: "document_list", maxCount: 10 }, // Allow up to 10 documents
+  { name: "verification_doc_image", maxCount: 1 },
+  { name: "tax_id_image", maxCount: 1 },
 ]);
 
 
