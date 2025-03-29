@@ -1,66 +1,106 @@
+const mongoose = require('mongoose');
 const User = require("../../models/User");
 const Realtor = require("../../models/Realtor");
-const { uploadToCloudinary } = require("../../config/cloudinary");
+const { uploadToCloudinary, deleteFromCloudinary } = require("../../config/cloudinary");
 
 exports.updateUser = async (req, res) => {
+  const session = await mongoose.startSession();
+
   try {
-    const { _id, full_name, phone_number, business_name } = req.body;
+    session.startTransaction(); // Start transaction
 
-    if (!_id) {
-      return res.status(400).json({ message: "User ID is required to update user." });
-    }
+    const userId = req.params.userId;
+    const { full_name, email, phone_number, business_name, business_type } = req.body;
 
-    let user = await User.findById(_id);
+    // Fetch existing user
+    let user = await User.findById(userId).session(session);
     if (!user) {
-      return res.status(404).json({ message: `No user found with ID: ${_id}.` });
+      return res.status(404).json({ message: "User not found." });
     }
 
-    const role = user.role;
-    let updatedFields = {};
-
-    // Handle profile picture upload
-    if (req.file) {
-      const folderName = role === "realtor" ? "realtors_profiles" : "buyers_profiles";
-      const imageUrl = await uploadToCloudinary(req.file.buffer, folderName);
-      updatedFields.profile_picture = imageUrl;
+    // Check if email is already taken (excluding current user)
+    if (email && email !== user.email) {
+      let existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({ message: "Email is already in use." });
+      }
+      user.email_verified = false; // Mark email as unverified if changed
     }
 
-    if (role === "buyer") {
-      if (full_name) updatedFields.full_name = full_name;
-      if (phone_number) updatedFields.phone_number = phone_number;
-    } else if (role === "realtor") {
-      if (full_name) updatedFields.full_name = full_name;
-      if (business_name) {
-        let realtor = await Realtor.findOne({ user_id: _id });
-        if (!realtor) {
-          return res.status(400).json({ message: "Realtor details not found. Please create them separately." });
-        }
-        await Realtor.updateOne({ user_id: _id }, { $set: { business_name } });
-        updatedFields.business_name = business_name;
+    // Profile Picture Handling
+    let imageUrl = user.profile_picture;
+    if (req.files && req.files["profile_picture"]) {
+      const folderName = user.role === "realtor" ? "realtors_profiles" : "buyers_profiles";
+
+      // Upload new image
+      imageUrl = await uploadToCloudinary(req.files["profile_picture"][0].buffer, folderName);
+
+      // Delete old image if exists
+      if (user.profile_picture) {
+        await deleteFromCloudinary(user.profile_picture);
       }
     }
 
-    if (Object.keys(updatedFields).length > 0) {
-      await User.updateOne({ _id }, { $set: updatedFields });
+    // Update user details
+    user.full_name = full_name || user.full_name;
+    user.email = email || user.email;
+    user.phone_number = phone_number || user.phone_number;
+    user.profile_picture = imageUrl;
+
+    await user.save({ session });
+
+    // Handle realtor-specific updates
+    if (user.role === "realtor") {
+      let realtor = await Realtor.findOne({ user_id: userId }).session(session);
+      if (!realtor) {
+        return res.status(404).json({ message: "Realtor profile not found." });
+      }
+
+      // Business documents handling
+      let taxIdImageUrl = realtor.tax_id_image;
+      let verificationDocImageUrl = realtor.verification_doc_image;
+
+      if (req.files) {
+        if (req.files["tax_id_image"]) {
+          taxIdImageUrl = await uploadToCloudinary(req.files["tax_id_image"][0].buffer, "realtors_documents");
+          if (realtor.tax_id_image) await deleteFromCloudinary(realtor.tax_id_image);
+        }
+        if (req.files["verification_doc_image"]) {
+          verificationDocImageUrl = await uploadToCloudinary(req.files["verification_doc_image"][0].buffer, "realtors_documents");
+          if (realtor.verification_doc_image) await deleteFromCloudinary(realtor.verification_doc_image);
+        }
+      }
+
+      // Update realtor details
+      realtor.business_name = business_name || realtor.business_name;
+      realtor.business_type = business_type || realtor.business_type;
+      realtor.tax_id_image = taxIdImageUrl;
+      realtor.verification_doc_image = verificationDocImageUrl;
+
+      await realtor.save({ session });
     }
 
-    const updatedUser = await User.findById(_id);
-    const updatedRealtor = role === "realtor" ? await Realtor.findOne({ user_id: _id }) : null;
+    await session.commitTransaction();
+    session.endSession();
 
     return res.status(200).json({
       message: "User updated successfully.",
-      updated_fields: updatedFields,
       user: {
-        full_name: updatedUser.full_name,
-        email: updatedUser.email,
-        phone_number: updatedUser.phone_number,
-        role: updatedUser.role,
-        profile_picture: updatedUser.profile_picture,
+        full_name: user.full_name,
+        email: user.email,
+        phone_number: user.phone_number,
+        role: user.role,
+        profile_picture: user.profile_picture,
+        email_verified: user.email_verified,
+        phone_verified: user.phone_verified,
       },
-      realtor_details: updatedRealtor ? { business_name: updatedRealtor.business_name } : null,
     });
+
   } catch (error) {
-    console.error("Error updating user:", error);
+    await session.abortTransaction();
+    session.endSession();
+    console.error("Update error:", error);
     return res.status(500).json({ message: "Server error. Please try again." });
   }
 };
+
