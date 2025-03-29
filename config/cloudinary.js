@@ -77,51 +77,22 @@ const uploadToCloudinaryChat = async (buffer, folderName = "uploads") => {
   });
 };
 
-/**
- * Deletes a file from Cloudinary using its URL
- * @param {string} url - The Cloudinary URL of the file to delete
- * @returns {Promise<void>}
- * @throws {Error} If deletion fails
- */
-const deleteFromCloudinary = async (url) => {
+
+const deleteFromCloudinary = async (fileUrl) => {
   try {
-    if (!url) {
-      console.warn("Empty URL provided for deletion");
-      return;
-    }
+    // Extract public_id from the file URL
+    const urlParts = fileUrl.split('/');
+    const fileName = urlParts[urlParts.length - 1]; // e.g., 'sample.jpg'
+    const publicId = fileName.split('.')[0]; // Remove extension
 
-    // Extract public ID from URL
-    const parts = url.split('/');
-    const publicIdWithExtension = parts.slice(parts.indexOf('upload') + 2).join('/');
-    const publicId = publicIdWithExtension.split('.')[0];
-
-    if (!publicId) {
-      throw new Error(`Could not extract public ID from URL: ${url}`);
-    }
-
-    // Determine resource type based on file extension
-    let resourceType = 'image';
-    const extension = publicIdWithExtension.split('.').pop()?.toLowerCase();
-    if (['mp4', 'mov', 'avi', 'mkv'].includes(extension)) {
-      resourceType = 'video';
-    }
-
-    // Perform deletion
-    const result = await cloudinary.uploader.destroy(publicId, { 
-      resource_type: resourceType,
-      invalidate: true // Optional: invalidate CDN cache
-    });
-
-    if (result.result !== 'ok') {
-      throw new Error(`Cloudinary deletion failed for ${url}: ${result.result}`);
-    }
-
-    console.log(`Successfully deleted from Cloudinary: ${publicId}`);
+    // Delete the file from Cloudinary
+    await cloudinary.uploader.destroy(publicId);
+    console.log(`Successfully deleted: ${fileUrl}`);
   } catch (error) {
-    console.error(`Failed to delete media from Cloudinary: ${url}`, error);
-    throw error; // Re-throw to allow handling in calling function
+    console.error(`Failed to delete file: ${fileUrl}`, error);
   }
 };
+
 
 // Separate function for chat media uploads
 const uploadChatMedia = async (buffer, messageType) => {

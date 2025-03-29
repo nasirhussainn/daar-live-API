@@ -668,14 +668,7 @@ exports.updateProperty = async (req, res) => {
       bathrooms,
       charge_per,
       security_deposit,
-      no_of_days,
-      transaction_id,
-      payment_date,
-      transaction_price,
-      is_feature,
       amenities,
-      remove_images, // Array of image URLs to remove
-      remove_videos, // Array of video URLs to remove
     } = req.body;
 
     // Step 1: Find the existing property
@@ -755,143 +748,92 @@ exports.updateProperty = async (req, res) => {
 
     // Step 5: Handle Media updates - Fresh only approach
     let mediaUpdate = {};
-    if (req.files && (req.files.images || req.files.videos)) {
-      const mediaFiles = [];
-      const folderName = "property_media_daar_live";
+    const folderName = "property_media_daar_live";
 
-      if (req.files.images) {
-        req.files.images.forEach((img) => {
-          mediaFiles.push({ buffer: img.buffer, fieldname: "images" });
-        });
-      }
-
-      if (req.files.videos) {
-        req.files.videos.forEach((vid) => {
-          mediaFiles.push({ buffer: vid.buffer, fieldname: "videos" });
-        });
-      }
-
-      // Upload new media
-      const mediaUrls = await uploadMultipleToCloudinary(
-        mediaFiles,
-        folderName
+    // Fetch existing media
+    let existingMedia = {};
+    if (existingProperty.media) {
+      existingMedia = await Media.findById(existingProperty.media).session(
+        session
       );
+    }
 
-      // Delete old media from Cloudinary if it exists
-
-      // Set fresh media only
-      mediaUpdate = {
-        images: mediaUrls.images || [],
-        videos: mediaUrls.videos || [],
+    if (req.files) {
+      const newMediaFiles = {
+        images: [],
+        videos: [],
       };
 
-      await Media.findByIdAndUpdate(existingProperty.media, mediaUpdate, {
-        session,
-      });
-    } else if (remove_images || remove_videos) {
-      // Handle selective removal if no new files but removal requested
-      const existingMedia = await Media.findById(
-        existingProperty.media
-      ).session(session);
+      // Prepare new images if provided
+      if (req.files.images) {
+        req.files.images.forEach((img) => {
+          newMediaFiles.images.push({
+            buffer: img.buffer,
+            fieldname: "images",
+          });
+        });
+      }
 
-      if (existingMedia) {
-        let updatedImages = existingMedia.images || [];
-        let updatedVideos = existingMedia.videos || [];
+      // Prepare new videos if provided
+      if (req.files.videos) {
+        req.files.videos.forEach((vid) => {
+          newMediaFiles.videos.push({
+            buffer: vid.buffer,
+            fieldname: "videos",
+          });
+        });
+      }
 
-        // Remove specified images
-        if (remove_images) {
-          const imagesToRemove = Array.isArray(remove_images)
-            ? remove_images
-            : [remove_images];
-          updatedImages = updatedImages.filter(
-            (img) => !imagesToRemove.includes(img)
-          );
+      // Handle Images
+      if (newMediaFiles.images.length > 0) {
+        // Upload new images
+        const uploadedImages = await uploadMultipleToCloudinary(
+          newMediaFiles.images,
+          folderName
+        );
 
-          // Delete from Cloudinary
-          await Promise.all(
-            imagesToRemove.map((url) => deleteFromCloudinary(url))
-          );
+        // Delete old images from Cloudinary
+        if (existingMedia && existingMedia.images) {
+          for (let image of existingMedia.images) {
+            await deleteFromCloudinary(image);
+          }
         }
 
-        // Remove specified videos
-        if (remove_videos) {
-          const videosToRemove = Array.isArray(remove_videos)
-            ? remove_videos
-            : [remove_videos];
-          updatedVideos = updatedVideos.filter(
-            (vid) => !videosToRemove.includes(vid)
-          );
+        // Update images
+        mediaUpdate.images = uploadedImages.images;
+      } else {
+        // Retain existing images if no new images provided
+        mediaUpdate.images = existingMedia.images || [];
+      }
 
-          // Delete from Cloudinary
-          await Promise.all(
-            videosToRemove.map((url) => deleteFromCloudinary(url))
-          );
+      // Handle Videos
+      if (newMediaFiles.videos.length > 0) {
+        // Upload new videos
+        const uploadedVideos = await uploadMultipleToCloudinary(
+          newMediaFiles.videos,
+          folderName
+        );
+
+        // Delete old videos from Cloudinary
+        if (existingMedia && existingMedia.videos) {
+          for (let video of existingMedia.videos) {
+            await deleteFromCloudinary(video);
+          }
         }
 
-        mediaUpdate = {
-          images: updatedImages,
-          videos: updatedVideos,
-        };
+        // Update videos
+        mediaUpdate.videos = uploadedVideos.videos;
+      } else {
+        // Retain existing videos if no new videos provided
+        mediaUpdate.videos = existingMedia.videos || [];
+      }
 
+      // Update media in the database only if changes occurred
+      if (Object.keys(mediaUpdate).length > 0) {
         await Media.findByIdAndUpdate(existingProperty.media, mediaUpdate, {
           session,
         });
       }
-    }
-
-    // Step 6: Handle featured status changes
-    let featureUpdate = {};
-    let featureMessage = null;
-
-    if (is_feature === "true" || is_feature === true) {
-      // Check if property is already featured
-      if (!existingProperty.is_featured) {
-        try {
-          const featureEntity = new FeaturedEntity({
-            transaction_id,
-            transaction_price,
-            payment_date,
-            no_of_days,
-            is_active: true,
-            property_id: existingProperty._id,
-            entity_type: "property",
-          });
-
-          const savedFeaturedEntity = await featureEntity.save({ session });
-          featureUpdate = {
-            feature_details: savedFeaturedEntity._id,
-            is_featured: true,
-            property_status: "approved", // Auto-approve when featured
-          };
-        } catch (featureError) {
-          console.error("Error adding FeaturedEntity:", featureError.message);
-          featureMessage =
-            "Property could not be featured. You can request a feature again.";
-        }
-      }
-    } else if (is_feature === "false" || is_feature === false) {
-      // Remove featured status if it exists
-      if (existingProperty.is_featured && existingProperty.feature_details) {
-        await FeaturedEntity.findByIdAndUpdate(
-          existingProperty.feature_details,
-          { is_active: false },
-          { session }
-        );
-        featureUpdate = {
-          is_featured: false,
-          feature_details: null,
-        };
-      }
-    }
-
-    // Step 7: Update property status if needed
-    let statusUpdate = {};
-    if (
-      existingProperty.property_status === "approved" &&
-      (title || description || property_type || property_subtype)
-    ) {
-      // If changing important fields on an approved property, set back to pending
-      statusUpdate.property_status = "pending";
     }
 
     // Step 8: Update the property
@@ -919,8 +861,6 @@ exports.updateProperty = async (req, res) => {
           security_deposit:
             security_deposit || existingProperty.security_deposit,
           amenities: validAmenities.map((a) => a._id),
-          ...statusUpdate,
-          ...featureUpdate,
         },
       },
       { new: true, session }
@@ -932,9 +872,7 @@ exports.updateProperty = async (req, res) => {
 
     // Step 9: Return success response
     res.status(200).json({
-      message:
-        "Property updated successfully!" +
-        (featureMessage ? ` ${featureMessage}` : ""),
+      message: "Property updated successfully!",
       property: updatedProperty,
       media: mediaUpdate, // Return the updated media in response
     });
@@ -1048,18 +986,19 @@ exports.getFilteredProperties = async (req, res) => {
 
     // Amenities filter (if any amenities are selected)
     if (amenities) {
-      const amenityIds = Array.isArray(amenities) 
-        ? amenities 
-        : amenities.split(',');
-      
-      const validIds = amenityIds.filter(id => 
-        mongoose.Types.ObjectId.isValid(id) && 
-        (new mongoose.Types.ObjectId(id)).toString() === id
+      const amenityIds = Array.isArray(amenities)
+        ? amenities
+        : amenities.split(",");
+
+      const validIds = amenityIds.filter(
+        (id) =>
+          mongoose.Types.ObjectId.isValid(id) &&
+          new mongoose.Types.ObjectId(id).toString() === id
       );
-      
+
       if (validIds.length > 0) {
         filter.amenities = {
-          $all: validIds.map(id => new mongoose.Types.ObjectId(id))
+          $all: validIds.map((id) => new mongoose.Types.ObjectId(id)),
         };
       }
     }
