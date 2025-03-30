@@ -4,18 +4,25 @@ const Location = require("../../models/Location");
 
 exports.findNearbyProperties = async (req, res) => {
   try {
-    const { latitude, longitude } = req.body;
+    const { latitude, longitude } = req.query;
     const maxDistance = 50000; // Default to 5km
 
     if (!latitude || !longitude) {
       return res.status(400).json({ error: "Latitude and Longitude are required" });
     }
 
+    const lat = parseFloat(latitude);
+    const lon = parseFloat(longitude);
+
+    if (isNaN(lat) || isNaN(lon)) {
+      return res.status(400).json({ error: "Invalid latitude or longitude values" });
+    }
+
     // First, find nearby locations
     const nearbyLocations = await Location.aggregate([
       {
         $geoNear: {
-          near: { type: "Point", coordinates: [longitude, latitude] }, // MongoDB requires [lng, lat]
+          near: { type: "Point", coordinates: [lon, lat] }, // MongoDB requires [lng, lat]
           distanceField: "distance",
           maxDistance: maxDistance, // Distance in meters
           spherical: true,
@@ -37,20 +44,28 @@ exports.findNearbyProperties = async (req, res) => {
   }
 };
 
+
 exports.findNearbyEvents = async (req, res) => {
   try {
-    const { latitude, longitude } = req.body;
+    const { latitude, longitude } = req.query;
     const maxDistance = 50000; // Default to 5km
 
     if (!latitude || !longitude) {
       return res.status(400).json({ error: "Latitude and Longitude are required" });
     }
 
+    const lat = parseFloat(latitude);
+    const lon = parseFloat(longitude);
+
+    if (isNaN(lat) || isNaN(lon)) {
+      return res.status(400).json({ error: "Invalid latitude or longitude values" });
+    }
+
     // First, find nearby locations
     const nearbyLocations = await Location.aggregate([
       {
         $geoNear: {
-          near: { type: "Point", coordinates: [longitude, latitude] }, // MongoDB requires [lng, lat]
+          near: { type: "Point", coordinates: [lon, lat] }, // MongoDB requires [lng, lat]
           distanceField: "distance",
           maxDistance: maxDistance, // Distance in meters
           spherical: true,
@@ -62,7 +77,7 @@ exports.findNearbyEvents = async (req, res) => {
     // Extract location IDs
     const locationIds = nearbyLocations.map((loc) => loc._id);
 
-    // Find properties linked to those locations
+    // Find events linked to those locations
     const nearbyEvents = await Event.find({ location: { $in: locationIds } }).populate("location");
 
     return res.status(200).json({ success: true, events: nearbyEvents });

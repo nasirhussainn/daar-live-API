@@ -5,6 +5,7 @@ const Realtor = require("../../models/Realtor");
 const Event = require("../../models/Events");
 const Property = require("../../models/Properties");
 const Notification = require("../../models/Notification"); 
+const { sendResponse } = require("../../services/translateHelper");
 
 const mongoose = require("mongoose");
 
@@ -193,10 +194,14 @@ exports.updateReview = async (req, res) => {
 
 exports.getAllReviews = async (req, res) => {
   try {
-    const reviews = await Review.find()
-      .populate("review_for") // Populate the reference to the review_for entity
-      .populate("review_by"); // Populate the reference to the review_by entity
+   const reviews = await Review.find()
+  .populate("review_for") // Populate the reference to the review_for entity
+  .populate({
+    path: 'review_by',
+    select: 'full_name email profile_picture'
+  }); // Populate the reference to the review_by entity with specific fields
 
+    
     res.status(200).json({ reviews });
   } catch (error) {
     console.error(error);
@@ -218,7 +223,10 @@ exports.getReviewsByEntity = async (req, res) => {
     const reviews = await Review.find({
       review_for: entityId,
       review_for_type: entityType,
-    }).populate("review_by"); // Populate the reference to the review_by entity
+    }).populate({
+      path: 'review_by',
+      select: 'full_name email profile_picture'
+    });
 
     if (reviews.length === 0) {
       return res.status(404).json({ message: "No reviews found" });
@@ -260,13 +268,17 @@ exports.getReviewById = async (req, res) => {
     const { id } = req.params; // The review ID
 
     // Find the review by ID and populate the reviewer details
-    const review = await Review.findById(id).populate("review_by");
+    const review = await Review.findById(id).populate({
+      path: 'review_by',
+      select: 'full_name email profile_picture'
+    });
 
     if (!review) {
       return res.status(404).json({ message: "Review not found" });
     }
 
-    res.status(200).json({ review });
+    return sendResponse(res, 201, review);
+    // res.status(200).json({ review });
   } catch (error) {
     console.error(error);
     res

@@ -87,7 +87,6 @@ const deleteFromCloudinary = async (fileUrl) => {
 
     // Delete the file from Cloudinary
     await cloudinary.uploader.destroy(publicId);
-    console.log(`Successfully deleted: ${fileUrl}`);
   } catch (error) {
     console.error(`Failed to delete file: ${fileUrl}`, error);
   }

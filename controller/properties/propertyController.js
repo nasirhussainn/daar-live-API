@@ -12,6 +12,7 @@ const Booking = require("../../models/Booking");
 const PaymentHistory = require("../../models/PaymentHistory");
 const AdminRevenue = require("../../models/admin/AdminRevenue"); // AdminRevenue model
 const { updateAdminRevenue } = require("../../services/updateAdminRevenue"); // AdminRevenue service
+const { sendResponse } = require("../../services/translateHelper"); // sendResponse service
 
 const {
   uploadMultipleToCloudinary,
@@ -333,12 +334,13 @@ exports.getAllProperties = async (req, res) => {
       })
     );
 
-    res.status(200).json({
+    const response = {
       totalProperties,
       currentPage: page,
       totalPages: Math.ceil(totalProperties / limit),
       properties: propertiesWithDetails,
-    });
+    };
+    return sendResponse(res, 201, response);
   } catch (error) {
     console.error(error);
     res
@@ -398,7 +400,7 @@ exports.getPropertyById = async (req, res) => {
       reatorReviewCount = await getReviewCount(property.owner_id._id, "User");
     }
 
-    res.status(200).json({
+    const response = {
       ...property.toObject(),
       amenities: amenitiesDetails,
       reviews: reviewData,
@@ -406,7 +408,8 @@ exports.getPropertyById = async (req, res) => {
       realtor_stats: realtorStats, // Only include stats if successful
       realtor_review_count: reatorReviewCount,
       realtor_avg_rating: realtorAvgRating,
-    });
+    };
+    return sendResponse(res, 201, response);
   } catch (error) {
     console.error("Error fetching property details:", error);
     res
