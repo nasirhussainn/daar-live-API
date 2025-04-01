@@ -45,25 +45,31 @@ exports.getPaidUsers = async (req, res) => {
     try {
         const { plan_id } = req.query;
 
-        // Build query object - include plan_id only if provided
+        // Build query object
         const query = { status: "active" };
         if (plan_id) {
             query.plan_id = plan_id;
         }
 
-        // Fetch subscriptions based on query (all active or filtered by plan_id)
-        const users = await Subscription.find(query)
-            .populate("realtor_id")
-            .populate({ 
-                path: "realtor_id", 
+        // First populate realtor and user details
+        let users = await Subscription.find(query)
+            .populate({
+                path: "realtor_id",
                 populate: { 
                     path: "user_id", 
                     select: "full_name email phone_number role" 
-                } 
-            })
-            .populate("plan_id");
+                }
+            });
 
-        // Format response with complete realtor details
+        // Then separately populate plan details if needed
+        if (users.some(sub => sub.plan_id)) {
+            users = await Subscription.populate(users, {
+                path: "plan_id",
+                model: "Plan" // Make sure this matches your Plan model name
+            });
+        }
+
+        // Format response
         const formattedUsers = users.map(sub => ({
             realtor_id: sub.realtor_id?._id || "N/A",
             business_name: sub.realtor_id?.business_name || "N/A",
@@ -73,17 +79,13 @@ exports.getPaidUsers = async (req, res) => {
                 user_id: sub.realtor_id?.user_id?._id || "N/A",
                 full_name: sub.realtor_id?.user_id?.full_name || "N/A",
                 email: sub.realtor_id?.user_id?.email || "N/A",
-                phone_number: sub.realtor_id?.user_id?.phone_number || "N/A",
-                role: sub.realtor_id?.user_id?.role || "N/A"
+                phone_number: sub.realtor_id?.user_id?.phone_number || "N/A"
             },
-            plan_details: {
-                plan_id: sub.plan_id?._id || "N/A",
-                plan_name: sub.plan_id?.planName || "N/A",
-                price: sub.plan_id?.planAmount || 0,
-                duration: `${sub.plan_id?.days || 0} days`
-            },
-            buying_date: sub.start_date.toISOString().split("T")[0], // Format date (YYYY-MM-DD)
-            status: sub.status,
+            subscription_id: sub.subscription_id || "N/A",
+            customer_id: sub.customer_id || "N/A",
+            plan_details: sub.plan_details || null, 
+            start_date: sub.start_date.toISOString().split("T")[0],
+            end_date: sub.end_date.toISOString().split("T")[0],
         }));
 
         res.status(200).json(formattedUsers);
