@@ -334,13 +334,19 @@ exports.getAllProperties = async (req, res) => {
       })
     );
 
-    const response = {
+    res.status(200).json({
       totalProperties,
       currentPage: page,
       totalPages: Math.ceil(totalProperties / limit),
       properties: propertiesWithDetails,
-    };
-    return sendResponse(res, 201, response);
+    })
+    // const response = {
+    //   totalProperties,
+    //   currentPage: page,
+    //   totalPages: Math.ceil(totalProperties / limit),
+    //   properties: propertiesWithDetails,
+    // };
+    // return sendResponse(res, 201, response);
   } catch (error) {
     console.error(error);
     res
@@ -400,7 +406,7 @@ exports.getPropertyById = async (req, res) => {
       reatorReviewCount = await getReviewCount(property.owner_id._id, "User");
     }
 
-    const response = {
+    res.status(200).json({
       ...property.toObject(),
       amenities: amenitiesDetails,
       reviews: reviewData,
@@ -408,8 +414,18 @@ exports.getPropertyById = async (req, res) => {
       realtor_stats: realtorStats, // Only include stats if successful
       realtor_review_count: reatorReviewCount,
       realtor_avg_rating: realtorAvgRating,
-    };
-    return sendResponse(res, 201, response);
+
+    })
+    // const response = {
+    //   ...property.toObject(),
+    //   amenities: amenitiesDetails,
+    //   reviews: reviewData,
+    //   saved_status, // Include saved status
+    //   realtor_stats: realtorStats, // Only include stats if successful
+    //   realtor_review_count: reatorReviewCount,
+    //   realtor_avg_rating: realtorAvgRating,
+    // };
+    // return sendResponse(res, 201, response);
   } catch (error) {
     console.error("Error fetching property details:", error);
     res

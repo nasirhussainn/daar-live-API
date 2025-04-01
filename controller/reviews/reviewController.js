@@ -277,8 +277,8 @@ exports.getReviewById = async (req, res) => {
       return res.status(404).json({ message: "Review not found" });
     }
 
-    return sendResponse(res, 201, review);
-    // res.status(200).json({ review });
+    // return sendResponse(res, 201, review);
+    res.status(200).json({ review });
   } catch (error) {
     console.error(error);
     res
