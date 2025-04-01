@@ -1,5 +1,6 @@
 const Subscription = require('../../models/Subscription');
 const SubscriptionPlan = require('../../models/admin/SubscriptionPlan');
+const mongoose = require("mongoose");
 
 exports.getTopSubscriptions = async (req, res) => {
     try {
@@ -45,31 +46,24 @@ exports.getPaidUsers = async (req, res) => {
     try {
         const { plan_id } = req.query;
 
-        // Build query object
+        // Build query dynamically
         const query = { status: "active" };
         if (plan_id) {
-            query.plan_id = plan_id;
+            query["plan_details._id"] = new mongoose.Types.ObjectId(plan_id); // Convert string to ObjectId
         }
 
-        // First populate realtor and user details
-        let users = await Subscription.find(query)
-            .populate({
-                path: "realtor_id",
+        // Fetch active subscriptions, including realtor and user details
+        const users = await Subscription.find(query)
+            .populate("realtor_id")
+            .populate({ 
+                path: "realtor_id", 
                 populate: { 
                     path: "user_id", 
                     select: "full_name email phone_number role" 
-                }
+                } 
             });
 
-        // Then separately populate plan details if needed
-        if (users.some(sub => sub.plan_id)) {
-            users = await Subscription.populate(users, {
-                path: "plan_id",
-                model: "Plan" // Make sure this matches your Plan model name
-            });
-        }
-
-        // Format response
+        // Format response with complete realtor and plan details
         const formattedUsers = users.map(sub => ({
             realtor_id: sub.realtor_id?._id || "N/A",
             business_name: sub.realtor_id?.business_name || "N/A",
@@ -79,13 +73,18 @@ exports.getPaidUsers = async (req, res) => {
                 user_id: sub.realtor_id?.user_id?._id || "N/A",
                 full_name: sub.realtor_id?.user_id?.full_name || "N/A",
                 email: sub.realtor_id?.user_id?.email || "N/A",
-                phone_number: sub.realtor_id?.user_id?.phone_number || "N/A"
+                phone_number: sub.realtor_id?.user_id?.phone_number || "N/A",
+                role: sub.realtor_id?.user_id?.role || "N/A"
             },
-            subscription_id: sub.subscription_id || "N/A",
-            customer_id: sub.customer_id || "N/A",
-            plan_details: sub.plan_details || null, 
-            start_date: sub.start_date.toISOString().split("T")[0],
-            end_date: sub.end_date.toISOString().split("T")[0],
+            plan_details: {
+                plan_id: sub.plan_details?._id || "N/A", // Ensure correct reference
+                productId: sub.productId || "N/A",
+                plan_name: sub.plan_details?.planName || "N/A",
+                price: sub.plan_details?.planAmount || 0,
+                duration: `${sub.plan_details?.days || 0} days`
+            },
+            buying_date: sub.start_date ? sub.start_date.toISOString().split("T")[0] : "N/A", // Handle potential missing start_date
+            status: sub.status,
         }));
 
         res.status(200).json(formattedUsers);
@@ -94,4 +93,7 @@ exports.getPaidUsers = async (req, res) => {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
+
+
 
