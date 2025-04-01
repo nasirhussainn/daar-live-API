@@ -45,15 +45,22 @@ exports.getPaidUsers = async (req, res) => {
     try {
         const { plan_id } = req.query;
 
-        // Validate if plan_id is provided
-        if (!plan_id) {
-            return res.status(400).json({ message: "Plan ID is required" });
+        // Build query object - include plan_id only if provided
+        const query = { status: "active" };
+        if (plan_id) {
+            query.plan_id = plan_id;
         }
 
-        // Fetch subscriptions based on plan_id and filter by active status
-        const users = await Subscription.find({ plan_id, status: "active" })
+        // Fetch subscriptions based on query (all active or filtered by plan_id)
+        const users = await Subscription.find(query)
             .populate("realtor_id")
-            .populate({ path: "realtor_id", populate: { path: "user_id", select: "full_name email phone_number role" } })
+            .populate({ 
+                path: "realtor_id", 
+                populate: { 
+                    path: "user_id", 
+                    select: "full_name email phone_number role" 
+                } 
+            })
             .populate("plan_id");
 
         // Format response with complete realtor details
