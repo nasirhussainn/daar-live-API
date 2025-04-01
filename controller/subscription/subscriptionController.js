@@ -49,7 +49,7 @@ const subscribeRealtor = async (req, res) => {
       realtor_id,
       subscription_id,
       customer_id,
-      productId: plan.productId, // Ensure price_id from plan is stored
+      productId: plan.productId, // Ensure productId from plan is stored
       plan_details: { ...plan.toObject() }, // Store full plan object
       start_date,
       end_date,
