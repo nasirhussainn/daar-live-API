@@ -135,8 +135,6 @@ exports.signup = async (req, res) => {
   }
 };
 
-  
-
 // Firebase Signup/Login
 exports.firebaseSignup = async (req, res) => {
   const role = "buyer";
@@ -212,6 +210,86 @@ exports.firebaseSignup = async (req, res) => {
     }
   } catch (error) {
     console.error("Firebase Signup Error:", error);
+    return res.status(500).json({ message: "Server error. Please try again." });
+  }
+};
+
+
+// 🔹 Social Authentication (Google/Apple) - Only for Buyers
+exports.socialAuth = async (req, res) => {
+  const { email, name, login_type_id } = req.body;
+  const role = "buyer"; // Enforce buyer role
+
+  try {
+    if (!email || !name || !login_type_id) {
+      return res.status(400).json({ message: "Missing required fields." });
+    }
+
+    if (!["google", "apple"].includes(login_type_id)) {
+      return res.status(400).json({ message: "Invalid login type." });
+    }
+
+    let user = await User.findOne({ email, role, account_type: login_type_id });
+
+    if (user) {
+      const token = generateToken(user);
+      user.login_token = token;
+      user.login_token_expiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+      await user.save();
+
+      return res.status(200).json({
+        message: "Login successful.",
+        token,
+        user: {
+          full_name: user.full_name,
+          email: user.email,
+          role: user.role,
+          account_type: user.account_type,
+          profile_picture: user.profile_picture,
+        },
+      });
+    }
+
+    // Upload profile picture to Cloudinary (if provided)
+    let imageUrl = null;
+    if (req.files && req.files["profile_picture"]) {
+      const folderName = "buyers_profiles";
+      imageUrl = await uploadToCloudinary(req.files["profile_picture"][0].buffer, folderName);
+    }
+
+    // Register new user
+    const newUser = new User({
+      full_name: name,
+      email,
+      role,
+      account_type: login_type_id,
+      profile_picture: imageUrl,
+      phone_number: null,
+      email_verified: true,
+      phone_verified: false,
+      account_status: "active",
+    });
+
+    // Generate token for new user
+    const token = generateToken(newUser);
+    newUser.login_token = token;
+    newUser.login_token_expiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    await newUser.save();
+
+    return res.status(201).json({
+      message: "Signup successful.",
+      token,
+      user: {
+        full_name: newUser.full_name,
+        email: newUser.email,
+        role: newUser.role,
+        account_type: newUser.account_type,
+        profile_picture: newUser.profile_picture,
+      },
+    });
+
+  } catch (error) {
+    console.error("Social Auth Error:", error);
     return res.status(500).json({ message: "Server error. Please try again." });
   }
 };
