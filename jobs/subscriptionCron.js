@@ -4,6 +4,7 @@ const Realtor = require("../models/Realtor");
 const Property = require("../models/Properties");
 const FeaturedEntity = require("../models/FeaturedEntity");
 const mongoose = require("mongoose");
+const Settings = require("../models/admin/Settings");
 
 const deactivateExpiredSubscriptions = async () => {
   console.log("Running subscription cleanup cron job...");
@@ -37,6 +38,45 @@ const deactivateExpiredSubscriptions = async () => {
     console.log(`✅ Expired subscriptions checked and updated`);
   } catch (error) {
     console.error("❌ Error in subscription cleanup cron job:", error);
+  }
+};
+
+
+/**
+ * Function to handle expired free trials
+ */
+const handleExpiredFreeTrials = async () => {
+  console.log("Checking for expired free trials...");
+
+  try {
+    // Fetch platform settings (free_trial_days)
+    const settings = await Settings.findOne();
+    if (!settings) {
+      console.error("Platform settings not found.");
+      return;
+    }
+
+    const today = new Date();
+    const freeTrialExpiryDate = new Date(today);
+    freeTrialExpiryDate.setDate(today.getDate() - settings.free_trial_days); // Calculate the expiry date
+
+    // Find realtors with expired free trials
+    const realtorsWithExpiredTrials = await Realtor.find({
+      has_used_free_trial: false,
+      created_at: { $lt: freeTrialExpiryDate }, // Realtors who created their account before the free trial expiry date
+    });    
+
+    for (const realtor of realtorsWithExpiredTrials) {
+      // Update realtor's has_used_free_trial status
+      realtor.has_used_free_trial = true;
+      await realtor.save();
+
+      console.log(`Free trial expired for realtor ${realtor._id}, has_used_free_trial set to true.`);
+    }
+
+    console.log(`✅ Expired free trials checked and updated.`);
+  } catch (error) {
+    console.error("❌ Error in handling expired free trials:", error);
   }
 };
 
@@ -80,6 +120,7 @@ cron.schedule("0 0 * * *", async () => {
     console.log("Running scheduled tasks...");
     await deactivateExpiredSubscriptions();
     await expireFeaturedProperties();
+    await handleExpiredFreeTrials();
     console.log("✅ Scheduled tasks completed.");
   } catch (error) {
     console.error("❌ Error in scheduled tasks:", error);
@@ -88,4 +129,4 @@ cron.schedule("0 0 * * *", async () => {
   timezone: "Asia/Aden"
 });
 
-module.exports = { deactivateExpiredSubscriptions, expireFeaturedProperties };
+module.exports = { deactivateExpiredSubscriptions, expireFeaturedProperties, handleExpiredFreeTrials };

@@ -59,8 +59,11 @@ const subscribeRealtor = async (req, res) => {
     // Save the new subscription
     await subscription.save();
 
-    // Update the realtor's `is_subscribed` status
-    await Realtor.findByIdAndUpdate(realtor_id, { is_subscribed: true });
+    // Update the realtor's `is_subscribed` status and mark free trial as used
+    await Realtor.findByIdAndUpdate(realtor_id, {
+      is_subscribed: true,
+      has_used_free_trial: true,
+    });
 
     // -------------- Log Payment History -----------------
     await logPaymentHistory({
@@ -76,7 +79,11 @@ const subscribeRealtor = async (req, res) => {
     // ----------------- Update Subscription Revenue -----------------
     // Get the current date in YYYY-MM-DD format
     const currentDate = new Date().toISOString().split("T")[0];
-    await updateAdminRevenue(plan.planAmount, "subscription_revenue", currentDate);
+    await updateAdminRevenue(
+      plan.planAmount,
+      "subscription_revenue",
+      currentDate
+    );
 
     // ----------------------------------------------------------------
 

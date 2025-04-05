@@ -9,6 +9,11 @@ const realtorSchema = new Schema({
   verification_doc_image: { type: String, required: false }, // Realtor's verification document
   avg_rating: { type: Number, default: 0 }, // Average rating of the realtor
   is_subscribed: { type: Boolean, default: false }, // Subscription status (defaults to false)
+  has_used_free_trial: {
+    type: Boolean,
+    default: false,
+  },
+  
 
   // Multiple Bank Details with Unique IDs
   bank_details: [

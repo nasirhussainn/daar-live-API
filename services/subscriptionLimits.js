@@ -21,7 +21,9 @@ async function determineCreatedBy(owner_id) {
 }
 
 const validateSubscriptionLimits = async ({ userId, entityType, session }) => {
-  console.log(`\n--- Starting validation for ${entityType} by user ${userId} ---`);
+  console.log(
+    `\n--- Starting validation for ${entityType} by user ${userId} ---`
+  );
 
   // Step 1: Check if user is an Admin
   const createdBy = await determineCreatedBy(userId);
@@ -37,7 +39,9 @@ const validateSubscriptionLimits = async ({ userId, entityType, session }) => {
     console.error("Realtor not found in database");
     throw new Error("Realtor profile not found.");
   }
-  console.log(`Realtor found: ${realtor._id}, Subscribed: ${realtor.is_subscribed}`);
+  console.log(
+    `Realtor found: ${realtor._id}, Subscribed: ${realtor.is_subscribed}`
+  );
 
   console.log("Fetching platform settings...");
   const settings = await Settings.findOne().session(session);
@@ -49,16 +53,23 @@ const validateSubscriptionLimits = async ({ userId, entityType, session }) => {
   // Step 3: Determine max allowed listings
   let maxAllowed;
   if (!realtor.is_subscribed) {
+    if (realtor.has_used_free_trial) {
+      console.error("Free trial already used - no access allowed");
+      throw new Error(
+        "Your free trial has expired. Please subscribe to a plan to continue."
+      );
+    }
+
     console.log("Checking FREE TRIAL limits...");
-    maxAllowed = entityType === "property" 
-      ? settings.free_trial_properties 
-      : settings.free_trial_events;
-    console.log(`Free trial limits - ${entityType}: ${maxAllowed}`);
+    maxAllowed =
+      entityType === "property"
+        ? settings.free_trial_properties
+        : settings.free_trial_events;
   } else {
     console.log("Checking PAID SUBSCRIPTION limits...");
     const subscription = await Subscription.findOne({
       realtor_id: realtor._id,
-      status: "active"
+      status: "active",
     }).session(session);
 
     if (!subscription) {
@@ -67,17 +78,20 @@ const validateSubscriptionLimits = async ({ userId, entityType, session }) => {
     }
 
     console.log(`Active subscription found: ${subscription._id}`);
-    
+
     // Use plan_details from subscription instead of fetching SubscriptionPlan
     if (!subscription.plan_details) {
       console.error("Plan details not found in subscription");
       throw new Error("Subscription plan details not found.");
     }
 
-    maxAllowed = entityType === "property" 
-      ? subscription.plan_details.noOfPropertyListing 
-      : subscription.plan_details.noOfEventListing;
-    console.log(`Plan limits (from subscription) - ${entityType}: ${maxAllowed}`);
+    maxAllowed =
+      entityType === "property"
+        ? subscription.plan_details.noOfPropertyListing
+        : subscription.plan_details.noOfEventListing;
+    console.log(
+      `Plan limits (from subscription) - ${entityType}: ${maxAllowed}`
+    );
   }
 
   // Step 4: Count current active listings
@@ -86,12 +100,12 @@ const validateSubscriptionLimits = async ({ userId, entityType, session }) => {
   if (entityType === "property") {
     currentCount = await Property.countDocuments({
       owner_id: userId,
-      property_status: { $nin: ["sold", "disapproved"] }
+      property_status: { $nin: ["sold", "disapproved"] },
     }).session(session);
   } else {
     currentCount = await Event.countDocuments({
       host_id: userId,
-      status: { $ne: "completed" }
+      status: { $ne: "completed" },
     }).session(session);
   }
   console.log(`Current active ${entityType} count: ${currentCount}`);
