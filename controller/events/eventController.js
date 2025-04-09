@@ -564,8 +564,6 @@ exports.getFilteredEvents = async (req, res) => {
   try {
     // Extract query parameters
     const {
-      page = 1,
-      limit = 10,
       start_price,
       end_price,
       start_date,
@@ -628,7 +626,7 @@ exports.getFilteredEvents = async (req, res) => {
       }
     }
 
-    // Date filter - FIXED HANDLING
+    // Date filter
     if (start_date || end_date) {
       if (start_date) {
         filter.start_date = filter.start_date || {};
@@ -668,11 +666,10 @@ exports.getFilteredEvents = async (req, res) => {
       filter.end_time = { $lte: endTime };
     }
 
-    // Pagination
-    const skip = (Number(page) - 1) * Number(limit);
+    // Count total matching events
     const totalEvents = await Event.countDocuments(filter);
 
-    // Query with population
+    // Query with population (no pagination)
     const events = await Event.find(filter)
       .populate({
         path: "host_id",
@@ -682,16 +679,12 @@ exports.getFilteredEvents = async (req, res) => {
       .populate("location")
       .populate("media")
       .populate("feature_details")
-      .skip(skip)
-      .limit(Number(limit))
       .sort({ start_date: 1 });
 
     // Response
     res.status(200).json({
       success: true,
       totalEvents,
-      page: Number(page),
-      results_per_page: Number(limit),
       events: events.map(event => ({
         id: event._id,
         title: event.title,
@@ -720,3 +713,4 @@ exports.getFilteredEvents = async (req, res) => {
     });
   }
 };
+

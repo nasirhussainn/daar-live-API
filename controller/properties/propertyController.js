@@ -910,8 +910,6 @@ exports.updateProperty = async (req, res) => {
 exports.getFilteredProperties = async (req, res) => {
   try {
     const {
-      page = 1,
-      limit = 10,
       minPrice,
       maxPrice,
       bedrooms,
@@ -940,8 +938,8 @@ exports.getFilteredProperties = async (req, res) => {
       if (minPrice) {
         conditions.push({
           $gte: [
-            { $toDouble: "$price" }, // Convert string price to number
-            parseFloat(minPrice), // Convert minPrice to number
+            { $toDouble: "$price" },
+            parseFloat(minPrice),
           ],
         });
       }
@@ -949,13 +947,12 @@ exports.getFilteredProperties = async (req, res) => {
       if (maxPrice) {
         conditions.push({
           $lte: [
-            { $toDouble: "$price" }, // Convert string price to number
-            parseFloat(maxPrice), // Convert maxPrice to number
+            { $toDouble: "$price" },
+            parseFloat(maxPrice),
           ],
         });
       }
 
-      // Combine conditions with AND logic
       filter.$expr.$and = conditions;
     }
 
@@ -971,7 +968,6 @@ exports.getFilteredProperties = async (req, res) => {
 
     // Property type filter (multiple allowed)
     if (propertyType) {
-      // Convert comma-separated string to array if needed
       const typeIds = Array.isArray(propertyType)
         ? propertyType
         : propertyType.split(",");
@@ -983,7 +979,6 @@ exports.getFilteredProperties = async (req, res) => {
 
     // Property subtype filter (multiple allowed)
     if (propertySubtype) {
-      // Convert comma-separated string to array if needed
       const subtypeIds = Array.isArray(propertySubtype)
         ? propertySubtype
         : propertySubtype.split(",");
@@ -993,17 +988,16 @@ exports.getFilteredProperties = async (req, res) => {
       };
     }
 
-    // Purpose filter (sell/rent)
+    // Purpose filter
     if (purpose) {
       filter.property_purpose = purpose;
 
-      // Duration filter (only applicable for rentals)
       if (purpose === "rent" && duration) {
         filter.property_duration = duration;
       }
     }
 
-    // Amenities filter (if any amenities are selected)
+    // Amenities filter
     if (amenities) {
       const amenityIds = Array.isArray(amenities)
         ? amenities
@@ -1027,16 +1021,15 @@ exports.getFilteredProperties = async (req, res) => {
     if (state) filter.state = state;
     if (city) filter.city = city;
 
-    // Featured properties filter
+    // Featured filter
     if (isFeatured === "true") {
       filter.is_feature = true;
     }
 
-    // Calculate pagination
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    // Total count
     const totalProperties = await Property.countDocuments(filter);
 
-    // Execute query with pagination and population
+    // Fetch all matching properties without pagination
     const properties = await Property.find(filter)
       .populate({
         path: "owner_id",
@@ -1048,18 +1041,13 @@ exports.getFilteredProperties = async (req, res) => {
       .populate("property_type")
       .populate("property_subtype")
       .populate("amenities")
-      .skip(skip)
-      .limit(parseInt(limit))
       .sort({ created_at: -1 }); // Sort by newest first
 
-    // Format the response
+    // Response
     const response = {
       totalProperties,
-      currentPage: parseInt(page),
-      totalPages: Math.ceil(totalProperties / parseInt(limit)),
       properties: properties.map((property) => ({
         ...property.toObject(),
-        // You can add additional formatting here if needed
       })),
     };
 
@@ -1072,3 +1060,4 @@ exports.getFilteredProperties = async (req, res) => {
     });
   }
 };
+

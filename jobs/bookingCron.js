@@ -63,13 +63,13 @@ const expireCompletedBookings = async () => {
   }
 };
 
-// Disable cancellations for bookings within 48 hours of start date
+// Disable cancellations for bookings within 72 hours of start date
 const updateCancellableBookings = async () => {
   console.log("🔄 Checking for bookings that are nearing the start date...");
 
   try {
     const now = new Date();
-    const cutoffTime = new Date(now.getTime() + 48 * 60 * 60 * 1000); // 48 hours from now
+    const cutoffTime = new Date(now.getTime() + 72 * 60 * 60 * 1000); // 72 hours from now
 
     // Find cancellable property bookings
     const propertyBookings = await Booking.find({
