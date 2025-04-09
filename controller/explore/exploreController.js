@@ -35,7 +35,16 @@ exports.findNearbyProperties = async (req, res) => {
     const locationIds = nearbyLocations.map((loc) => loc._id);
 
     // Find properties linked to those locations
-    const nearbyProperties = await Property.find({ location: { $in: locationIds } }).populate("location");
+    const nearbyProperties = await Property.find({ location: { $in: locationIds } })
+    .populate({
+      path: "owner_id",
+      select: "email full_name phone_number profile_picture", // Only these fields will be included
+    })
+    .populate("location")
+    .populate("media")
+    .populate("feature_details")
+    .populate("property_type")
+    .populate("property_subtype")
 
     return res.status(200).json({ success: true, properties: nearbyProperties });
   } catch (error) {
@@ -78,7 +87,15 @@ exports.findNearbyEvents = async (req, res) => {
     const locationIds = nearbyLocations.map((loc) => loc._id);
 
     // Find events linked to those locations
-    const nearbyEvents = await Event.find({ location: { $in: locationIds } }).populate("location");
+    const nearbyEvents = await Event.find({ location: { $in: locationIds } })
+    .populate({
+      path: "host_id",
+      select: "email full_name phone_number profile_picture", // Fetch only these fields
+    })
+    .populate("event_type")
+    .populate("location")
+    .populate("media")
+    .populate("feature_details")
 
     return res.status(200).json({ success: true, events: nearbyEvents });
   } catch (error) {
