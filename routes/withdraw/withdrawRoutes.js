@@ -6,7 +6,7 @@ const withdrawController = require("../../controller/withdraw/withdrawController
 router.post("/request", withdrawController.requestWithdraw);
 
 // withdraw request by it id
-router.get("/:withdraw_id", withdrawController.getWithdrawRequestById);
+router.get("/via-id/:withdraw_id", withdrawController.getWithdrawRequestById);
 
 // update withdraw request by user
 router.put("/:withdraw_id", withdrawController.updateWithdrawRequest);
