@@ -21,6 +21,7 @@
   "homepage": "https://github.com/nasirhussainn/daar-live-API#readme",
   "description": "",
   "dependencies": {
+    "@google-cloud/translate": "^9.0.1",
     "@google/generative-ai": "^0.24.0",
     "@vitalets/google-translate-api": "^9.2.1",
     "axios": "^1.7.9",

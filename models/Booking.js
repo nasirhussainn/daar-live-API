@@ -108,6 +108,15 @@ const BookingSchema = new Schema({
 
   id_number: { type: String, default: null },
 
+  // check in and check out 
+  check_in_out_logs: [
+    {
+      check_in_time: { type: Date, required: true },
+      check_out_time: { type: Date, default: null } // Nullable in case user hasn’t checked out yet
+    }
+  ],
+  
+
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now },
 });

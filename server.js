@@ -42,6 +42,8 @@ app.get("/", (req, res) => {
   res.send("Welcome to Daar Live API! 🚀");
 });
 
+// Translation
+app.use("/api/translate", require("./routes/translate")); // This will import the Translate rout
 // Import Routes (other routes)
 // const authPassword = require("./routes/auth/authPassword");
 // const authEmailVerification = require("./routes/auth/authEmailVerification");
@@ -84,6 +86,7 @@ const approvalRoutes = require("./routes/approval/approvalRoutes")
 
 const propertyBookingRoutes = require("./routes/booking/propertyBookingRoutes")
 const eventBookingRoutes = require("./routes/booking/eventBookingRoutes")
+const checkInOutRoutes = require("./routes/booking/checkInOutRoutes")
 
 const realtorHostStatRoutes = require("./routes/stats/realtorHostStatRoutes");
 const subscriptionStatRoutes = require("./routes/stats/subscriptionStatRoutes");
@@ -130,7 +133,7 @@ app.use("/property-facilities", [
 
 app.use("/property", [propertyRoutes, savedPropertyRoutes, propertyBookingRoutes]);
 
-app.use("/event", [eventRoutes, eventBookingRoutes]);
+app.use("/event", [eventRoutes, eventBookingRoutes, checkInOutRoutes]);
 
 app.use("/review", [reviewRoutes]);
 
@@ -159,6 +162,7 @@ app.use("/withdraw", withdrawRoutes);
 
 app.use("/analytic", analyticRoutes);
 
+app.use("/check-in-out", checkInOutRoutes)
 // Start the Server
 server.listen(PORT, () => {
   console.log(`🚀 Server running at: http://localhost:${PORT}/`);
