@@ -156,12 +156,13 @@ exports.deleteAdmin = async (req, res) => {
 // 🔹 Change Super Admin Password (no bcrypt)
 exports.changeSuperAdminPassword = async (req, res) => {
     try {
-      const { adminId, currentPassword, newPassword } = req.body;
+      const { currentPassword, newPassword } = req.body;
   
-      const admin = await Admin.findById(adminId);
+      // Find the super admin
+      const admin = await Admin.findOne({ role: 'super' });
   
-      if (!admin || admin.role !== 'super') {
-        return res.status(403).json({ message: "Only super admin can change their password" });
+      if (!admin) {
+        return res.status(404).json({ message: "Super admin not found" });
       }
   
       if (admin.password !== currentPassword) {
@@ -177,4 +178,5 @@ exports.changeSuperAdminPassword = async (req, res) => {
       res.status(500).json({ message: 'Server error', error: error.message });
     }
   };
+  
   
