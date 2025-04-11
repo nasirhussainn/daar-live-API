@@ -153,3 +153,28 @@ exports.deleteAdmin = async (req, res) => {
     }
 };
 
+// 🔹 Change Super Admin Password (no bcrypt)
+exports.changeSuperAdminPassword = async (req, res) => {
+    try {
+      const { adminId, currentPassword, newPassword } = req.body;
+  
+      const admin = await Admin.findById(adminId);
+  
+      if (!admin || admin.role !== 'super') {
+        return res.status(403).json({ message: "Only super admin can change their password" });
+      }
+  
+      if (admin.password !== currentPassword) {
+        return res.status(401).json({ message: "Current password is incorrect" });
+      }
+  
+      admin.password = newPassword;
+      await admin.save();
+  
+      res.status(200).json({ message: "Password changed successfully" });
+  
+    } catch (error) {
+      res.status(500).json({ message: 'Server error', error: error.message });
+    }
+  };
+  

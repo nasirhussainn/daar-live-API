@@ -6,7 +6,8 @@ const {
     getAdminById,
     updateAdmin,
     deleteAdmin,
-    loginAdmin
+    loginAdmin,
+    changeSuperAdminPassword 
 } = require('../../controller/admin/adminController');
 
 const router = express.Router();
@@ -17,5 +18,6 @@ router.get('/:id', authenticateSuperAdmin, getAdminById);
 router.put('/:id', authenticateSuperAdmin, updateAdmin);
 router.delete('/:id', authenticateSuperAdmin, deleteAdmin);
 router.post('/login', loginAdmin);
+router.put("/super/change-password", authenticateSuperAdmin, changeSuperAdminPassword);
 
 module.exports = router;
