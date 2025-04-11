@@ -120,7 +120,7 @@ async function sendPropertyBookingConfirmationEmail(booking) {
         <p>Booking details:</p>
         ${emailBody} <!-- Reusing the same email content -->
         <p>Best regards,</p>
-        <p>Your Platform Team</p>
+        <p>Daar Live</p>
       `,
     });
 
@@ -236,7 +236,7 @@ async function sendEventBookingConfirmationEmail(booking) {
         <p>Booking details:</p>
         ${emailBody}
         <p>Best regards,</p>
-        <p>Your Platform Team</p>
+        <p>Daar Live</p>
       `,
     });
 
@@ -302,7 +302,7 @@ async function sendPropertyBookingCancellationEmail(booking) {
       </ul>
       <p>The property is now available for new bookings.</p>
       <p>Best regards,</p>
-      <p>Your Platform Team</p>
+      <p>Daar Live</p>
     `;
 
     // Send email to buyer
@@ -396,7 +396,7 @@ async function sendEventBookingCancellationEmail(booking) {
         <p><strong>Cancelation Reason:</strong> ${booking.cancelation_reason || "Not provided"}</p>
         ${ticketDetailsHTML}
         <p>Best regards,</p>
-        <p>Your Platform Team</p>
+        <p>Daar Live</p>
       `,
     });
 
@@ -459,7 +459,7 @@ async function sendAccountStatusUpdateEmail(user) {
       <p><strong>New Status:</strong> ${user.account_status.toUpperCase()}</p>
       <p>If you have any questions, please feel free to contact our support team.</p>
       <p>Best regards,</p>
-      <p>Your Platform Team</p>
+      <p>Daar Live</p>
     `;
 
     await transporter.sendMail({
@@ -538,7 +538,7 @@ async function sendWithdrawalRequestEmail(withdrawRequest, realtor) {
 
       <p>You will be notified once the request is processed.</p>
       <p>Best regards,</p>
-      <p>Your Platform Team</p>
+      <p>Daar Live</p>
     `;
     await sendEmail(realtor.email, realtorSubject, realtorHtml);
 
@@ -564,7 +564,7 @@ async function sendWithdrawalRequestEmail(withdrawRequest, realtor) {
 
       <p>Please review and update the status accordingly.</p>
       <p>Best regards,</p>
-      <p>Your Platform Team</p>
+      <p>Daar Live</p>
     `;
     await sendEmail(admin.email, adminSubject, adminHtml);
   } catch (error) {
@@ -601,7 +601,7 @@ async function sendWithdrawalStatusUpdateEmail(withdrawRequest, realtor) {
 
       <p>If you have any questions, please contact our support team.</p>
       <p>Best regards,</p>
-      <p>Your Platform Team</p>
+      <p>Daar Live</p>
     `;
     await sendEmail(realtor.email, subject, html);
   } catch (error) {

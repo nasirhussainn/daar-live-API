@@ -32,7 +32,7 @@ exports.login = async (req, res) => {
       const now = new Date();
       if (user.login_token && user.login_token_expiry > now) {
         return res.status(200).json({
-          message: "Login successful (existing session).",
+          message: "Login successful.",
           token: user.login_token,
           user: { email: user.email, full_name: user.full_name, role: user.role },
         });
