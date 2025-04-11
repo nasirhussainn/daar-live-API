@@ -156,6 +156,7 @@ exports.addOrUpdateSettings = async (req, res) => {
       free_trial_properties,
       free_trial_events,
       days_to_hide_after_expiry,
+      yemen_currency
     } = req.body;
 
     const settings = await Settings.findOneAndUpdate(
@@ -168,6 +169,7 @@ exports.addOrUpdateSettings = async (req, res) => {
         free_trial_properties,
         free_trial_events,
         days_to_hide_after_expiry,
+        yemen_currency
       },
       { new: true, upsert: true, setDefaultsOnInsert: true } // Create if not exists, set defaults
     );

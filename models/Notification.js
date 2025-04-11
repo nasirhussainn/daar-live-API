@@ -3,8 +3,17 @@ const { Schema } = mongoose;
 
 const NotificationSchema = new Schema(
   {
-    user: { type: Schema.Types.ObjectId, ref: "User", required: true }, // Who will receive the notification
-
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      refPath: 'user_type' // 👈 dynamic reference based on this field
+    },
+    user_type: {
+      type: String,
+      required: true,
+      enum: ['User', 'Admin'] // 👈 make sure only valid model names are allowed
+    },
+    
     notification_type: {
       type: String,
       enum: ["Booking", "Review", "Property", "Event", "Chat"], // Type of notification

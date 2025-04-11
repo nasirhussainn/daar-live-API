@@ -5,7 +5,7 @@ const Realtor = require("../../models/Realtor");
 const Event = require("../../models/Events");
 const Property = require("../../models/Properties");
 const Notification = require("../../models/Notification"); 
-const { sendResponse } = require("../../services/translateHelper");
+const { translateText } = require("../../services/translateService")
 
 const mongoose = require("mongoose");
 
@@ -55,7 +55,6 @@ exports.addReview = async (req, res) => {
       review_for,
       review_for_type,
       review_by,
-      review_description,
       review_rating,
     } = req.body;
 
@@ -83,17 +82,18 @@ exports.addReview = async (req, res) => {
       target = await Event.findById(review_for).session(session);
       if (!target) return res.status(404).json({ message: "Event not found" });
       model = Event;
-      recipientUserId = target.organizer; // Notify the event organizer
+      recipientUserId = target.host_id; // Notify the event organizer
     } else if (review_for_type === "Property") {
       target = await Property.findById(review_for).session(session);
       if (!target) return res.status(404).json({ message: "Property not found" });
       model = Property;
-      recipientUserId = target.owner; // Notify the property owner
+      recipientUserId = target.owner_id; // Notify the property owner
     }
 
     let review;
     let isNewReview = false; // Track if it's a new review
 
+    review_description = await translateText(req.body.review_description);
     if (existingReview) {
       existingReview.review_description = review_description;
       existingReview.review_rating = review_rating;

@@ -19,9 +19,10 @@ const ReviewSchema = new Schema(
       required: true,
     },
     review_description: {
-      type: String,
+      type: Map,
+      of: String,
       required: true,
-    },
+    },    
     review_rating: {
       type: Number,
       required: true,

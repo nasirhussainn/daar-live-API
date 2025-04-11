@@ -8,7 +8,7 @@ const Notification = require("../../models/Notification");
 const { logPaymentHistory } = require("./paymentHistoryService");
 const sendNotification = require("../notification/sendNotification");
 const Settings = require("../../models/admin/Settings");
-const updateRevenue = require("./updateRevenue");
+const updateRevenue = require("./updateRevenue"); 
 
 const normalizeTime = (time) => {
   let date = new Date(`1970-01-01 ${time}`);

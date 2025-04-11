@@ -9,6 +9,7 @@ const settingsSchema = new mongoose.Schema(
     free_trial_properties: { type: Number, required: true, default: 0 }, // No. of listings allowed on free trial (Admin CRUD)
     free_trial_events: { type: Number, required: true, default: 0 }, // No. of events allowed on free trial (Admin CRUD)
     days_to_hide_after_expiry: { type: Number, required: true, default: 0 }, // Days after which listings are hidden post-subscription expiry (Admin CRUD)
+    yemen_currency: { type: Number, required: false, default: 0 }, // Yemen currency rate (Admin CRUD)
   },
   { timestamps: true } // Automatically adds createdAt and updatedAt
 );
