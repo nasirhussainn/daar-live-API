@@ -1,9 +1,10 @@
 const Amenity = require("../../models/admin/Amenities");
+const { translateText } = require("../../services/translateService");
 
 // ✅ Create a new Amenity
 exports.createAmenity = async (req, res) => {
     try {
-        const { name } = req.body;
+        const name = await translateText(req.body.name);
 
         // Check if amenity with the same name already exists
         const existingAmenity = await Amenity.findOne({ name });
@@ -49,7 +50,7 @@ exports.getAmenityById = async (req, res) => {
 exports.updateAmenity = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name } = req.body;
+        const name = await translateText(req.body.name);
 
         // Check if amenity exists
         const amenity = await Amenity.findById(id);

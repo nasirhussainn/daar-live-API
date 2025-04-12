@@ -1,10 +1,12 @@
 const PropertyType = require("../../models/admin/PropertyType");
 const PropertySubType = require("../../models/admin/PropertySubtype");
+const { translateText } = require("../../services/translateService");
 
 exports.createPropertyType = async (req, res) => {
     try {
-      let { name, property_for, allowed_durations } = req.body;
+      let { property_for, allowed_durations } = req.body;
   
+      let name = await translateText(req.body.name);
       // Ensure property_for is either "rent" or "sell"
       if (!["rent", "sell"].includes(property_for)) {
         return res.status(400).json({ error: "property_for must be 'rent' or 'sell'" });
@@ -89,8 +91,8 @@ exports.getPropertyTypeById = async (req, res) => {
 exports.updatePropertyType = async (req, res) => {
     try {
       const { id } = req.params;
-      let { name, property_for, allowed_durations } = req.body;
-  
+      let { property_for, allowed_durations } = req.body;
+      let name = await translateText(req.body.name)
       // Fetch the existing PropertyType
       const currentPropertyType = await PropertyType.findById(id);
       if (!currentPropertyType) {

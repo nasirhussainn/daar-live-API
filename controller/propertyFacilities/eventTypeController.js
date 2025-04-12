@@ -1,9 +1,10 @@
 const EventType = require("../../models/admin/EventType");
+const { translateText } = require("../../services/translateService");
 
 // ✅ Create a new EventType
 exports.createEventType = async (req, res) => {
     try {
-        const { name } = req.body;
+        const name = await translateText(req.body.name);
 
         // Check if event type with the same name already exists
         const existingEvent = await EventType.findOne({ name });
@@ -49,7 +50,7 @@ exports.getEventTypeById = async (req, res) => {
 exports.updateEventType = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name } = req.body;
+        const name = await translateText(req.body.name);
 
         // Check if event type exists
         const eventType = await EventType.findById(id);

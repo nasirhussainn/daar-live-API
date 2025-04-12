@@ -1,10 +1,12 @@
 const PropertySubtype = require("../../models/admin/PropertySubtype");
 const PropertyType = require("../../models/admin/PropertyType");
+const { translateText } = require("../../services/translateService");
 
 // ✅ Create a new PropertySubtype
 exports.createPropertySubtype = async (req, res) => {
     try {
-        let { name, property_type, property_for, property_duration } = req.body;
+        let { property_type, property_for, property_duration } = req.body;
+        let name = await translateText(req.body.name);
 
         // Ensure PropertyType exists
         const propertyType = await PropertyType.findById(property_type);
@@ -72,7 +74,8 @@ exports.getPropertySubtypeById = async (req, res) => {
 exports.updatePropertySubtype = async (req, res) => {
     try {
         const { id } = req.params;
-        let { name, property_type, property_for, property_duration } = req.body;
+        let { property_type, property_for, property_duration } = req.body;
+        let name = await translateText(req.body.name)
 
         // Ensure PropertySubtype exists
         const existingSubtype = await PropertySubtype.findById(id);
