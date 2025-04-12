@@ -762,22 +762,39 @@ exports.updateProperty = async (req, res) => {
 
     // Step 4: Handle location update
     let locationUpdate = {};
+
     if (req.body.location) {
+      // Ensure nearbyLocations is always an array
       const nearbyLocationsArray = Array.isArray(
         req.body.location?.nearbyLocations
       )
         ? req.body.location.nearbyLocations
         : JSON.parse(req.body.location?.nearbyLocations || "[]");
 
+      // Translate location_address (string)
+      const translatedLocationAddress = await translateText(
+        req.body.location.location_address
+      );
+
+      // Translate each nearby location
+      const translatedNearbyLocations = await Promise.all(
+        nearbyLocationsArray.map((loc) => translateText(loc))
+      );
+
+      // Construct the update object with translated fields
       locationUpdate = {
         ...req.body.location,
-        nearbyLocations: nearbyLocationsArray,
+        location_address: translatedLocationAddress,
+        nearbyLocations: translatedNearbyLocations,
       };
 
+      // Update the Location document
       await Location.findByIdAndUpdate(
         existingProperty.location,
         locationUpdate,
-        { session }
+        {
+          session,
+        }
       );
     }
 

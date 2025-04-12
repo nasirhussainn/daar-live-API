@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const User = require("../../models/User");
 const Realtor = require("../../models/Realtor");
 const { uploadToCloudinary, deleteFromCloudinary } = require("../../config/cloudinary");
+const { translateText } = require("../../services/translateService")
 
 exports.updateUser = async (req, res) => {
   const session = await mongoose.startSession();

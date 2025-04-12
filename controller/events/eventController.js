@@ -487,15 +487,11 @@ exports.updateEvent = async (req, res) => {
     }
 
     // Translation (with fallback to existing values)
-    const title = await translateText(req.body.title || existingEvent.title);
-    const description = await translateText(
-      req.body.description || existingEvent.description
-    );
-    const city = await translateText(req.body.city || existingEvent.city);
-    const state = await translateText(req.body.state || existingEvent.state);
-    const country = await translateText(
-      req.body.country || existingEvent.country
-    );
+    const title = await translateText(req.body.title);
+    const description = await translateText(req.body.description);
+    const city = await translateText(req.body.city);
+    const state = await translateText(req.body.state);
+    const country = await translateText(req.body.country);
 
     if (entry_type === "paid" && (!entry_price || Number(entry_price) <= 0)) {
       return res.status(400).json({
@@ -525,15 +521,30 @@ exports.updateEvent = async (req, res) => {
     // Update Location (or keep existing if not sent)
     let savedLocation = existingEvent.location;
     if (location) {
-      const nearbyLocationsArray = Array.isArray(location.nearbyLocations)
-        ? location.nearbyLocations
-        : JSON.parse(location.nearbyLocations || "[]");
+      // Step 2: Validate location and nearby locations
+      // Translate the location address (a string)
+      const translatedLocationAddress = await translateText(
+        location.location_address
+      );
 
+      // Ensure nearbyLocations is always an array
+      let nearbyLocationsArray = Array.isArray(location.nearbyLocations)
+        ? location.nearbyLocations
+        : JSON.parse(location.nearbyLocations || "[]"); // Convert to array if it is a string
+
+      // Translate each element in nearbyLocations array
+      const translatedNearbyLocations = await Promise.all(
+        nearbyLocationsArray.map((loc) => translateText(loc))
+      );
+
+      // Now, save the translated values in the Location model
       const locationData = new Location({
-        ...location,
-        nearbyLocations: nearbyLocationsArray,
+        ...req.body.location,
+        location_address: translatedLocationAddress, // Store translated location_address
+        nearbyLocations: translatedNearbyLocations, // Store translated nearbyLocations
       });
 
+      // Save the location document with the translations
       const newLocation = await locationData.save({ session });
       savedLocation = newLocation._id;
     }
