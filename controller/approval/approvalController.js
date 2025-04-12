@@ -25,7 +25,7 @@ exports.approveProperty = async (req, res) => {
 
     // Send email notification
     if (property.owner_id && property.owner_id.email) {
-      await mailer.sendPropertyStatusEmail(property.owner_id.email, property.title, "approved");
+      await mailer.sendPropertyStatusEmail(property.owner_id.email, property.title.get('en'), "approved");
     }
 
     // Create in-app notification
@@ -34,7 +34,7 @@ exports.approveProperty = async (req, res) => {
       "Property", 
       property._id, 
       "Property Approved", 
-      `Your property "${property.title}" has been approved and is now live.`
+      `Your property "${property.title.get('en')}" has been approved and is now live.`
     );
 
     res.json({ message: "Property approved successfully" });

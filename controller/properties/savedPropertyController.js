@@ -93,7 +93,8 @@ exports.getSavedProperties = async (req, res) => {
       .populate("media")
       .populate("feature_details")
       .populate("property_type")
-      .populate("property_subtype");
+      .populate("property_subtype")
+      .lean();
 
     // Process amenities, reviews, saved status, and realtor stats
     const propertiesWithDetails = await Promise.all(
@@ -115,7 +116,7 @@ exports.getSavedProperties = async (req, res) => {
         }
 
         return {
-          ...property.toObject(),
+          ...property,
           amenities: amenitiesDetails,
           review: reviewData,
           saved_status: savedStatus,

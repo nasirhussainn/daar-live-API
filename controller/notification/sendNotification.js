@@ -5,8 +5,8 @@ const { translateText } = require("../../services/translateService")
 const sendNotification = async (userId, type, referenceId, title, message) => {
   try {
     const userType = await resolveUserType(userId); // 👈 determine whether User or Admin
-    title = await translateText(title);
-    message = await translateText(message);
+    translated_title = await translateText(title);
+    translated_message = await translateText(message);
 
 
     await Notification.create({
@@ -14,8 +14,8 @@ const sendNotification = async (userId, type, referenceId, title, message) => {
       user_type: userType,
       notification_type: type,
       reference_id: referenceId,
-      title,
-      message,
+      title: translated_title,
+      message: translated_message,
     });
   } catch (error) {
     console.error("Error sending notification:", error);
