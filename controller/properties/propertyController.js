@@ -65,9 +65,12 @@ exports.addProperty = async (req, res) => {
 
     const title = await translateText(req.body.title);
     const description = await translateText(req.body.description);
-    const city = await translateText(req.body.city);
-    const state = await translateText(req.body.state);
-    const country = await translateText(req.body.country);
+
+    const country = req.body.country
+      ? await translateText(req.body.country)
+      : null;
+    const state = req.body.state ? await translateText(req.body.state) : null;
+    const city = req.body.city ? await translateText(req.body.city) : null;
 
     // Validate subscription/trial limits (throws error if limit reached)
     await validateSubscriptionLimits({
@@ -109,24 +112,35 @@ exports.addProperty = async (req, res) => {
 
     // Translate the location address (a string)
     const translatedLocationAddress = await translateText(
-      location.location_address
+      req.body.location.location_address
     );
 
     // Ensure nearbyLocations is always an array
-    let nearbyLocationsArray = Array.isArray(location.nearbyLocations)
-      ? location.nearbyLocations
-      : JSON.parse(location.nearbyLocations || "[]"); // Convert to array if it is a string
+    let nearbyLocationsArray = Array.isArray(req.body.location.nearbyLocations)
+      ? req.body.location.nearbyLocations
+      : JSON.parse(req.body.location.nearbyLocations || "[]");
 
-    // Translate each element in nearbyLocations array
-    const translatedNearbyLocations = await Promise.all(
+    // Translate each nearby location (returns array of translation maps)
+    const translatedNearbyList = await Promise.all(
       nearbyLocationsArray.map((loc) => translateText(loc))
     );
+
+    // Merge into a single map: { en: [...], ar: [...] }
+    const mergedNearbyLocations = {};
+    for (const translation of translatedNearbyList) {
+      for (const lang in translation) {
+        if (!mergedNearbyLocations[lang]) {
+          mergedNearbyLocations[lang] = [];
+        }
+        mergedNearbyLocations[lang].push(translation[lang]);
+      }
+    }
 
     // Now, save the translated values in the Location model
     const locationData = new Location({
       ...req.body.location,
-      location_address: translatedLocationAddress, // Store translated location_address
-      nearbyLocations: translatedNearbyLocations, // Store translated nearbyLocations
+      location_address: translatedLocationAddress, // Map of strings by language
+      nearbyLocations: mergedNearbyLocations, // Map of arrays of strings
     });
 
     // Save the location document with the translations
@@ -302,7 +316,8 @@ exports.getAllProperties = async (req, res) => {
       .populate("property_type")
       .populate("property_subtype")
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
     // Fetch amenities, reviews, saved status, and realtor stats
     const propertiesWithDetails = await Promise.all(
@@ -329,8 +344,11 @@ exports.getAllProperties = async (req, res) => {
 
         // Fetch realtor stats if owner_id exists
         let realtorStats = null;
+        let realtorAvgRating = null;
+        let reatorReviewCount = null;
+
         if (property.owner_id) {
-          realtorStats = await getRealtorStats(property.owner_id._id); // Reusing function
+          realtorStats = await getRealtorStats(property.owner_id._id);
           realtorAvgRating = await getAvgRating(property.owner_id._id);
           reatorReviewCount = await getReviewCount(
             property.owner_id._id,
@@ -338,12 +356,13 @@ exports.getAllProperties = async (req, res) => {
           );
         }
 
+        // Return the full property data including language-specific fields (title, description, etc.)
         return {
-          ...property.toObject(),
+          ...property, // Keep the property as is (includes language fields like title, description, etc.)
           amenities: amenitiesDetails, // Replace IDs with actual amenities details
           review: reviewData,
           saved_status: savedStatus, // Include saved property status
-          realtor_stats: realtorStats, // ✅ Now includes realtor statistics
+          realtor_stats: realtorStats, // Include realtor statistics
           realtor_review_count: reatorReviewCount,
           realtor_avg_rating: realtorAvgRating,
         };
@@ -356,13 +375,6 @@ exports.getAllProperties = async (req, res) => {
       totalPages: Math.ceil(totalProperties / limit),
       properties: propertiesWithDetails,
     });
-    // const response = {
-    //   totalProperties,
-    //   currentPage: page,
-    //   totalPages: Math.ceil(totalProperties / limit),
-    //   properties: propertiesWithDetails,
-    // };
-    // return sendResponse(res, 201, response);
   } catch (error) {
     console.error(error);
     res
@@ -385,7 +397,8 @@ exports.getPropertyById = async (req, res) => {
       .populate("media")
       .populate("feature_details")
       .populate("property_type")
-      .populate("property_subtype");
+      .populate("property_subtype")
+      .lean();
 
     if (!property) {
       return res.status(404).json({ message: "Property not found" });
@@ -423,7 +436,7 @@ exports.getPropertyById = async (req, res) => {
     }
 
     res.status(200).json({
-      ...property.toObject(),
+      ...property,
       amenities: amenitiesDetails,
       reviews: reviewData,
       saved_status, // Include saved status
@@ -431,16 +444,6 @@ exports.getPropertyById = async (req, res) => {
       realtor_review_count: reatorReviewCount,
       realtor_avg_rating: realtorAvgRating,
     });
-    // const response = {
-    //   ...property.toObject(),
-    //   amenities: amenitiesDetails,
-    //   reviews: reviewData,
-    //   saved_status, // Include saved status
-    //   realtor_stats: realtorStats, // Only include stats if successful
-    //   realtor_review_count: reatorReviewCount,
-    //   realtor_avg_rating: realtorAvgRating,
-    // };
-    // return sendResponse(res, 201, response);
   } catch (error) {
     console.error("Error fetching property details:", error);
     res
@@ -473,7 +476,8 @@ exports.getAllPropertiesByOwnerId = async (req, res) => {
       .populate("property_type")
       .populate("property_subtype")
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
     if (!properties.length) {
       return res
@@ -496,7 +500,7 @@ exports.getAllPropertiesByOwnerId = async (req, res) => {
         const reviewData = await getReviewsWithCount(property._id, "Property");
 
         return {
-          ...property.toObject(),
+          ...property,
           amenities: amenitiesDetails, // Replace IDs with actual amenities details
           reviews: reviewData, // Include review details
           realtor_stats: realtorStats,
@@ -700,12 +704,6 @@ exports.updateProperty = async (req, res) => {
       amenities,
     } = req.body;
 
-    const title = await translateText(req.body.title);
-    const description = await translateText(req.body.description);
-    const city = await translateText(req.body.city);
-    const state = await translateText(req.body.state);
-    const country = await translateText(req.body.country);
-
     // Step 1: Find the existing property
     const existingProperty = await Property.findById(propertyId).session(
       session
@@ -714,7 +712,30 @@ exports.updateProperty = async (req, res) => {
       return res.status(404).json({ message: "Property not found" });
     }
 
-    // Step 2: Validate property_subtype against property_purpose if subtype is being updated
+    // Step 2: Build update object dynamically
+    const updateData = {};
+
+    // Translate and update only if provided
+    if (req.body.title) updateData.title = await translateText(req.body.title);
+    if (req.body.description)
+      updateData.description = await translateText(req.body.description);
+    if (req.body.country)
+      updateData.country = await translateText(req.body.country);
+    if (req.body.state) updateData.state = await translateText(req.body.state);
+    if (req.body.city) updateData.city = await translateText(req.body.city);
+
+    // Direct values
+    if (property_purpose) updateData.property_purpose = property_purpose;
+    if (property_duration) updateData.property_duration = property_duration;
+    if (property_type) updateData.property_type = property_type;
+    if (price) updateData.price = price;
+    if (area_size) updateData.area_size = area_size;
+    if (bedrooms) updateData.bedrooms = bedrooms;
+    if (bathrooms) updateData.bathrooms = bathrooms;
+    if (charge_per) updateData.charge_per = charge_per;
+    if (security_deposit) updateData.security_deposit = security_deposit;
+
+    // Step 3: Validate and update property_subtype if provided
     if (
       property_subtype &&
       property_subtype !== existingProperty.property_subtype.toString()
@@ -736,9 +757,11 @@ exports.updateProperty = async (req, res) => {
           message: `Selected property subtype does not match existing property_purpose: ${existingProperty.property_purpose}`,
         });
       }
+
+      updateData.property_subtype = property_subtype;
     }
 
-    // Step 3: Validate amenities if being updated
+    // Step 4: Validate amenities if being updated
     let validAmenities = existingProperty.amenities;
     if (amenities) {
       const amenitiesArray = Array.isArray(amenities)
@@ -758,52 +781,54 @@ exports.updateProperty = async (req, res) => {
           .status(400)
           .json({ message: "One or more amenities are invalid" });
       }
+
+      updateData.amenities = validAmenities.map((a) => a._id);
     }
 
-    // Step 4: Handle location update
-    let locationUpdate = {};
-
+    // Step 5: Handle location update
     if (req.body.location) {
-      // Ensure nearbyLocations is always an array
       const nearbyLocationsArray = Array.isArray(
         req.body.location?.nearbyLocations
       )
         ? req.body.location.nearbyLocations
         : JSON.parse(req.body.location?.nearbyLocations || "[]");
 
-      // Translate location_address (string)
       const translatedLocationAddress = await translateText(
         req.body.location.location_address
       );
-
-      // Translate each nearby location
       const translatedNearbyLocations = await Promise.all(
         nearbyLocationsArray.map((loc) => translateText(loc))
       );
 
-      // Construct the update object with translated fields
-      locationUpdate = {
+      // Merge into a single map: { en: [...], ar: [...] }
+      const mergedNearbyLocations = {};
+      for (const translation of translatedNearbyLocations) {
+        for (const lang in translation) {
+          if (!mergedNearbyLocations[lang]) {
+            mergedNearbyLocations[lang] = [];
+          }
+          mergedNearbyLocations[lang].push(translation[lang]);
+        }
+      }
+
+      const locationUpdate = {
         ...req.body.location,
         location_address: translatedLocationAddress,
-        nearbyLocations: translatedNearbyLocations,
+        nearbyLocations: mergedNearbyLocations,
       };
 
-      // Update the Location document
       await Location.findByIdAndUpdate(
         existingProperty.location,
         locationUpdate,
-        {
-          session,
-        }
+        { session }
       );
     }
 
-    // Step 5: Handle Media updates - Fresh only approach
+    // Step 6: Handle Media updates
     let mediaUpdate = {};
     const folderName = "property_media_daar_live";
-
-    // Fetch existing media
     let existingMedia = {};
+
     if (existingProperty.media) {
       existingMedia = await Media.findById(existingProperty.media).session(
         session
@@ -811,76 +836,49 @@ exports.updateProperty = async (req, res) => {
     }
 
     if (req.files) {
-      const newMediaFiles = {
-        images: [],
-        videos: [],
-      };
+      const newMediaFiles = { images: [], videos: [] };
 
-      // Prepare new images if provided
       if (req.files.images) {
-        req.files.images.forEach((img) => {
-          newMediaFiles.images.push({
-            buffer: img.buffer,
-            fieldname: "images",
-          });
-        });
+        req.files.images.forEach((img) =>
+          newMediaFiles.images.push({ buffer: img.buffer, fieldname: "images" })
+        );
       }
 
-      // Prepare new videos if provided
       if (req.files.videos) {
-        req.files.videos.forEach((vid) => {
-          newMediaFiles.videos.push({
-            buffer: vid.buffer,
-            fieldname: "videos",
-          });
-        });
+        req.files.videos.forEach((vid) =>
+          newMediaFiles.videos.push({ buffer: vid.buffer, fieldname: "videos" })
+        );
       }
 
-      // Handle Images
+      // Upload and replace media if new files provided
       if (newMediaFiles.images.length > 0) {
-        // Upload new images
         const uploadedImages = await uploadMultipleToCloudinary(
           newMediaFiles.images,
           folderName
         );
-
-        // Delete old images from Cloudinary
-        if (existingMedia && existingMedia.images) {
-          for (let image of existingMedia.images) {
+        if (existingMedia.images) {
+          for (let image of existingMedia.images)
             await deleteFromCloudinary(image);
-          }
         }
-
-        // Update images
         mediaUpdate.images = uploadedImages.images;
       } else {
-        // Retain existing images if no new images provided
         mediaUpdate.images = existingMedia.images || [];
       }
 
-      // Handle Videos
       if (newMediaFiles.videos.length > 0) {
-        // Upload new videos
         const uploadedVideos = await uploadMultipleToCloudinary(
           newMediaFiles.videos,
           folderName
         );
-
-        // Delete old videos from Cloudinary
-        if (existingMedia && existingMedia.videos) {
-          for (let video of existingMedia.videos) {
+        if (existingMedia.videos) {
+          for (let video of existingMedia.videos)
             await deleteFromCloudinary(video);
-          }
         }
-
-        // Update videos
         mediaUpdate.videos = uploadedVideos.videos;
       } else {
-        // Retain existing videos if no new videos provided
         mediaUpdate.videos = existingMedia.videos || [];
       }
 
-      // Update media in the database only if changes occurred
       if (Object.keys(mediaUpdate).length > 0) {
         await Media.findByIdAndUpdate(existingProperty.media, mediaUpdate, {
           session,
@@ -888,53 +886,27 @@ exports.updateProperty = async (req, res) => {
       }
     }
 
-    // Step 8: Update the property
+    // Step 7: Apply the final update
     const updatedProperty = await Property.findByIdAndUpdate(
       propertyId,
-      {
-        $set: {
-          title: title || existingProperty.title,
-          description: description || existingProperty.description,
-          property_purpose:
-            property_purpose || existingProperty.property_purpose,
-          property_duration:
-            property_duration || existingProperty.property_duration,
-          property_type: property_type || existingProperty.property_type,
-          property_subtype:
-            property_subtype || existingProperty.property_subtype,
-          price: price || existingProperty.price,
-          country: country || existingProperty.country,
-          state: state || existingProperty.state,
-          city: city || existingProperty.city,
-          area_size: area_size || existingProperty.area_size,
-          bedrooms: bedrooms || existingProperty.bedrooms,
-          bathrooms: bathrooms || existingProperty.bathrooms,
-          charge_per: charge_per || existingProperty.charge_per,
-          security_deposit:
-            security_deposit || existingProperty.security_deposit,
-          amenities: validAmenities.map((a) => a._id),
-        },
-      },
+      { $set: updateData },
       { new: true, session }
     );
 
-    // Commit the transaction
     await session.commitTransaction();
     session.endSession();
 
-    // Step 9: Return success response
-    res.status(200).json({
+    return res.status(200).json({
       message: "Property updated successfully!",
       property: updatedProperty,
-      media: mediaUpdate, // Return the updated media in response
+      media: mediaUpdate,
     });
   } catch (error) {
-    // If any error occurs, roll back the transaction
     await session.abortTransaction();
     session.endSession();
 
     console.error(error);
-    res
+    return res
       .status(500)
       .json({ message: "Error updating property", error: error.message });
   }
@@ -1068,13 +1040,14 @@ exports.getFilteredProperties = async (req, res) => {
       .populate("property_type")
       .populate("property_subtype")
       .populate("amenities")
-      .sort({ created_at: -1 }); // Sort by newest first
+      .sort({ created_at: -1 })
+      .lean(); // Sort by newest first
 
     // Response
     const response = {
       totalProperties,
       properties: properties.map((property) => ({
-        ...property.toObject(),
+        ...property,
       })),
     };
 

@@ -34,6 +34,7 @@ exports.addEvent = async (req, res) => {
   session.startTransaction();
 
   try {
+    // Step 1: Extract and translate necessary fields
     const {
       host_id,
       start_date,
@@ -48,33 +49,34 @@ exports.addEvent = async (req, res) => {
       payment_date,
       transaction_price,
       is_feature,
-      allow_booking,
     } = req.body;
 
     const title = await translateText(req.body.title);
     const description = await translateText(req.body.description);
-    const city = await translateText(req.body.city);
-    const state = await translateText(req.body.state);
-    const country = await translateText(req.body.country);
 
-    // Validate subscription/trial limits (throws error if limit reached)
+    const country = req.body.country ? await translateText(req.body.country) : null;
+    const state = req.body.state ? await translateText(req.body.state) : null;
+    const city = req.body.city ? await translateText(req.body.city) : null;
+
+    // Step 2: Validate subscription/trial limits
     await validateSubscriptionLimits({
       userId: host_id,
       entityType: "event",
       session,
     });
 
+    // Step 3: Entry price validation
     if (entry_type === "paid" && (!entry_price || entry_price == 0)) {
       return res.status(400).json({
         message: "Entry price cannot be zero or empty for paid events",
       });
     }
 
+    // Step 4: Validate event types
     const eventTypesArray = Array.isArray(req.body.event_type)
       ? req.body.event_type
       : JSON.parse(req.body.event_type || "[]");
 
-    // Step 1: Validate event types
     const validEventTypes = await EventType.find({
       _id: {
         $in: eventTypesArray.map((id) =>
@@ -84,42 +86,42 @@ exports.addEvent = async (req, res) => {
     });
 
     if (validEventTypes.length !== eventTypesArray.length) {
-      return res
-        .status(400)
-        .json({ message: "One or more event types are invalid" });
+      return res.status(400).json({ message: "One or more event types are invalid" });
     }
 
-    // Step 2: Validate location and nearby locations
-    // Translate the location address (a string)
-    const translatedLocationAddress = await translateText(
-      location.location_address
-    );
+    // Step 5: Translate and handle location and nearbyLocations
+    const translatedLocationAddress = await translateText(location.location_address);
 
-    // Ensure nearbyLocations is always an array
     let nearbyLocationsArray = Array.isArray(location.nearbyLocations)
       ? location.nearbyLocations
-      : JSON.parse(location.nearbyLocations || "[]"); // Convert to array if it is a string
+      : JSON.parse(location.nearbyLocations || "[]");
 
-    // Translate each element in nearbyLocations array
-    const translatedNearbyLocations = await Promise.all(
+    const translatedNearbyList = await Promise.all(
       nearbyLocationsArray.map((loc) => translateText(loc))
     );
 
-    // Now, save the translated values in the Location model
+    const mergedNearbyLocations = {};
+    for (const translation of translatedNearbyList) {
+      for (const lang in translation) {
+        if (!mergedNearbyLocations[lang]) {
+          mergedNearbyLocations[lang] = [];
+        }
+        mergedNearbyLocations[lang].push(translation[lang]);
+      }
+    }
+
     const locationData = new Location({
-      ...req.body.location,
-      location_address: translatedLocationAddress, // Store translated location_address
-      nearbyLocations: translatedNearbyLocations, // Store translated nearbyLocations
+      ...location,
+      location_address: translatedLocationAddress,
+      nearbyLocations: mergedNearbyLocations,
     });
 
-    // Save the location document with the translations
     const savedLocation = await locationData.save({ session });
 
-    // Step 3: Handle media uploads
+    // Step 6: Handle media uploads
     let mediaUrls = { images: [], videos: [] };
-    let savedMedia = null;
 
-    if (req.files) {
+    if (req.files && (req.files.images || req.files.videos)) {
       const mediaFiles = [];
 
       if (req.files.images) {
@@ -136,47 +138,54 @@ exports.addEvent = async (req, res) => {
 
       const folderName = "event_media_daar_live";
       mediaUrls = await uploadMultipleToCloudinary(mediaFiles, folderName);
-
-      // Save media if there are images or videos
-      if (mediaUrls.images.length || mediaUrls.videos.length) {
-        const mediaData = new Media({
-          images: mediaUrls.images,
-          videos: mediaUrls.videos,
-        });
-        savedMedia = await mediaData.save({ session });
-      }
     }
 
-    // Step 4: Set `created_by`, `allow_booking`, and `is_feature`
+    const mediaData = new Media({
+      images: mediaUrls.images,
+      videos: mediaUrls.videos,
+    });
+    const savedMedia = await mediaData.save({ session });
+
+    // Step 7: Set default values
+    let event_status = "pending";
+    let allow_booking = true;
+
     const created_by = await determineCreatedBy(host_id);
-    // Step 5: Create the event data
+
+    if (
+      is_feature === "true" ||
+      is_feature === true ||
+      created_by === "Admin"
+    ) {
+      event_status = "approved";
+    }
+
+    // Step 8: Create the Event document
     const eventData = new Event({
       host_id,
       title,
       description,
-      event_type: validEventTypes.map((a) => a._id),
       start_date,
       end_date,
       start_time,
       end_time,
       entry_type,
       entry_price,
-      location: savedLocation ? savedLocation._id : null,
-      media: savedMedia ? savedMedia._id : null, // Only set if media exists
       country,
       state,
       city,
-      no_of_days,
-      payment_date,
-      transaction_price,
-      is_feature,
+      location: savedLocation ? savedLocation._id : null,
+      media: savedMedia ? savedMedia._id : null,
+      event_type: validEventTypes.map((e) => e._id),
       allow_booking,
+      event_status,
+      is_feature,
       created_by,
     });
 
     const savedEvent = await eventData.save({ session });
 
-    // Step 6: If the event is featured, create a FeaturedEntity record
+    // Step 9: If featured, create a FeaturedEntity
     let featureEntity;
     let featureMessage = null;
 
@@ -189,19 +198,17 @@ exports.addEvent = async (req, res) => {
           no_of_days,
           is_active: true,
           event_id: savedEvent._id,
-          entity_type: "event", // Indicates this is an event
+          entity_type: "event",
         });
 
         const savedFeaturedEntity = await featureEntity.save({ session });
 
-        // Update the Event with the reference to the FeaturedEntity
         savedEvent.feature_details = savedFeaturedEntity._id;
-        savedEvent.is_featured = true; // Mark as featured
+        savedEvent.is_featured = true;
         await savedEvent.save({ session });
       } catch (featureError) {
         console.error("Error adding FeaturedEntity:", featureError.message);
 
-        // Rollback is_featured to false since feature process failed
         savedEvent.is_featured = false;
         await savedEvent.save({ session });
 
@@ -210,29 +217,25 @@ exports.addEvent = async (req, res) => {
       }
     }
 
-    // Commit the transaction
+    // Step 10: Commit transaction
     await session.commitTransaction();
     session.endSession();
 
-    // Return success response
     res.status(201).json({
       message:
-        "Property added successfully!" +
-        (featureMessage ? ` ${featureMessage}` : ""),
+        "Event added successfully!" + (featureMessage ? ` ${featureMessage}` : ""),
       event: savedEvent,
       mediaUrls: mediaUrls,
     });
   } catch (error) {
-    // If any error occurs, roll back the transaction
     await session.abortTransaction();
     session.endSession();
 
     console.error(error);
-    res
-      .status(500)
-      .json({ message: "Error adding event", error: error.message });
+    res.status(500).json({ message: "Error adding event", error: error.message });
   }
 };
+
 
 // ✅ Fetch all events with optional filters (featured, created_by) + Host Stats
 exports.getAllEvents = async (req, res) => {
@@ -264,7 +267,8 @@ exports.getAllEvents = async (req, res) => {
       .populate("media")
       .populate("feature_details")
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
     if (!events.length) {
       return res.status(404).json({ message: "No events found" });
@@ -291,7 +295,7 @@ exports.getAllEvents = async (req, res) => {
         const reviews = await getReviewsWithCount(event._id, "Event");
 
         return {
-          ...event.toObject(),
+          ...event,
           reviews,
           host_stats: hostStats[event.host_id._id.toString()] || null,
           host_review_count:
@@ -328,7 +332,8 @@ exports.getEventById = async (req, res) => {
       .populate("event_type")
       .populate("location")
       .populate("media")
-      .populate("feature_details");
+      .populate("feature_details")
+      .lean();
 
     if (!event) {
       return res.status(404).json({ message: "Event not found" });
@@ -344,7 +349,7 @@ exports.getEventById = async (req, res) => {
     const hostAvgRating = await getAvgRating(hostId); // Fixed
 
     res.status(200).json({
-      ...event.toObject(),
+      ...event,
       reviews,
       host_stats: hostStats || null,
       host_review_count: hostReviewCount || null, // Fixed variable name
@@ -380,7 +385,8 @@ exports.getAllEventsByHostId = async (req, res) => {
       .populate("media")
       .populate("feature_details")
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
     if (!events.length) {
       return res.status(404).json({ message: "No events found for this host" });
@@ -397,7 +403,7 @@ exports.getAllEventsByHostId = async (req, res) => {
         const reviews = await getReviewsWithCount(event._id, "Event");
 
         return {
-          ...event.toObject(),
+          ...event,
           reviews,
           host_stats: hostStats || null,
           host_review_count: hostReviewCount || null, // Added review count
@@ -463,7 +469,7 @@ exports.updateEvent = async (req, res) => {
   session.startTransaction();
 
   try {
-    const eventId = req.params.id;
+    const { id: eventId } = req.params;
     const {
       host_id,
       start_date,
@@ -481,184 +487,181 @@ exports.updateEvent = async (req, res) => {
       allow_booking,
     } = req.body;
 
+    // Step 1: Find existing event
     const existingEvent = await Event.findById(eventId).session(session);
     if (!existingEvent) {
       return res.status(404).json({ message: "Event not found" });
     }
 
-    // Translation (with fallback to existing values)
-    const title = await translateText(req.body.title);
-    const description = await translateText(req.body.description);
-    const city = await translateText(req.body.city);
-    const state = await translateText(req.body.state);
-    const country = await translateText(req.body.country);
+    // Step 2: Translate and build updateData
+    const updateData = {};
 
+    if (req.body.title) updateData.title = await translateText(req.body.title);
+    if (req.body.description) updateData.description = await translateText(req.body.description);
+    if (req.body.city) updateData.city = await translateText(req.body.city);
+    if (req.body.state) updateData.state = await translateText(req.body.state);
+    if (req.body.country) updateData.country = await translateText(req.body.country);
+
+    // Step 3: Validate entry price for paid events
     if (entry_type === "paid" && (!entry_price || Number(entry_price) <= 0)) {
       return res.status(400).json({
         message: "Entry price cannot be zero or empty for paid events",
       });
     }
 
-    // Event Type Validation
-    const eventTypesArray = Array.isArray(req.body.event_type)
-      ? req.body.event_type
-      : JSON.parse(req.body.event_type || "[]");
+    // Step 4: Assign direct values
+    if (host_id) updateData.host_id = host_id;
+    if (start_date) updateData.start_date = start_date;
+    if (end_date) updateData.end_date = end_date;
+    if (start_time) updateData.start_time = start_time;
+    if (end_time) updateData.end_time = end_time;
+    if (entry_type) updateData.entry_type = entry_type;
+    if (entry_price) updateData.entry_price = entry_price;
+    if (no_of_days) updateData.no_of_days = no_of_days;
+    if (transaction_id) updateData.transaction_id = transaction_id;
+    if (payment_date) updateData.payment_date = payment_date;
+    if (transaction_price) updateData.transaction_price = transaction_price;
+    if (typeof is_feature !== "undefined") updateData.is_feature = is_feature;
+    if (typeof allow_booking !== "undefined") updateData.allow_booking = allow_booking;
 
-    const validEventTypes = await EventType.find({
-      _id: {
-        $in: eventTypesArray.map((id) =>
-          mongoose.Types.ObjectId.createFromHexString(id)
-        ),
-      },
-    });
+    // Step 5: Validate event_type if provided
+    if (req.body.event_type) {
+      const eventTypeArray = Array.isArray(req.body.event_type)
+        ? req.body.event_type
+        : JSON.parse(req.body.event_type || "[]");
 
-    if (validEventTypes.length !== eventTypesArray.length) {
-      return res
-        .status(400)
-        .json({ message: "One or more event types are invalid" });
+      const validEventTypes = await EventType.find({
+        _id: {
+          $in: eventTypeArray.map((id) =>
+            mongoose.Types.ObjectId.createFromHexString(id)
+          ),
+        },
+      });
+
+      if (validEventTypes.length !== eventTypeArray.length) {
+        return res.status(400).json({ message: "One or more event types are invalid" });
+      }
+
+      updateData.event_type = validEventTypes.map((et) => et._id);
     }
 
-    // Update Location (or keep existing if not sent)
-    let savedLocation = existingEvent.location;
+    // Step 6: Handle location update
     if (location) {
-      // Step 2: Validate location and nearby locations
-      // Translate the location address (a string)
-      const translatedLocationAddress = await translateText(
-        location.location_address
-      );
-
-      // Ensure nearbyLocations is always an array
-      let nearbyLocationsArray = Array.isArray(location.nearbyLocations)
+      const nearbyLocationsArray = Array.isArray(location?.nearbyLocations)
         ? location.nearbyLocations
-        : JSON.parse(location.nearbyLocations || "[]"); // Convert to array if it is a string
+        : JSON.parse(location?.nearbyLocations || "[]");
 
-      // Translate each element in nearbyLocations array
+      const translatedAddress = await translateText(location.location_address);
       const translatedNearbyLocations = await Promise.all(
         nearbyLocationsArray.map((loc) => translateText(loc))
       );
 
-      // Now, save the translated values in the Location model
-      const locationData = new Location({
-        ...req.body.location,
-        location_address: translatedLocationAddress, // Store translated location_address
-        nearbyLocations: translatedNearbyLocations, // Store translated nearbyLocations
-      });
+      const mergedNearbyLocations = {};
+      for (const translation of translatedNearbyLocations) {
+        for (const lang in translation) {
+          if (!mergedNearbyLocations[lang]) {
+            mergedNearbyLocations[lang] = [];
+          }
+          mergedNearbyLocations[lang].push(translation[lang]);
+        }
+      }
 
-      // Save the location document with the translations
-      const newLocation = await locationData.save({ session });
-      savedLocation = newLocation._id;
+      const locationUpdate = {
+        ...location,
+        location_address: translatedAddress,
+        nearbyLocations: mergedNearbyLocations,
+      };
+
+      await Location.findByIdAndUpdate(existingEvent.location, locationUpdate, {
+        session,
+      });
     }
 
-    // Update Media if new files are provided
-    let mediaUrls = { images: [], videos: [] };
-    let savedMedia = existingEvent.media;
+    // Step 7: Handle media updates
+    let mediaUpdate = {};
+    const folderName = "event_media_daar_live";
+    let existingMedia = {};
+
+    if (existingEvent.media) {
+      existingMedia = await Media.findById(existingEvent.media).session(session);
+    }
 
     if (req.files) {
-      const mediaFiles = [];
+      const newMediaFiles = { images: [], videos: [] };
 
       if (req.files.images) {
-        req.files.images.forEach((img) => {
-          mediaFiles.push({ buffer: img.buffer, fieldname: "images" });
-        });
+        req.files.images.forEach((img) =>
+          newMediaFiles.images.push({ buffer: img.buffer, fieldname: "images" })
+        );
       }
 
       if (req.files.videos) {
-        req.files.videos.forEach((vid) => {
-          mediaFiles.push({ buffer: vid.buffer, fieldname: "videos" });
-        });
+        req.files.videos.forEach((vid) =>
+          newMediaFiles.videos.push({ buffer: vid.buffer, fieldname: "videos" })
+        );
       }
 
-      const folderName = "event_media_daar_live";
-      mediaUrls = await uploadMultipleToCloudinary(mediaFiles, folderName);
+      if (newMediaFiles.images.length > 0) {
+        const uploadedImages = await uploadMultipleToCloudinary(
+          newMediaFiles.images,
+          folderName
+        );
+        if (existingMedia.images) {
+          for (let image of existingMedia.images)
+            await deleteFromCloudinary(image);
+        }
+        mediaUpdate.images = uploadedImages.images;
+      } else {
+        mediaUpdate.images = existingMedia.images || [];
+      }
 
-      if (mediaUrls.images.length || mediaUrls.videos.length) {
-        const mediaData = new Media({
-          images: mediaUrls.images,
-          videos: mediaUrls.videos,
+      if (newMediaFiles.videos.length > 0) {
+        const uploadedVideos = await uploadMultipleToCloudinary(
+          newMediaFiles.videos,
+          folderName
+        );
+        if (existingMedia.videos) {
+          for (let video of existingMedia.videos)
+            await deleteFromCloudinary(video);
+        }
+        mediaUpdate.videos = uploadedVideos.videos;
+      } else {
+        mediaUpdate.videos = existingMedia.videos || [];
+      }
+
+      if (Object.keys(mediaUpdate).length > 0) {
+        await Media.findByIdAndUpdate(existingEvent.media, mediaUpdate, {
+          session,
         });
-        const newMedia = await mediaData.save({ session });
-        savedMedia = newMedia._id;
       }
     }
 
-    const created_by = await determineCreatedBy(host_id);
-
-    // Update event fields
-    existingEvent.set({
-      host_id,
-      title,
-      description,
-      event_type: validEventTypes.map((a) => a._id),
-      start_date,
-      end_date,
-      start_time,
-      end_time,
-      entry_type,
-      entry_price,
-      location: savedLocation,
-      media: savedMedia,
-      country,
-      state,
-      city,
-      no_of_days,
-      payment_date,
-      transaction_price,
-      is_feature,
-      allow_booking,
-      created_by,
-    });
-
-    let featureMessage = null;
-
-    if (is_feature === "true" || is_feature === true) {
-      try {
-        const featureEntity = new FeaturedEntity({
-          transaction_id,
-          transaction_price,
-          payment_date,
-          no_of_days,
-          is_active: true,
-          event_id: existingEvent._id,
-          entity_type: "event",
-        });
-
-        const savedFeaturedEntity = await featureEntity.save({ session });
-
-        existingEvent.feature_details = savedFeaturedEntity._id;
-        existingEvent.is_featured = true;
-      } catch (featureError) {
-        console.error("Error updating FeaturedEntity:", featureError.message);
-
-        existingEvent.is_featured = false;
-        featureMessage =
-          "Event updated successfully but could not be featured.";
-      }
-    } else {
-      existingEvent.is_featured = false;
-    }
-
-    const updatedEvent = await existingEvent.save({ session });
+    // Step 8: Final event update
+    const updatedEvent = await Event.findByIdAndUpdate(
+      eventId,
+      { $set: updateData },
+      { new: true, session }
+    );
 
     await session.commitTransaction();
     session.endSession();
 
-    res.status(200).json({
-      message:
-        "Event updated successfully!" +
-        (featureMessage ? ` ${featureMessage}` : ""),
+    return res.status(200).json({
+      message: "Event updated successfully!",
       event: updatedEvent,
-      mediaUrls: mediaUrls,
+      media: mediaUpdate,
     });
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
     console.error(error);
-    res.status(500).json({
+    return res.status(500).json({
       message: "Error updating event",
       error: error.message,
     });
   }
 };
+
 
 exports.featureEvent = async (req, res) => {
   const session = await mongoose.startSession();

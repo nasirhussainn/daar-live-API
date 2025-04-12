@@ -26,7 +26,7 @@ exports.signup = async (req, res) => {
 
       const { full_name, email, password, role, phone_number, business_type } = req.body;
 
-      const business_name = await translateText(req.body.business_name)
+      // const business_name = await translateText(req.body.business_name)
 
       // Validate required fields
       if (!full_name || !email || !password || !role) {
@@ -96,7 +96,7 @@ exports.signup = async (req, res) => {
       if (role === "realtor") {
           const newRealtor = new Realtor({
               user_id: newUser._id,
-              business_name,
+              business_name: req.body.business_name ? await translateText(req.body.business_name) : null,
               business_type, // Set as required in future steps
               tax_id_image: taxIdImageUrl,
               verification_doc_image: verificationDocImageUrl,

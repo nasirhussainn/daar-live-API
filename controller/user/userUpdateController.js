@@ -13,7 +13,7 @@ exports.updateUser = async (req, res) => {
     const userId = req.params.userId;
     const { full_name, email, phone_number, business_type } = req.body;
 
-    const business_name = await translateText(business_name)
+    const business_name = await translateText(req.body.business_name)
     // Fetch existing user
     let user = await User.findById(userId).session(session);
     if (!user) {
