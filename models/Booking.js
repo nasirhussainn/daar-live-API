@@ -2,7 +2,8 @@ const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
 const generateConfirmationTicket = async function () {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   let ticket;
   let exists = true;
 
@@ -67,14 +68,14 @@ const BookingSchema = new Schema({
   confirmation_ticket: {
     type: String,
     unique: true,
-    sparse: true, 
+    sparse: true,
   },
 
   security_deposit: { type: Number },
 
   is_cancellable: { type: Boolean, default: true },
 
-  cancelation_reason: { type: String, default: null },
+  cancelation_reason: { type: Map, of: String, default: null },
 
   status: {
     type: String,
@@ -100,7 +101,11 @@ const BookingSchema = new Schema({
         },
         sparse: true,
       },
-      status: { type: String, enum: ["valid", "used", "canceled"], default: "valid" },
+      status: {
+        type: String,
+        enum: ["valid", "used", "canceled"],
+        default: "valid",
+      },
     },
   ],
 
@@ -108,14 +113,13 @@ const BookingSchema = new Schema({
 
   id_number: { type: String, default: null },
 
-  // check in and check out 
+  // check in and check out
   check_in_out_logs: [
     {
       check_in_time: { type: Date, required: true },
-      check_out_time: { type: Date, default: null } // Nullable in case user hasn’t checked out yet
-    }
+      check_out_time: { type: Date, default: null }, // Nullable in case user hasn’t checked out yet
+    },
   ],
-  
 
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now },
@@ -123,7 +127,11 @@ const BookingSchema = new Schema({
 
 // Ensure a unique confirmation ticket before saving
 BookingSchema.pre("validate", async function (next) {
-  if (this.isModified("status") && this.status === "confirmed" && !this.confirmation_ticket) {
+  if (
+    this.isModified("status") &&
+    this.status === "confirmed" &&
+    !this.confirmation_ticket
+  ) {
     this.confirmation_ticket = await generateConfirmationTicket();
   }
 

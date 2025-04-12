@@ -1,9 +1,13 @@
 const Notification = require("../../models/Notification");
 const resolveUserType = require("../../services/userTypeResolver"); // adjust path
+const { translateText } = require("../../services/translateService")
 
 const sendNotification = async (userId, type, referenceId, title, message) => {
   try {
     const userType = await resolveUserType(userId); // 👈 determine whether User or Admin
+    title = await translateText(title);
+    message = await translateText(message);
+
 
     await Notification.create({
       user: userId,

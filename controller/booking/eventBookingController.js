@@ -8,6 +8,7 @@ const { logPaymentHistory } = require("./paymentHistoryService");
 const sendNotification = require("../notification/sendNotification");
 const updateRevenue = require("./updateRevenue");
 const Settings = require("../../models/admin/Settings");
+const { translateText } = require("../../services/translateService")
 
 // ✅ Book an Event
 const generateTickets = (numTickets) => {
@@ -191,7 +192,7 @@ exports.cancelEventBooking = async (req, res) => {
     try {
       // Update booking status and save
       booking.status = "canceled";
-      booking.cancelation_reason = cancelation_reason;
+      booking.cancelation_reason = await translateText(cancelation_reason);
       await booking.save();
 
       console.log("Booking canceled and property marked as available.");

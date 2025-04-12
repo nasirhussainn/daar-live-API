@@ -10,6 +10,7 @@ const PaymentHistory = require("../../models/PaymentHistory");
 const Realtor = require("../../models/Realtor");
 const AdminRevenue = require("../../models/admin/AdminRevenue"); // AdminRevenue model
 const { updateAdminRevenue } = require("../../services/updateAdminRevenue"); // AdminRevenue service
+const { translateText } = require("../../services/translateService");
 
 const { getHostsStats } = require("../stats/getHostStats"); // Import the function
 const {
@@ -35,8 +36,6 @@ exports.addEvent = async (req, res) => {
   try {
     const {
       host_id,
-      title,
-      description,
       start_date,
       end_date,
       start_time,
@@ -44,9 +43,6 @@ exports.addEvent = async (req, res) => {
       entry_type,
       entry_price,
       location,
-      country,
-      state,
-      city,
       no_of_days,
       transaction_id,
       payment_date,
@@ -54,6 +50,12 @@ exports.addEvent = async (req, res) => {
       is_feature,
       allow_booking,
     } = req.body;
+
+    const title = await translateText(req.body.title);
+    const description = await translateText(req.body.description);
+    const city = await translateText(req.body.city);
+    const state = await translateText(req.body.state);
+    const country = await translateText(req.body.country);
 
     // Validate subscription/trial limits (throws error if limit reached)
     await validateSubscriptionLimits({
@@ -88,15 +90,29 @@ exports.addEvent = async (req, res) => {
     }
 
     // Step 2: Validate location and nearby locations
-    const nearbyLocationsArray = Array.isArray(
-      req.body.location?.nearbyLocations
-    )
-      ? req.body.location.nearbyLocations
-      : JSON.parse(req.body.location?.nearbyLocations || "[]");
+    // Translate the location address (a string)
+    const translatedLocationAddress = await translateText(
+      location.location_address
+    );
+
+    // Ensure nearbyLocations is always an array
+    let nearbyLocationsArray = Array.isArray(location.nearbyLocations)
+      ? location.nearbyLocations
+      : JSON.parse(location.nearbyLocations || "[]"); // Convert to array if it is a string
+
+    // Translate each element in nearbyLocations array
+    const translatedNearbyLocations = await Promise.all(
+      nearbyLocationsArray.map((loc) => translateText(loc))
+    );
+
+    // Now, save the translated values in the Location model
     const locationData = new Location({
       ...req.body.location,
-      nearbyLocations: nearbyLocationsArray,
+      location_address: translatedLocationAddress, // Store translated location_address
+      nearbyLocations: translatedNearbyLocations, // Store translated nearbyLocations
     });
+
+    // Save the location document with the translations
     const savedLocation = await locationData.save({ session });
 
     // Step 3: Handle media uploads
@@ -443,22 +459,193 @@ exports.deleteEvent = async (req, res) => {
 };
 
 exports.updateEvent = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const { id } = req.params;
-    const updates = req.body;
+    const eventId = req.params.id;
+    const {
+      host_id,
+      start_date,
+      end_date,
+      start_time,
+      end_time,
+      entry_type,
+      entry_price,
+      location,
+      no_of_days,
+      transaction_id,
+      payment_date,
+      transaction_price,
+      is_feature,
+      allow_booking,
+    } = req.body;
 
-    const event = await Event.findByIdAndUpdate(id, updates, { new: true });
-
-    if (!event) {
+    const existingEvent = await Event.findById(eventId).session(session);
+    if (!existingEvent) {
       return res.status(404).json({ message: "Event not found" });
     }
 
-    res.status(200).json({ message: "Event updated successfully", event });
+    // Translation (with fallback to existing values)
+    const title = await translateText(req.body.title || existingEvent.title);
+    const description = await translateText(
+      req.body.description || existingEvent.description
+    );
+    const city = await translateText(req.body.city || existingEvent.city);
+    const state = await translateText(req.body.state || existingEvent.state);
+    const country = await translateText(
+      req.body.country || existingEvent.country
+    );
+
+    if (entry_type === "paid" && (!entry_price || Number(entry_price) <= 0)) {
+      return res.status(400).json({
+        message: "Entry price cannot be zero or empty for paid events",
+      });
+    }
+
+    // Event Type Validation
+    const eventTypesArray = Array.isArray(req.body.event_type)
+      ? req.body.event_type
+      : JSON.parse(req.body.event_type || "[]");
+
+    const validEventTypes = await EventType.find({
+      _id: {
+        $in: eventTypesArray.map((id) =>
+          mongoose.Types.ObjectId.createFromHexString(id)
+        ),
+      },
+    });
+
+    if (validEventTypes.length !== eventTypesArray.length) {
+      return res
+        .status(400)
+        .json({ message: "One or more event types are invalid" });
+    }
+
+    // Update Location (or keep existing if not sent)
+    let savedLocation = existingEvent.location;
+    if (location) {
+      const nearbyLocationsArray = Array.isArray(location.nearbyLocations)
+        ? location.nearbyLocations
+        : JSON.parse(location.nearbyLocations || "[]");
+
+      const locationData = new Location({
+        ...location,
+        nearbyLocations: nearbyLocationsArray,
+      });
+
+      const newLocation = await locationData.save({ session });
+      savedLocation = newLocation._id;
+    }
+
+    // Update Media if new files are provided
+    let mediaUrls = { images: [], videos: [] };
+    let savedMedia = existingEvent.media;
+
+    if (req.files) {
+      const mediaFiles = [];
+
+      if (req.files.images) {
+        req.files.images.forEach((img) => {
+          mediaFiles.push({ buffer: img.buffer, fieldname: "images" });
+        });
+      }
+
+      if (req.files.videos) {
+        req.files.videos.forEach((vid) => {
+          mediaFiles.push({ buffer: vid.buffer, fieldname: "videos" });
+        });
+      }
+
+      const folderName = "event_media_daar_live";
+      mediaUrls = await uploadMultipleToCloudinary(mediaFiles, folderName);
+
+      if (mediaUrls.images.length || mediaUrls.videos.length) {
+        const mediaData = new Media({
+          images: mediaUrls.images,
+          videos: mediaUrls.videos,
+        });
+        const newMedia = await mediaData.save({ session });
+        savedMedia = newMedia._id;
+      }
+    }
+
+    const created_by = await determineCreatedBy(host_id);
+
+    // Update event fields
+    existingEvent.set({
+      host_id,
+      title,
+      description,
+      event_type: validEventTypes.map((a) => a._id),
+      start_date,
+      end_date,
+      start_time,
+      end_time,
+      entry_type,
+      entry_price,
+      location: savedLocation,
+      media: savedMedia,
+      country,
+      state,
+      city,
+      no_of_days,
+      payment_date,
+      transaction_price,
+      is_feature,
+      allow_booking,
+      created_by,
+    });
+
+    let featureMessage = null;
+
+    if (is_feature === "true" || is_feature === true) {
+      try {
+        const featureEntity = new FeaturedEntity({
+          transaction_id,
+          transaction_price,
+          payment_date,
+          no_of_days,
+          is_active: true,
+          event_id: existingEvent._id,
+          entity_type: "event",
+        });
+
+        const savedFeaturedEntity = await featureEntity.save({ session });
+
+        existingEvent.feature_details = savedFeaturedEntity._id;
+        existingEvent.is_featured = true;
+      } catch (featureError) {
+        console.error("Error updating FeaturedEntity:", featureError.message);
+
+        existingEvent.is_featured = false;
+        featureMessage =
+          "Event updated successfully but could not be featured.";
+      }
+    } else {
+      existingEvent.is_featured = false;
+    }
+
+    const updatedEvent = await existingEvent.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({
+      message:
+        "Event updated successfully!" +
+        (featureMessage ? ` ${featureMessage}` : ""),
+      event: updatedEvent,
+      mediaUrls: mediaUrls,
+    });
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
     console.error(error);
-    res
-      .status(500)
-      .json({ message: "Error updating event", error: error.message });
+    res.status(500).json({
+      message: "Error updating event",
+      error: error.message,
+    });
   }
 };
 
@@ -577,20 +764,20 @@ exports.getFilteredEvents = async (req, res) => {
       host_id,
       created_by,
       time_range,
-      entry_type
+      entry_type,
     } = req.query;
 
     // Build the filter object
     const filter = {
-      status: { 
-        $in: ['upcoming', 'live']  // Default filter
-      }
+      status: {
+        $in: ["upcoming", "live"], // Default filter
+      },
     };
 
     // Price filter
     if (start_price !== undefined || end_price !== undefined) {
       filter.$expr = { $and: [] };
-      
+
       if (start_price !== undefined) {
         filter.$expr.$and.push({
           $gte: [
@@ -598,14 +785,14 @@ exports.getFilteredEvents = async (req, res) => {
               $cond: {
                 if: { $eq: [{ $type: "$entry_price" }, "string"] },
                 then: { $toDouble: "$entry_price" },
-                else: "$entry_price"
-              }
+                else: "$entry_price",
+              },
             },
-            Number(start_price)
-          ]
+            Number(start_price),
+          ],
         });
       }
-      
+
       if (end_price !== undefined) {
         filter.$expr.$and.push({
           $lte: [
@@ -613,11 +800,11 @@ exports.getFilteredEvents = async (req, res) => {
               $cond: {
                 if: { $eq: [{ $type: "$entry_price" }, "string"] },
                 then: { $toDouble: "$entry_price" },
-                else: "$entry_price"
-              }
+                else: "$entry_price",
+              },
             },
-            Number(end_price)
-          ]
+            Number(end_price),
+          ],
         });
       }
 
@@ -641,7 +828,9 @@ exports.getFilteredEvents = async (req, res) => {
     // Event types filter
     if (event_types) {
       filter.event_type = {
-        $in: event_types.split(",").map(id => new mongoose.Types.ObjectId(id))
+        $in: event_types
+          .split(",")
+          .map((id) => new mongoose.Types.ObjectId(id)),
       };
     }
 
@@ -673,7 +862,7 @@ exports.getFilteredEvents = async (req, res) => {
     const events = await Event.find(filter)
       .populate({
         path: "host_id",
-        select: "email full_name phone_number profile_picture"
+        select: "email full_name phone_number profile_picture",
       })
       .populate("event_type")
       .populate("location")
@@ -685,7 +874,7 @@ exports.getFilteredEvents = async (req, res) => {
     res.status(200).json({
       success: true,
       totalEvents,
-      events: events.map(event => ({
+      events: events.map((event) => ({
         id: event._id,
         title: event.title,
         description: event.description,
@@ -700,17 +889,15 @@ exports.getFilteredEvents = async (req, res) => {
         host: event.host_id,
         featured: event.is_feature,
         status: event.status,
-        rating: event.avg_rating
-      }))
+        rating: event.avg_rating,
+      })),
     });
-
   } catch (error) {
     console.error("Error filtering events:", error);
     res.status(500).json({
       success: false,
       message: "Error filtering events",
-      error: error.message
+      error: error.message,
     });
   }
 };
-

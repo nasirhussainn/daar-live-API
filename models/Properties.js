@@ -16,8 +16,16 @@ const PropertySchema = new Schema({
     required: true, 
   },
 
-  title: { type: String, required: true },
-  description: { type: String },
+  title: {
+    type: Map,
+    of: String,
+    required: true,
+  },
+  description:  {
+    type: Map,
+    of: String,
+    required: true,
+  },
 
   property_purpose: { type: String, enum: ["sell", "rent"], required: true },
   property_duration: { type: String },
@@ -34,9 +42,18 @@ const PropertySchema = new Schema({
   property_subtype: { type: Schema.Types.ObjectId, ref: "PropertySubtype", required: true },
 
   // Location fields
-  country: { type: String },
-  state: { type: String },
-  city: { type: String },
+  country:  {
+    type: Map,
+    of: String,
+  },
+  state:  {
+    type: Map,
+    of: String,
+  },
+  city:  {
+    type: Map,
+    of: String,
+  },
 
   location: { type: Schema.Types.ObjectId, ref: "Location" },
   media: { type: Schema.Types.ObjectId, ref: "Media" },
@@ -60,7 +77,7 @@ const PropertySchema = new Schema({
   avg_rating: { type: Number, default: 0 },
 
   is_booked: { type: Boolean, default: false }, // Tracks if the property is booked
-  cancelation_reason: { type: String, default: null },
+  cancelation_reason: { type: Map, of: String, default: null },
 
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now },

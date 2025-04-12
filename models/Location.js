@@ -8,8 +8,14 @@ const LocationSchema = new Schema(
     postal_code: { type: String },
     latitude: { type: Number, min: -90, max: 90, required: true },
     longitude: { type: Number, min: -180, max: 180, required: true },
-    location_address: { type: String },
-    nearbyLocations: [{ type: String }],
+    location_address: { 
+      type: Map,
+      of: String,
+     },
+     nearbyLocations: {
+      type: Map,
+      of: [String],
+    },
 
     // GeoJSON format for geospatial queries
     location: {

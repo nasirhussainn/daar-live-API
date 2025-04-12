@@ -13,6 +13,7 @@ const PaymentHistory = require("../../models/PaymentHistory");
 const AdminRevenue = require("../../models/admin/AdminRevenue"); // AdminRevenue model
 const { updateAdminRevenue } = require("../../services/updateAdminRevenue"); // AdminRevenue service
 const { sendResponse } = require("../../services/translateHelper"); // sendResponse service
+const { translateText } = require("../../services/translateService");
 
 const {
   uploadMultipleToCloudinary,
@@ -44,16 +45,11 @@ exports.addProperty = async (req, res) => {
     // Step 1: Extract data from the request body
     const {
       owner_id,
-      title,
-      description,
       property_purpose,
       property_duration,
       property_type,
       property_subtype,
       price,
-      country,
-      state,
-      city,
       location,
       area_size,
       bedrooms,
@@ -66,6 +62,12 @@ exports.addProperty = async (req, res) => {
       transaction_price,
       is_feature,
     } = req.body;
+
+    const title = await translateText(req.body.title);
+    const description = await translateText(req.body.description);
+    const city = await translateText(req.body.city);
+    const state = await translateText(req.body.state);
+    const country = await translateText(req.body.country);
 
     // Validate subscription/trial limits (throws error if limit reached)
     await validateSubscriptionLimits({
@@ -105,15 +107,29 @@ exports.addProperty = async (req, res) => {
         .json({ message: "One or more amenities are invalid" });
     }
 
-    const nearbyLocationsArray = Array.isArray(
-      req.body.location?.nearbyLocations
-    )
-      ? req.body.location.nearbyLocations
-      : JSON.parse(req.body.location?.nearbyLocations || "[]");
+    // Translate the location address (a string)
+    const translatedLocationAddress = await translateText(
+      location.location_address
+    );
+
+    // Ensure nearbyLocations is always an array
+    let nearbyLocationsArray = Array.isArray(location.nearbyLocations)
+      ? location.nearbyLocations
+      : JSON.parse(location.nearbyLocations || "[]"); // Convert to array if it is a string
+
+    // Translate each element in nearbyLocations array
+    const translatedNearbyLocations = await Promise.all(
+      nearbyLocationsArray.map((loc) => translateText(loc))
+    );
+
+    // Now, save the translated values in the Location model
     const locationData = new Location({
       ...req.body.location,
-      nearbyLocations: nearbyLocationsArray,
+      location_address: translatedLocationAddress, // Store translated location_address
+      nearbyLocations: translatedNearbyLocations, // Store translated nearbyLocations
     });
+
+    // Save the location document with the translations
     const savedLocation = await locationData.save({ session });
 
     // Step 4: Handle Media uploadMultiple for the Property
@@ -339,7 +355,7 @@ exports.getAllProperties = async (req, res) => {
       currentPage: page,
       totalPages: Math.ceil(totalProperties / limit),
       properties: propertiesWithDetails,
-    })
+    });
     // const response = {
     //   totalProperties,
     //   currentPage: page,
@@ -414,8 +430,7 @@ exports.getPropertyById = async (req, res) => {
       realtor_stats: realtorStats, // Only include stats if successful
       realtor_review_count: reatorReviewCount,
       realtor_avg_rating: realtorAvgRating,
-
-    })
+    });
     // const response = {
     //   ...property.toObject(),
     //   amenities: amenitiesDetails,
@@ -672,16 +687,11 @@ exports.updateProperty = async (req, res) => {
     const { propertyId } = req.params;
     const {
       owner_id,
-      title,
-      description,
       property_purpose,
       property_duration,
       property_type,
       property_subtype,
       price,
-      country,
-      state,
-      city,
       area_size,
       bedrooms,
       bathrooms,
@@ -689,6 +699,12 @@ exports.updateProperty = async (req, res) => {
       security_deposit,
       amenities,
     } = req.body;
+
+    const title = await translateText(req.body.title);
+    const description = await translateText(req.body.description);
+    const city = await translateText(req.body.city);
+    const state = await translateText(req.body.state);
+    const country = await translateText(req.body.country);
 
     // Step 1: Find the existing property
     const existingProperty = await Property.findById(propertyId).session(
@@ -937,19 +953,13 @@ exports.getFilteredProperties = async (req, res) => {
 
       if (minPrice) {
         conditions.push({
-          $gte: [
-            { $toDouble: "$price" },
-            parseFloat(minPrice),
-          ],
+          $gte: [{ $toDouble: "$price" }, parseFloat(minPrice)],
         });
       }
 
       if (maxPrice) {
         conditions.push({
-          $lte: [
-            { $toDouble: "$price" },
-            parseFloat(maxPrice),
-          ],
+          $lte: [{ $toDouble: "$price" }, parseFloat(maxPrice)],
         });
       }
 
@@ -1060,4 +1070,3 @@ exports.getFilteredProperties = async (req, res) => {
     });
   }
 };
-

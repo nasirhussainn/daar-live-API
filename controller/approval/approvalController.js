@@ -2,6 +2,7 @@ const Property = require("../../models/Properties");
 const mailer = require("../../config/mailer"); // Import mailer functions
 const sendNotification = require("../notification/sendNotification"); // Import the notification function
 const User = require("../../models/User"); // Assuming you have a User model
+const { translateText } = require("../../services/translateService")
 
 exports.approveProperty = async (req, res) => {
   try {
@@ -46,20 +47,22 @@ exports.approveProperty = async (req, res) => {
 exports.disapproveProperty = async (req, res) => {
   try {
     const propertyId = req.params.id;
-    const cancelation_reason = req.body.cancelation_reason;
+    const cancelation_reason = await translateText(req.body.cancelation_reason);
     const property = await Property.findById(propertyId).populate("owner_id");
 
     if (!property) {
       return res.status(404).json({ message: "Property not found" });
     }
 
+
     property.property_status = "disapproved";
+   
     property.cancelation_reason = cancelation_reason;
     await property.save();
 
     // Send email notification
     if (property.owner_id && property.owner_id.email) {
-      await mailer.sendPropertyStatusEmail(property.owner_id.email, property.title, "disapproved", cancelation_reason);
+      await mailer.sendPropertyStatusEmail(property.owner_id.email, property.title, "disapproved", cancelation_reason.en);
     }
 
     // Create in-app notification

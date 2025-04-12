@@ -15,8 +15,16 @@ const EventSchema = new Schema({
         required: true, 
       },
   
-    title: { type: String, required: true },
-    description: { type: String, required: true },
+    title: {
+      type: Map,
+      of: String,
+      required: true,
+    },
+    description:  {
+      type: Map,
+      of: String,
+      required: true,
+    },
 
     event_type: [{ type: Schema.Types.ObjectId, ref: 'EventType', required: true }], // Changed to an array
     status: { type: String, enum: ['upcoming', 'completed', 'live'], required: true, default: 'upcoming' },
@@ -33,9 +41,18 @@ const EventSchema = new Schema({
     media: { type: Schema.Types.ObjectId, ref: 'Media' },
     feature_details: { type: Schema.Types.ObjectId, ref: "FeaturedEntity" },
     
-    country: { type: String },
-    state: { type: String },
-    city: { type: String },
+    country:  {
+      type: Map,
+      of: String,
+    },
+    state:  {
+      type: Map,
+      of: String,
+    },
+    city:  {
+      type: Map,
+      of: String,
+    },
 
     is_feature: { type: Boolean, default: false },  
     allow_booking: { type: Boolean, default: true },  

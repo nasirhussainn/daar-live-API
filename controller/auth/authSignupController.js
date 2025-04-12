@@ -7,6 +7,7 @@ const crypto = require("crypto");
 const mongoose = require("mongoose");
 const admin = require("firebase-admin");;
 const { generateToken } = require("../../config/jwt");
+const { translateText } = require("../../services/translateService")
 
 const BASE_URL = process.env.BASE_URL;
 
@@ -23,7 +24,9 @@ exports.signup = async (req, res) => {
   try {
       session.startTransaction(); // Start transaction
 
-      const { full_name, email, password, role, business_name, phone_number, business_type } = req.body;
+      const { full_name, email, password, role, phone_number, business_type } = req.body;
+
+      const business_name = await translateText(req.body.business_name)
 
       // Validate required fields
       if (!full_name || !email || !password || !role) {

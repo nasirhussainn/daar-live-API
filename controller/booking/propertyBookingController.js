@@ -9,6 +9,7 @@ const { logPaymentHistory } = require("./paymentHistoryService");
 const sendNotification = require("../notification/sendNotification");
 const Settings = require("../../models/admin/Settings");
 const updateRevenue = require("./updateRevenue"); 
+const { translateText } = require("../../services/translateService")
 
 const normalizeTime = (time) => {
   let date = new Date(`1970-01-01 ${time}`);
@@ -271,7 +272,7 @@ exports.cancelPropertyBooking = async (req, res) => {
     try {
       // Update booking status and save
       booking.status = "canceled";
-      booking.cancelation_reason = cancelation_reason;
+      booking.cancelation_reason = await translateText(cancelation_reason);
       await booking.save();
 
       // Mark property as available again

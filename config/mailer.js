@@ -79,9 +79,9 @@ async function sendPropertyBookingConfirmationEmail(booking) {
       <p>Your booking has been successfully confirmed.</p>
       <p><strong>Booking Details:</strong></p>
       <ul>
-        <li><strong>Property:</strong> ${property.title}</li>
-        <li><strong>Location:</strong> ${property.city}, ${property.state}, ${
-      property.country
+        <li><strong>Property:</strong> ${property.title.en}</li>
+        <li><strong>Location:</strong> ${property.city.en}, ${property.state.en}, ${
+      property.country.en
     }</li>
         <li><strong>Booking Start Date:</strong> ${new Date(
           booking.start_date
@@ -116,7 +116,7 @@ async function sendPropertyBookingConfirmationEmail(booking) {
       subject: "New Booking Confirmation",
       html: `
         <p>Dear ${realtor.full_name},</p>
-        <p>Your property <strong>${property.title}</strong> has been booked.</p>
+        <p>Your property <strong>${property.title.en}</strong> has been booked.</p>
         <p>Booking details:</p>
         ${emailBody} <!-- Reusing the same email content -->
         <p>Best regards,</p>
@@ -162,17 +162,17 @@ async function sendEventBookingConfirmationEmail(booking) {
     const emailBody = `
       <p>Dear ${buyer.full_name},</p>
       <p>Your booking for the event <strong>${
-        event.title
+        event.title.en
       }</strong> has been successfully confirmed.</p>
       <p><strong>Event Details:</strong></p>
       <ul>
-        <li><strong>Event:</strong> ${event.title}</li>
+        <li><strong>Event:</strong> ${event.title.en}</li>
         <li><strong>Date:</strong> ${new Date(
           event.start_date
         ).toLocaleDateString()}</li>
         <li><strong>Location:</strong> ${event.location.address}, ${
-      event.city
-    }, ${event.state}</li>
+      event.city.en
+    }, ${event.state.en}</li>
         <li><strong>Number of Tickets:</strong> ${booking.tickets.length}</li>
         <li><strong>Guest Name:</strong> ${
           booking.guest_name || buyer.full_name
@@ -232,7 +232,7 @@ async function sendEventBookingConfirmationEmail(booking) {
       subject: "New Event Booking Confirmation",
       html: `
         <p>Dear ${host.full_name},</p>
-        <p>Your event <strong>${event.title}</strong> has been booked by <strong>${buyer.full_name}</strong>.</p>
+        <p>Your event <strong>${event.title.en}</strong> has been booked by <strong>${buyer.full_name}</strong>.</p>
         <p>Booking details:</p>
         ${emailBody}
         <p>Best regards,</p>
@@ -276,12 +276,12 @@ async function sendPropertyBookingCancellationEmail(booking) {
       <p>We regret to inform you that your booking has been canceled.</p>
       <p><strong>Booking Details:</strong></p>
       <ul>
-        <li><strong>Property:</strong> ${property.title}</li>
-        <li><strong>Location:</strong> ${property.city}, ${property.state}, ${property.country}</li>
+        <li><strong>Property:</strong> ${property.title.en}</li>
+        <li><strong>Location:</strong> ${property.city.en}, ${property.state.en}, ${property.country.en}</li>
         <li><strong>Booking Start Date:</strong> ${new Date(booking.start_date).toLocaleDateString()}</li>
         <li><strong>Booking End Date:</strong> ${new Date(booking.end_date).toLocaleDateString()}</li>
         <li><strong>Security Deposit Refund:</strong> ${booking.security_deposit ? `$${booking.security_deposit}` : "N/A"}</li>
-        <li><strong>Cancellation Reason:</strong> ${booking.cancelation_reason || "Not provided"}</li>
+        <li><strong>Cancellation Reason:</strong> ${booking.cancelation_reason.en || "Not provided"}</li>
       </ul>
       <p>For any further assistance, feel free to contact us.</p>
       <p>Thank you for choosing our service.</p>
@@ -294,11 +294,11 @@ async function sendPropertyBookingCancellationEmail(booking) {
       <p>A booking for your property has been canceled.</p>
       <p><strong>Booking Details:</strong></p>
       <ul>
-        <li><strong>Property:</strong> ${property.title}</li>
+        <li><strong>Property:</strong> ${property.title.en}</li>
         <li><strong>Booked by:</strong> ${buyer.full_name} (${buyer.email})</li>
         <li><strong>Booking Start Date:</strong> ${new Date(booking.start_date).toLocaleDateString()}</li>
         <li><strong>Booking End Date:</strong> ${new Date(booking.end_date).toLocaleDateString()}</li>
-        <li><strong>Cancellation Reason:</strong> ${booking.cancelation_reason || "Not provided"}</li>
+        <li><strong>Cancellation Reason:</strong> ${booking.cancelation_reason.en || "Not provided"}</li>
       </ul>
       <p>The property is now available for new bookings.</p>
       <p>Best regards,</p>
@@ -357,16 +357,16 @@ async function sendEventBookingCancellationEmail(booking) {
 
     const emailBody = `
       <p>Dear ${buyer.full_name},</p>
-      <p>We regret to inform you that your booking for the event <strong>${event.title}</strong> has been canceled.</p>
+      <p>We regret to inform you that your booking for the event <strong>${event.title.en}</strong> has been canceled.</p>
       <p><strong>Event Details:</strong></p>
       <ul>
-        <li><strong>Event:</strong> ${event.title}</li>
+        <li><strong>Event:</strong> ${event.title.en}</li>
         <li><strong>Date:</strong> ${new Date(event.start_date).toLocaleDateString()}</li>
-        <li><strong>Location:</strong> ${event.location.address}, ${event.city}, ${event.state}</li>
+        <li><strong>Location:</strong> ${event.location.address}, ${event.city.en}, ${event.state.en}</li>
         <li><strong>Number of Tickets Canceled:</strong> ${booking.tickets.length}</li>
         <li><strong>Guest Name:</strong> ${booking.guest_name || buyer.full_name}</li>
         <li><strong>Guest Email:</strong> ${booking.guest_email || buyer.email}</li>
-        <li><strong>Cancellation Reason:</strong> ${booking.cancelation_reason || "Not provided"}</li>
+        <li><strong>Cancellation Reason:</strong> ${booking.cancelation_reason.en || "Not provided"}</li>
         ${ticketDetailsHTML}
       </ul>
       <p>${booking.refund_status ? "A refund will be processed as per our policy." : "Please contact support for refund-related queries."}</p>
@@ -390,10 +390,10 @@ async function sendEventBookingCancellationEmail(booking) {
       subject: "Event Booking Cancellation Notification",
       html: `
         <p>Dear ${host.full_name},</p>
-        <p>We would like to inform you that a booking for your event <strong>${event.title}</strong> has been canceled.</p>
+        <p>We would like to inform you that a booking for your event <strong>${event.title.en}</strong> has been canceled.</p>
         <p><strong>Canceled By:</strong> ${buyer.full_name} (${buyer.email})</p>
         <p><strong>Number of Tickets Canceled:</strong> ${booking.tickets.length}</p>
-        <p><strong>Cancelation Reason:</strong> ${booking.cancelation_reason || "Not provided"}</p>
+        <p><strong>Cancelation Reason:</strong> ${booking.cancelation_reason.en || "Not provided"}</p>
         ${ticketDetailsHTML}
         <p>Best regards,</p>
         <p>Daar Live</p>
@@ -425,10 +425,10 @@ async function generateBookingPDF(booking, buyer, event) {
       .moveDown();
 
     // Event details
-    doc.fontSize(14).text(`Event: ${event.title}`);
+    doc.fontSize(14).text(`Event: ${event.title.en}`);
     doc.text(`Date: ${new Date(event.start_date).toLocaleDateString()}`);
     doc
-      .text(`Location: ${event.venue}, ${event.city}, ${event.state}`)
+      .text(`Location: ${event.venue}, ${event.city.en}, ${event.state.en}`)
       .moveDown();
 
     // Booking details
