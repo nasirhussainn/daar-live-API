@@ -2,13 +2,19 @@ const Contact = require('../../models/admin/Contact');
 const About = require('../../models/admin/About');
 const Faq = require('../../models/admin/Faq');
 const Settings = require('../../models/admin/Settings');
+const { translateText } = require('../../services/translateService');
 
 // Contact Us CRUD Operations
 exports.createContact = async (req, res) => {
   try {
-    const contact = new Contact(req.body);
-    await contact.save();
-    res.status(201).json(contact);
+    const title = await translateText(req.body.title);
+    const description = await translateText(req.body.description);
+    const contact = new Contact({
+      title: title,
+      description: description,
+      });
+      await contact.save();
+      res.status(201).json(contact);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -30,12 +36,23 @@ exports.getContactById = async (req, res) => {
 
 exports.updateContact = async (req, res) => {
   try {
-    const contact = await Contact.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const updateData = {};
+
+    if (req.body.title) {
+      updateData.title = await translateText(req.body.title);
+    }
+
+    if (req.body.description) {
+      updateData.description = await translateText(req.body.description);
+    }
+
+    const contact = await Contact.findByIdAndUpdate(req.params.id, updateData, { new: true });
     res.json(contact);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 };
+
 
 exports.deleteContact = async (req, res) => {
   await Contact.findByIdAndDelete(req.params.id);
@@ -45,7 +62,14 @@ exports.deleteContact = async (req, res) => {
 // About Us CRUD Operations
 exports.createAbout = async (req, res) => {
   try {
-    const about = new About(req.body);
+    const heading = await translateText(req.body.heading);
+    const paragraph = await translateText(req.body.paragraph);
+
+    const about = new About({
+      heading,
+      paragraph,
+    });
+
     await about.save();
     res.status(201).json(about);
   } catch (err) {
@@ -70,12 +94,23 @@ exports.getAboutById = async (req, res) => {
 
 exports.updateAbout = async (req, res) => {
   try {
-    const about = await About.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const updateData = {};
+
+    if (req.body.heading) {
+      updateData.heading = await translateText(req.body.heading);
+    }
+
+    if (req.body.paragraph) {
+      updateData.paragraph = await translateText(req.body.paragraph);
+    }
+
+    const about = await About.findByIdAndUpdate(req.params.id, updateData, { new: true });
     res.json(about);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 };
+
 
 exports.deleteAbout = async (req, res) => {
   await About.findByIdAndDelete(req.params.id);
@@ -85,7 +120,14 @@ exports.deleteAbout = async (req, res) => {
 // FAQ CRUD Operations
 exports.createFaq = async (req, res) => {
   try {
-    const faq = new Faq(req.body);
+    const question = await translateText(req.body.question);
+    const answer = await translateText(req.body.answer);
+
+    const faq = new Faq({
+      question,
+      answer,
+    });
+
     await faq.save();
     res.status(201).json(faq);
   } catch (err) {
@@ -109,12 +151,23 @@ exports.getFaqById = async (req, res) => {
 
 exports.updateFaq = async (req, res) => {
   try {
-    const faq = await Faq.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const updateData = {};
+
+    if (req.body.question) {
+      updateData.question = await translateText(req.body.question);
+    }
+
+    if (req.body.answer) {
+      updateData.answer = await translateText(req.body.answer);
+    }
+
+    const faq = await Faq.findByIdAndUpdate(req.params.id, updateData, { new: true });
     res.json(faq);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 };
+
 
 exports.deleteFaq = async (req, res) => {
   await Faq.findByIdAndDelete(req.params.id);

@@ -1,8 +1,11 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const FaqSchema = new mongoose.Schema({
-  question: { type: String, required: true, unique: true },
-  answer: { type: String, required: true },
-}, { timestamps: true });
+const FaqSchema = new mongoose.Schema(
+  {
+    question: { type: Map, of: String, required: true, unique: true },
+    answer: { type: Map, of: String, required: true },
+  },
+  { timestamps: true }
+);
 
-module.exports = mongoose.model('Faq', FaqSchema);
+module.exports = mongoose.model("Faq", FaqSchema);

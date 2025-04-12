@@ -3,7 +3,8 @@ const mongoose = require("mongoose");
 const PropertyTypeSchema = new mongoose.Schema(
   {
     name: {
-      type: String,
+      type: Map,
+      of: String,
       required: true,
       trim: true,
     },

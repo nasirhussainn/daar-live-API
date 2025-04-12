@@ -21,7 +21,8 @@ const SubscriptionPlanSchema = new mongoose.Schema(
       trim: true
     },
     planDescription: {
-      type: String,
+      type: Map,
+      of: String,
       required: true
     },
     noOfPropertyListing: {

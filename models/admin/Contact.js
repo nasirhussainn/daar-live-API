@@ -1,8 +1,11 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const ContactSchema = new mongoose.Schema({
-  title: { type: String, required: true, unique: true },
-  description: { type: String, required: true },
-}, { timestamps: true });
+const ContactSchema = new mongoose.Schema(
+  {
+    title: { type: Map, of: String, required: true, unique: true },
+    description: { type: Map, of: String, required: true },
+  },
+  { timestamps: true }
+);
 
-module.exports = mongoose.model('Contact', ContactSchema);
+module.exports = mongoose.model("Contact", ContactSchema);
