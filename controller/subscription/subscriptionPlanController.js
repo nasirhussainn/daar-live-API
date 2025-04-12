@@ -1,9 +1,11 @@
 const SubscriptionPlan = require('../../models/admin/SubscriptionPlan');
+const translateText = require('../../services/translateService')
 
 // Create a new subscription plan (SuperAdmin Only)
 exports.createPlan = async (req, res) => {
     try {
-        const { productId, days, months, planName, planDescription, noOfPropertyListing, noOfEventListing, planAmount } = req.body;
+        const { productId, days, months, planName, noOfPropertyListing, noOfEventListing, planAmount } = req.body;
+        const planDescription = await translateText(req.body.planDescription)
 
         const plan = new SubscriptionPlan({ productId, days, months, planName, planDescription, noOfPropertyListing, noOfEventListing, planAmount });
         await plan.save();
@@ -40,8 +42,10 @@ exports.getPlanById = async (req, res) => {
 exports.updatePlan = async (req, res) => {
     try {
         const { plan_id } = req.params; // Extract plan_id from request parameters
-        const { productId, days, months, planName, planDescription, noOfPropertyListing, noOfEventListing, planAmount } = req.body;
+        const { productId, days, months, planName, noOfPropertyListing, noOfEventListing, planAmount } = req.body;
 
+        const planDescription = await translateText(req.body.planDescription)
+        
         if (!plan_id) {
             return res.status(400).json({ message: "Plan ID is required" });
         }
