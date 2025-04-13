@@ -102,8 +102,6 @@ const subscribeRealtor = async (req, res) => {
 const getAllSubscriptions = async (req, res) => {
   try {
     const subscriptions = await Subscription.find({ status: "active" })
-      .populate("realtor_id", "business_name")
-      .populate("plan_id"); // Include subscription plan details
 
     res.status(200).json(subscriptions);
   } catch (error) {
@@ -115,8 +113,6 @@ const getAllSubscriptions = async (req, res) => {
 const getAllSubscriptionsFull = async (req, res) => {
   try {
     const subscriptions = await Subscription.find()
-      .populate("realtor_id", "business_name")
-      .populate("plan_id"); // Include subscription plan details
 
     res.status(200).json(subscriptions);
   } catch (error) {
@@ -143,7 +139,6 @@ const getRealtorSubscriptions = async (req, res) => {
           select: "full_name email",
         },
       })
-      .populate("plan_id"); // Include subscription plan details
 
     if (!subscriptions.length) {
       return res
