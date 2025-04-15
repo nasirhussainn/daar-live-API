@@ -209,8 +209,14 @@ exports.addOrUpdateSettings = async (req, res) => {
       free_trial_properties,
       free_trial_events,
       days_to_hide_after_expiry,
-      yemen_currency
+      yemen_currency,
+      privacy_policy,
+      terms_and_conditions,
     } = req.body;
+
+    // Translate privacy_policy and terms_and_conditions
+    const translatedPrivacyPolicy = await translateText(privacy_policy);
+    const translatedTermsAndConditions = await translateText(terms_and_conditions);
 
     const settings = await Settings.findOneAndUpdate(
       {}, // Find any existing settings
@@ -222,7 +228,9 @@ exports.addOrUpdateSettings = async (req, res) => {
         free_trial_properties,
         free_trial_events,
         days_to_hide_after_expiry,
-        yemen_currency
+        yemen_currency,
+        privacy_policy: translatedPrivacyPolicy,
+        terms_and_conditions: translatedTermsAndConditions
       },
       { new: true, upsert: true, setDefaultsOnInsert: true } // Create if not exists, set defaults
     );
@@ -232,5 +240,6 @@ exports.addOrUpdateSettings = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 
 
