@@ -46,10 +46,11 @@ exports.loginAdmin = async (req, res) => {
             return res.status(401).json({ message: 'Invalid email or password' });
         }
 
+        const expiresIn = 5 * 365 * 24 * 60 * 60; 
         const token = jwt.sign(
             { id: admin._id, isSuperAdmin: admin.isSuperAdmin, role: admin.role },
             process.env.JWT_SECRET_KEY || 'your-secret-key',
-            { expiresIn: '2h' } // Token expires in 2 hours
+            { expiresIn } 
         );
 
         res.status(200).json({ message: 'Login successful', admin, token });
