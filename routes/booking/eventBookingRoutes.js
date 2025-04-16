@@ -9,7 +9,7 @@ router.put("/confirm-booking", bookingController.confirmEventBooking);
 router.get("/all-booking", bookingController.getAllEventBookings);
 router.get("/bookingId/:booking_id", bookingController.getEventBookingById);
 router.get("/bookingEventViaEntity", bookingController.getBookingsByEntitiesId)
-router.get("/bookingEventDetail/:property_id", bookingController.getBookedEventDetails)
+router.get("/bookingEventDetail/:event_id", bookingController.getBookedEventDetails)
 // Cancel a booking
 router.put("/cancel/:booking_id", bookingController.cancelEventBooking);
 

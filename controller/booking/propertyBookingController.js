@@ -336,6 +336,7 @@ exports.getAllPropertyBookings = async (req, res) => {
           { path: "feature_details", select: "feature_name description" }, // Property features
         ],
       })
+      .lean()
       .populate({
         path: "user_id",
         select: "full_name email profile_picture", // User details
@@ -360,13 +361,14 @@ exports.getAllPropertyBookings = async (req, res) => {
               path: "review_by",
               select: "full_name email profile_picture",
             }) // Reviewer details
-            .select("review_description review_rating createdAt");
+            .select("review_description review_rating createdAt")
+            .lean()
         }
 
         return {
-          ...booking.toObject(),
+          ...booking,
           property_id: {
-            ...booking.property_id.toObject(),
+            ...booking.property_id,
             reviews: propertyReviews, // Add reviews to property
           },
         };
@@ -403,6 +405,7 @@ exports.getPropertyBookingById = async (req, res) => {
           { path: "feature_details", select: "feature_name description" }, // Property features
         ],
       })
+      .lean()
       .populate({
         path: "user_id",
         select: "full_name email profile_picture", // User details
@@ -423,14 +426,15 @@ exports.getPropertyBookingById = async (req, res) => {
           path: "review_by",
           select: "full_name email profile_picture",
         }) // Reviewer details
-        .select("review_description review_rating createdAt");
+        .select("review_description review_rating createdAt")
+        .lean()
     }
 
     // Construct final response
     const bookingWithReviews = {
-      ...booking.toObject(),
+      ...booking,
       property_id: {
-        ...booking.property_id.toObject(),
+        ...booking.property_id,
         reviews: propertyReviews, // Attach reviews to property details
       },
     };
@@ -472,6 +476,7 @@ exports.getBookingsByEntitiesId = async (req, res) => {
           { path: "feature_details", select: "feature_name description" }, // Property features
         ],
       })
+      .lean()
       .populate({
         path: "user_id",
         select: "full_name email profile_picture", // User details
@@ -496,12 +501,13 @@ exports.getBookingsByEntitiesId = async (req, res) => {
               path: "review_by",
               select: "full_name email profile_picture",
             }) // Reviewer details
-            .select("review_description review_rating createdAt");
+            .select("review_description review_rating createdAt")
+            .lean()
         }
         return {
-          ...booking.toObject(),
+          ...booking,
           property_id: {
-            ...booking.property_id.toObject(),
+            ...booking.property_id,
             reviews: propertyReviews, // Attach reviews to property details
           },
         };

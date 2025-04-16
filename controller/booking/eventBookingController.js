@@ -252,6 +252,7 @@ exports.getAllEventBookings = async (req, res) => {
           { path: "feature_details", select: "feature_name description" }, // Get feature details
         ],
       })
+      .lean()
       .populate({
         path: "user_id",
         select: "full_name email profile_picture", // Only required user fields
@@ -270,12 +271,13 @@ exports.getAllEventBookings = async (req, res) => {
             path: "review_by",
             select: "full_name email profile_picture",
           }) // Fetch reviewer details
-          .select("review_description review_rating createdAt");
+          .select("review_description review_rating createdAt")
+          .lean();
 
         return {
-          ...booking.toObject(),
+          ...booking,
           event_id: {
-            ...booking.event_id.toObject(),
+            ...booking.event_id,
             reviews, // Attach event reviews
           },
         };
@@ -320,6 +322,7 @@ exports.getEventBookingById = async (req, res) => {
           { path: "feature_details", select: "feature_name description" }, // Get feature details
         ],
       })
+      .lean()
       .populate({
         path: "user_id",
         select: "full_name email profile_picture", // Get only required user fields
@@ -341,14 +344,15 @@ exports.getEventBookingById = async (req, res) => {
           path: "review_by",
           select: "full_name email profile_picture",
         }) // Fetch reviewer details
-        .select("review_description review_rating createdAt");
+        .select("review_description review_rating createdAt")
+        .lean()
     }
 
     // Attach reviews to the event
     const bookingWithReviews = {
-      ...booking.toObject(),
+      ...booking,
       event_id: {
-        ...booking.event_id.toObject(),
+        ...booking.event_id,
         reviews: eventReviews, // Add reviews to event
       },
     };
@@ -390,6 +394,7 @@ exports.getBookingsByEntitiesId = async (req, res) => {
           { path: "feature_details", select: "feature_name description" }, // Event features
         ],
       })
+      .lean()
       .populate({
         path: "user_id",
         select: "full_name email profile_picture", // User details
@@ -414,14 +419,15 @@ exports.getBookingsByEntitiesId = async (req, res) => {
               path: "review_by",
               select: "full_name email profile_picture",
             }) // Reviewer details
-            .select("review_description review_rating createdAt");
+            .select("review_description review_rating createdAt")
+            .lean();
         }
 
         return {
-          ...booking.toObject(),
+          ...booking,
           event_id: booking.event_id
             ? {
-                ...booking.event_id.toObject(),
+                ...booking.event_id,
                 reviews: eventReviews, // Add reviews to event
               }
             : null, // Handle case where event_id is null
