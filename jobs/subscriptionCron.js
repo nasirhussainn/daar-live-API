@@ -6,38 +6,65 @@ const FeaturedEntity = require("../models/FeaturedEntity");
 const mongoose = require("mongoose");
 const Settings = require("../models/admin/Settings");
 
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY; // store securely
+
+const fetchStripeSubscription = async (stripeSubscriptionId) => {
+  try {
+    const response = await axios.get(`https://api.stripe.com/v1/subscriptions/${stripeSubscriptionId}`, {
+      headers: {
+        Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error(`Stripe fetch failed for ID ${stripeSubscriptionId}:`, error.response?.data || error.message);
+    return null;
+  }
+};
+
 const deactivateExpiredSubscriptions = async () => {
-  console.log("Running subscription cleanup cron job...");
+  console.log("📆 Running subscription sync cron job...");
 
   try {
     const today = new Date();
 
-    // Find expired subscriptions (where end_date has passed but status is still 'active')
-    const expiredSubscriptions = await Subscription.find({
+    const potentialExpiredSubs = await Subscription.find({
       end_date: { $lt: today },
       status: "active",
     });
 
-    for (const subscription of expiredSubscriptions) {
-      // Mark subscription as canceled
-      subscription.status = "canceled";
-      await subscription.save();
+    for (const subscription of potentialExpiredSubs) {
+      const stripeSub = await fetchStripeSubscription(subscription.subscription_id);
 
-      // Check if the realtor has any other active subscriptions
-      const activeSubscriptions = await Subscription.findOne({
-        realtor_id: subscription.realtor_id,
-        status: "active",
-      });
+      if (!stripeSub) continue; // skip if Stripe API failed
 
-      // If no active subscriptions remain, update realtor's is_subscribed status
-      if (!activeSubscriptions) {
-        await Realtor.findByIdAndUpdate(subscription.realtor_id, { is_subscribed: false });
+      if (stripeSub.status === "active") {
+        subscription.start_date = new Date(stripeSub.current_period_start * 1000); // Stripe uses Unix timestamps
+        subscription.end_date = new Date(stripeSub.current_period_end * 1000);
+        subscription.updated_at = new Date();
+        await subscription.save();      
+        console.log(`🔁 Updated renewed subscription for realtor ${subscription.realtor_id}`);
+      } else {
+        // Stripe has marked it as not active
+        subscription.status = "canceled";
+        await subscription.save();
+
+        const hasActive = await Subscription.findOne({
+          realtor_id: subscription.realtor_id,
+          status: "active",
+        });
+
+        if (!hasActive) {
+          await Realtor.findByIdAndUpdate(subscription.realtor_id, { is_subscribed: false });
+        }
+
+        console.log(`❌ Canceled expired subscription for realtor ${subscription.realtor_id}`);
       }
     }
 
-    console.log(`✅ Expired subscriptions checked and updated`);
+    console.log("✅ Subscription sync completed.");
   } catch (error) {
-    console.error("❌ Error in subscription cleanup cron job:", error);
+    console.error("❌ Subscription sync error:", error.message);
   }
 };
 
@@ -114,16 +141,28 @@ const expireFeaturedProperties = async () => {
 };
 
 
-// Schedule: Runs every day at midnight (00:00)
+// Run every 6 hours for subscription check
+cron.schedule("0 */6 * * *", async () => {
+  try {
+    console.log("⏰ Running 6-hourly subscription expiration check...");
+    await deactivateExpiredSubscriptions();
+    console.log("✅ Subscription expiration task completed.");
+  } catch (error) {
+    console.error("❌ Error in 6-hourly subscription task:", error);
+  }
+}, {
+  timezone: "Asia/Aden"
+});
+
+// Run once daily at midnight for featured property and trial expiration
 cron.schedule("0 0 * * *", async () => {
   try {
-    console.log("Running scheduled tasks...");
-    await deactivateExpiredSubscriptions();
+    console.log("🌙 Running daily tasks at midnight...");
     await expireFeaturedProperties();
     await handleExpiredFreeTrials();
-    console.log("✅ Scheduled tasks completed.");
+    console.log("✅ Daily tasks completed.");
   } catch (error) {
-    console.error("❌ Error in scheduled tasks:", error);
+    console.error("❌ Error in daily midnight tasks:", error);
   }
 }, {
   timezone: "Asia/Aden"
