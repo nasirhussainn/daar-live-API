@@ -6,6 +6,7 @@ const Event = require("../../models/Events");
 const Property = require("../../models/Properties");
 const Notification = require("../../models/Notification"); 
 const { translateText } = require("../../services/translateService")
+const sendNotification = require("../notification/sendNotification");
 
 const mongoose = require("mongoose");
 
@@ -116,19 +117,19 @@ exports.addReview = async (req, res) => {
 
     // Create notification for the recipient
     if (recipientUserId) {
-      const notification = new Notification({
-        user: recipientUserId,
-        notification_type: "Review",
-        reference_id: review._id,
-        title: isNewReview ? "New Review Received" : "Review Updated",
-        message: isNewReview
-          ? `You have received a new review with a rating of ${review_rating}.`
-          : `Your review has been updated with a new rating of ${review_rating}.`,
-        is_read: false,
-      });
-
-      await notification.save({ session }); // Save notification within transaction
-    }
+      const title = isNewReview ? "New Review Received" : "Review Updated";
+      const message = isNewReview
+        ? `You have received a new review with a rating of ${review_rating}.`
+        : `Your review has been updated with a new rating of ${review_rating}.`;
+    
+      await sendNotification(
+        recipientUserId,
+        "Review",
+        review._id,
+        title,
+        message
+      );
+    }    
 
     await session.commitTransaction();
     res.status(200).json({ message: "Review added successfully!", review });
