@@ -212,6 +212,14 @@ exports.addOrUpdateSettings = async (req, res) => {
       yemen_currency,
       privacy_policy,
       terms_and_conditions,
+      linkedin,
+      facebook,
+      instagram,
+      twitter,
+      playstore_link,
+      appstore_link,
+      phone_no,
+      location
     } = req.body;
 
     // Translate privacy_policy and terms_and_conditions
@@ -230,7 +238,15 @@ exports.addOrUpdateSettings = async (req, res) => {
         days_to_hide_after_expiry,
         yemen_currency,
         privacy_policy: translatedPrivacyPolicy,
-        terms_and_conditions: translatedTermsAndConditions
+        terms_and_conditions: translatedTermsAndConditions,
+        linkedin,
+        facebook,
+        instagram,
+        twitter,
+        playstore_link,
+        appstore_link,
+        phone_no,
+        location
       },
       { new: true, upsert: true, setDefaultsOnInsert: true } // Create if not exists, set defaults
     );

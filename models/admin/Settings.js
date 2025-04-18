@@ -12,6 +12,14 @@ const settingsSchema = new mongoose.Schema(
     yemen_currency: { type: String, required: false}, // Yemen currency rate (Admin CRUD)
     privacy_policy:  { type: Map, of: String, required: false },
     terms_and_conditions:  { type: Map, of: String, required: false },
+    linkedin: { type: String},
+    instagram: { type: String},
+    facebook: { type: String},
+    twitter: { type: String},
+    playstore_link: { type: String },
+    appstore_link: { type: String },
+    phone_no: { type: String },
+    location: { type: String },
   },
   { timestamps: true } // Automatically adds createdAt and updatedAt
 );
