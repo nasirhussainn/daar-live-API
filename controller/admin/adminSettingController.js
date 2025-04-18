@@ -222,33 +222,49 @@ exports.addOrUpdateSettings = async (req, res) => {
       location
     } = req.body;
 
-    // Translate privacy_policy and terms_and_conditions
-    const translatedPrivacyPolicy = await translateText(privacy_policy);
-    const translatedTermsAndConditions = await translateText(terms_and_conditions);
+    // Translate only if provided
+    let translatedPrivacyPolicy = undefined;
+    let translatedTermsAndConditions = undefined;
+
+    if (privacy_policy) {
+      translatedPrivacyPolicy = await translateText(privacy_policy);
+    }
+
+    if (terms_and_conditions) {
+      translatedTermsAndConditions = await translateText(terms_and_conditions);
+    }
+
+    const updateData = {
+      contact_email,
+      price_per_day,
+      booking_percentage,
+      free_trial_days,
+      free_trial_properties,
+      free_trial_events,
+      days_to_hide_after_expiry,
+      yemen_currency,
+      linkedin,
+      facebook,
+      instagram,
+      twitter,
+      playstore_link,
+      appstore_link,
+      phone_no,
+      location
+    };
+
+    if (translatedPrivacyPolicy !== undefined) {
+      updateData.privacy_policy = translatedPrivacyPolicy;
+    }
+
+    if (translatedTermsAndConditions !== undefined) {
+      updateData.terms_and_conditions = translatedTermsAndConditions;
+    }
 
     const settings = await Settings.findOneAndUpdate(
       {}, // Find any existing settings
-      {
-        contact_email,
-        price_per_day,
-        booking_percentage,
-        free_trial_days,
-        free_trial_properties,
-        free_trial_events,
-        days_to_hide_after_expiry,
-        yemen_currency,
-        privacy_policy: translatedPrivacyPolicy,
-        terms_and_conditions: translatedTermsAndConditions,
-        linkedin,
-        facebook,
-        instagram,
-        twitter,
-        playstore_link,
-        appstore_link,
-        phone_no,
-        location
-      },
-      { new: true, upsert: true, setDefaultsOnInsert: true } // Create if not exists, set defaults
+      updateData,
+      { new: true, upsert: true, setDefaultsOnInsert: true }
     );
 
     res.status(200).json({ message: "Settings updated successfully", settings });
