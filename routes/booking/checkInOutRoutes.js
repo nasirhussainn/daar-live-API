@@ -4,6 +4,7 @@ const checkInOutController = require('../../controller/booking/checkInOut/checkI
 
 // Route for handling check-in and check-out
 router.post('/:id/check', checkInOutController.checkInOut);
-router.get('/:booking_type?', checkInOutController.getAllCheckInOutLogsWithDetails);
+// router.get('/:booking_type?', checkInOutController.getAllCheckInOutLogsWithDetails);
+router.get('/', checkInOutController.getAllCheckLogs);
 
 module.exports = router;

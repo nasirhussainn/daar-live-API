@@ -103,4 +103,96 @@ exports.getAllCheckInOutLogsWithDetails = async (req, res) => {
   }
 };
 
+exports.getAllCheckLogs = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const { start, end } = req.query;
+
+    // Convert start and end to Date if provided
+    const startDate = start ? new Date(start) : null;
+    const endDate = end ? new Date(end) : null;
+
+    const bookings = await Booking.find({
+      check_in_out_logs: { $exists: true, $ne: [] },
+    }).select(
+      'booking_type property_id event_id user_id owner_id check_in_out_logs'
+    );
+
+    const checkIns = [];
+    const checkOuts = [];
+
+    bookings.forEach(booking => {
+      const {
+        booking_type,
+        property_id,
+        event_id,
+        user_id,
+        owner_id,
+        check_in_out_logs,
+      } = booking;
+
+      check_in_out_logs.forEach(log => {
+        const commonDetails = {
+          booking_type,
+          property_or_event_id: booking_type === 'property' ? property_id : event_id,
+          user_id,
+          owner_id,
+        };
+
+        if (log.check_in_time) {
+          const inTime = new Date(log.check_in_time);
+          if (
+            (!startDate || inTime >= startDate) &&
+            (!endDate || inTime <= endDate)
+          ) {
+            checkIns.push({
+              ...commonDetails,
+              timestamp: inTime,
+              type: 'check_in',
+            });
+          }
+        }
+
+        if (log.check_out_time) {
+          const outTime = new Date(log.check_out_time);
+          if (
+            (!startDate || outTime >= startDate) &&
+            (!endDate || outTime <= endDate)
+          ) {
+            checkOuts.push({
+              ...commonDetails,
+              timestamp: outTime,
+              type: 'check_out',
+            });
+          }
+        }
+      });
+    });
+
+    // Sort
+    checkIns.sort((a, b) => b.timestamp - a.timestamp);
+    checkOuts.sort((a, b) => b.timestamp - a.timestamp);
+
+    // Paginate
+    const checkInStart = (page - 1) * limit;
+    const checkOutStart = (page - 1) * limit;
+
+    const paginatedCheckIns = checkIns.slice(checkInStart, checkInStart + limit);
+    const paginatedCheckOuts = checkOuts.slice(checkOutStart, checkOutStart + limit);
+
+    res.json({
+      page,
+      limit,
+      total_check_ins: checkIns.length,
+      total_check_outs: checkOuts.length,
+      check_ins: paginatedCheckIns,
+      check_outs: paginatedCheckOuts,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error while fetching check logs' });
+  }
+};
+
 
