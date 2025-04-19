@@ -8,6 +8,6 @@ router.get('/subscriptions', subscriptionController.getAllSubscriptions);
 router.get('/subscriptions-list', subscriptionController.getAllSubscriptionsFull);
 router.get('/subscriptions/:realtor_id', subscriptionController.getRealtorSubscriptions);
 router.put('/subscription/cancel/:subscription_id', subscriptionController.cancelSubscription);
-router.put('/update-dates/:realtorId', subscriptionController.updateSubscriptionDates);
+router.put('/subscription/update-dates/:realtorId', subscriptionController.updateSubscriptionDates);
 
 module.exports = router;
