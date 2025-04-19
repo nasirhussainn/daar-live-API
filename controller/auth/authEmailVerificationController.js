@@ -16,48 +16,60 @@ const verifyEmail = async (req, res) => {
     const user = await User.findOne({ email_verification_token: token });
 
     if (!user) {
-      return res.status(400).json({ message: "Invalid verification token." });
+      return res.status(400).send(`
+        <h2>Email Verification</h2>
+        <p style="color:red;">Invalid or broken verification link.</p>
+      `);
     }
 
-    // Check if the token has expired
+    // Check if token has expired
     if (user.email_verification_token_expiry < Date.now()) {
-      // Generate a new token and expiry
-      const newEmailVerificationToken = crypto.randomBytes(32).toString("hex");
-      const newEmailVerificationTokenExpiry = Date.now() + 3600000; // 1 hour
+      const newToken = crypto.randomBytes(32).toString("hex");
+      const newExpiry = Date.now() + 3600000; // 1 hour
 
-      // Update user with new token and expiry
-      user.email_verification_token = newEmailVerificationToken;
-      user.email_verification_token_expiry = newEmailVerificationTokenExpiry;
+      user.email_verification_token = newToken;
+      user.email_verification_token_expiry = newExpiry;
       await user.save();
 
-      // Send new verification email
-      const newVerificationLink = `https://whale-app-4nsg6.ondigitalocean.app/auth/verify-email/${newEmailVerificationToken}`;
-      await sendVerificationEmail(user.email, newVerificationLink);
+      const newLink = `https://whale-app-4nsg6.ondigitalocean.app/auth/verify-email/${newToken}`;
+      await sendVerificationEmail(user.email, newLink);
 
-      return res.status(400).json({
-        message: "Verification token expired. A new verification link has been sent to your email.",
-      });
+      return res.status(400).send(`
+        <h2>Email Verification</h2>
+        <p style="color:orange;">Your verification link has expired. A new link has been sent to your email.</p>
+      `);
     }
 
-    // Update user to mark email as verified
+    // Mark user as verified
     user.email_verified = true;
-    user.email_verification_token = undefined; // Remove the token after verification
-    user.email_verification_token_expiry = undefined; // Clear expiry date
-    if(user.role === 'buyer'){
+    user.email_verification_token = undefined;
+    user.email_verification_token_expiry = undefined;
+
+    if (user.role === "buyer") {
       user.account_status = "active";
     }
 
     await user.save();
 
-    if(user.role === 'realtor'){
-    return res.status(200).json({ message: "Email verified successfully! Your account will be reviewed by our team and you will receive an email once it's approved." });
-    }else{
-      return res.status(200).json({ message: "Email verified successfully!" });
+    if (user.role === "realtor") {
+      return res.send(`
+        <h2>Email Verified</h2>
+        <p style="color:green;">Your email has been verified successfully! Your account will be reviewed by our team. You will receive an email once it's approved.</p>
+      `);
+    } else {
+      return res.send(`
+        <h2>Email Verified</h2>
+        <p style="color:green;">Your email has been verified successfully! You can now log in.</p>
+      `);
     }
   } catch (error) {
     console.error("Email Verification Error:", error);
-    return res.status(500).json({ message: "Server error. Please try again." });
+    return res.status(500).send(`
+      <h2>Server Error</h2>
+      <p style="color:red;">Something went wrong. Please try again later.</p>
+    `);
   }
 };
+
 
 module.exports = { verifyEmail };

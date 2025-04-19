@@ -33,9 +33,22 @@ async function sendVerificationEmail(email, verificationLink) {
   const mailOptions = {
     from: process.env.EMAIL,
     to: email,
-    subject: "Verify Your Email",
-    html: `<p>Click the link below to verify your email:</p>
-           <a href="${verificationLink}">${verificationLink}</a>`,
+    subject: "Verify Your Email Address",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 8px;">
+        <h2 style="color: #333;">Welcome to Our Platform!</h2>
+        <p style="font-size: 16px; color: #555;">
+          Thank you for signing up. Please verify your email address by clicking the button below:
+        </p>
+        <a href="${verificationLink}" style="display: inline-block; padding: 12px 20px; margin-top: 20px; background-color: #007bff; color: #fff; text-decoration: none; border-radius: 5px;">
+          Verify Email
+        </a>
+        <p style="font-size: 14px; color: #999; margin-top: 30px;">
+          If the button above doesn’t work, you can also verify by clicking this link:<br/>
+          <a href="${verificationLink}" style="color: #007bff;">${verificationLink}</a>
+        </p>
+      </div>
+    `,
   };
 
   await transporter.sendMail(mailOptions);
@@ -45,13 +58,28 @@ async function sendPasswordResetEmail(email, resetLink) {
   const mailOptions = {
     from: process.env.EMAIL,
     to: email,
-    subject: "Password Reset Request",
-    html: `<p>Click the link below to reset your password:</p>
-           <a href="${resetLink}">${resetLink}</a>`,
+    subject: "Reset Your Password",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 8px;">
+        <h2 style="color: #333;">Password Reset Request</h2>
+        <p style="font-size: 16px; color: #555;">
+          We received a request to reset your password. Click the button below to proceed:
+        </p>
+        <a href="${resetLink}" style="display: inline-block; padding: 12px 20px; margin-top: 20px; background-color: #dc3545; color: #fff; text-decoration: none; border-radius: 5px;">
+          Reset Password
+        </a>
+        <p style="font-size: 14px; color: #999; margin-top: 30px;">
+          If you didn’t request this, please ignore this email.<br/>
+          Or use this link if the button doesn't work:<br/>
+          <a href="${resetLink}" style="color: #dc3545;">${resetLink}</a>
+        </p>
+      </div>
+    `,
   };
 
   await transporter.sendMail(mailOptions);
 }
+
 
 async function sendPropertyBookingConfirmationEmail(booking) {
   try {
