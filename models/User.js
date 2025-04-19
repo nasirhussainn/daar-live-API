@@ -9,7 +9,11 @@ const userSchema = new Schema(
     phone_number: { type: String },
     profile_picture: { type: String },
     role: { type: String, enum: ['buyer', 'realtor'], required: true },
-    account_type: { type: String, enum: ['manual', 'google', 'apple'], required: true },
+    account_type: {
+      type: String,
+      enum: ['manual', 'google', 'apple', 'phone'],
+      required: true
+    },    
     email_verified: { type: Boolean, default: false },
     email_verification_token: { type: String }, // Token for email verification
     email_verification_token_expiry: { type: Date }, // Expiry of verification token

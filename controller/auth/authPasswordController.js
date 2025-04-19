@@ -34,7 +34,7 @@ exports.forgotPassword = async (req, res) => {
     user.password_reset_token_expiry = resetTokenExpiry;
     await user.save();
 
-    const resetLink = `https://daar-live-api.vercel.app/auth/reset-password-page/${resetToken}`;
+    const resetLink = `https://whale-app-4nsg6.ondigitalocean.app/auth/reset-password-page/${resetToken}`;
 
     await sendPasswordResetEmail(email, resetLink);
 
@@ -71,7 +71,7 @@ exports.resetPassword = async (req, res) => {
       user.password_reset_token_expiry = newResetTokenExpiry;
       await user.save();
 
-      const resetLink = `https://daar-live-api.vercel.app/auth/reset-password-page/${newResetToken}`;
+      const resetLink = `https://whale-app-4nsg6.ondigitalocean.app/auth/reset-password-page/${newResetToken}`;
       await sendPasswordResetEmail(user.email, resetLink);
 
       return res.status(400).json({ message: "Your password reset token expired. A new link has been sent to your email." });

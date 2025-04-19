@@ -45,19 +45,13 @@ app.get("/", (req, res) => {
 // Translation
 app.use("/api/translate", require("./routes/translate")); // This will import the Translate rout
 // Import Routes (other routes)
-// const authPassword = require("./routes/auth/authPassword");
-// const authEmailVerification = require("./routes/auth/authEmailVerification");
-// const authLogin = require("./routes/auth/authLogin");
-// const authPhoneVerification = require("./routes/auth/authPhoneVerification");
-// const authSignup = require("./routes/auth/authSignup");
 const authEmailVerificationRoutes = require("./routes/auth/authEmailVerificationRoutes");
 const authLoginRoutes = require("./routes/auth/authLoginRoutes");
 const authPasswordRoutes = require("./routes/auth/authPasswordRoutes");
 const authPhoneVerificationRoutes = require("./routes/auth/authPhoneVerificationRoutes");
+const authBuyerPhoneVerficationRoutes = require("./routes/auth/authBuyerPhoneVerficationRoutes");
 const authSignupRoutes = require("./routes/auth/authSignupRoutes");
 
-// const userGET = require("./routes/userCRUD/getUsers");
-// const userUPDATE = require("./routes/userCRUD/updateUsers");
 const userGetRoutes = require("./routes/userRoutes/userGetRoutes");
 const userUpdateRoutes = require("./routes/userRoutes/userUpdateRoutes");
 
@@ -108,17 +102,11 @@ app.use("/auth", [
   authPasswordRoutes,
   authPhoneVerificationRoutes,
   authSignupRoutes,
-  // authSignup,
-  // authPassword,
-  // authEmailVerification,
-  // authLogin,
-  // authPhoneVerification,
+  authBuyerPhoneVerficationRoutes
 ]);
 
 app.use("/crud-users", 
   [
-    // userGET, 
-    // userUPDATE,
     userGetRoutes,
     userUpdateRoutes,
 
