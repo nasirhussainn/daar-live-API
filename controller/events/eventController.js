@@ -763,7 +763,6 @@ exports.featureEvent = async (req, res) => {
 
 exports.getFilteredEvents = async (req, res) => {
   try {
-    // Extract query parameters
     const {
       start_price,
       end_price,
@@ -781,14 +780,11 @@ exports.getFilteredEvents = async (req, res) => {
       entry_type,
     } = req.query;
 
-    // Build the filter object
     const filter = {
-      status: {
-        $in: ["upcoming", "live"], // Default filter
-      },
+      status: { $in: ["upcoming", "live"] }, // Default
     };
 
-    // Price filter
+    // Price Filter
     if (start_price !== undefined || end_price !== undefined) {
       filter.$expr = { $and: [] };
 
@@ -822,38 +818,26 @@ exports.getFilteredEvents = async (req, res) => {
         });
       }
 
-      if (filter.$expr.$and.length === 0) {
-        delete filter.$expr;
-      }
+      if (filter.$expr.$and.length === 0) delete filter.$expr;
     }
 
-    // Date filter
-    if (start_date || end_date) {
-      if (start_date) {
-        filter.start_date = filter.start_date || {};
-        filter.start_date.$gte = new Date(start_date);
-      }
-      if (end_date) {
-        filter.end_date = filter.end_date || {};
-        filter.end_date.$lte = new Date(end_date);
-      }
+    // Date Filter
+    if (start_date) {
+      filter.start_date = filter.start_date || {};
+      filter.start_date.$gte = new Date(start_date);
+    }
+    if (end_date) {
+      filter.end_date = filter.end_date || {};
+      filter.end_date.$lte = new Date(end_date);
     }
 
-    // Event types filter
     if (event_types) {
       filter.event_type = {
-        $in: event_types
-          .split(",")
-          .map((id) => new mongoose.Types.ObjectId(id)),
+        $in: event_types.split(",").map((id) => new mongoose.Types.ObjectId(id)),
       };
     }
 
-    // Entry type filter
-    if (entry_type) {
-      filter.entry_type = entry_type; // 'free' or 'paid'
-    }
-
-    // Optional filters
+    if (entry_type) filter.entry_type = entry_type;
     if (status) filter.status = status;
     if (featured) filter.is_feature = featured === "true";
     if (country) filter.country = country;
@@ -862,17 +846,14 @@ exports.getFilteredEvents = async (req, res) => {
     if (host_id) filter.host_id = new mongoose.Types.ObjectId(host_id);
     if (created_by) filter.created_by = created_by;
 
-    // Time range filter
     if (time_range) {
       const [startTime, endTime] = time_range.split("-");
       filter.start_time = { $gte: startTime };
       filter.end_time = { $lte: endTime };
     }
 
-    // Count total matching events
     const totalEvents = await Event.countDocuments(filter);
 
-    // Query with population (no pagination)
     const events = await Event.find(filter)
       .populate({
         path: "host_id",
@@ -882,29 +863,44 @@ exports.getFilteredEvents = async (req, res) => {
       .populate("location")
       .populate("media")
       .populate("feature_details")
-      .sort({ start_date: 1 });
+      .sort({ start_date: 1 })
+      .lean();
 
-    // Response
+    if (!events.length) {
+      return res.status(404).json({ message: "No events found" });
+    }
+
+    const uniqueHosts = [
+      ...new Set(events.map((event) => event.host_id._id.toString())),
+    ];
+
+    const hostStats = {};
+    const hostAvgRating = {};
+    const hostReviewCount = {};
+    for (const hostId of uniqueHosts) {
+      hostStats[hostId] = await getHostsStats(hostId);
+      hostAvgRating[hostId] = await getAvgRating(hostId);
+      hostReviewCount[hostId] = await getReviewCount(hostId, "User");
+    }
+
+    const eventsWithDetails = await Promise.all(
+      events.map(async (event) => {
+        const reviews = await getReviewsWithCount(event._id, "Event");
+
+        return {
+          ...event,
+          reviews,
+          host_stats: hostStats[event.host_id._id.toString()] || null,
+          host_review_count: hostReviewCount[event.host_id._id.toString()] || null,
+          host_avg_rating: hostAvgRating[event.host_id._id.toString()] || null,
+        };
+      })
+    );
+
     res.status(200).json({
       success: true,
       totalEvents,
-      events: events.map((event) => ({
-        id: event._id,
-        title: event.title,
-        description: event.description,
-        start_date: event.start_date,
-        end_date: event.end_date,
-        start_time: event.start_time,
-        end_time: event.end_time,
-        entry_price: event.entry_price,
-        entry_type: event.entry_type,
-        event_type: event.event_type,
-        location: event.location,
-        host: event.host_id,
-        featured: event.is_feature,
-        status: event.status,
-        rating: event.avg_rating,
-      })),
+      events: eventsWithDetails,
     });
   } catch (error) {
     console.error("Error filtering events:", error);
@@ -915,3 +911,4 @@ exports.getFilteredEvents = async (req, res) => {
     });
   }
 };
+
