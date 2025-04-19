@@ -188,10 +188,40 @@ const cancelSubscription = async (req, res) => {
   }
 };
 
+const updateSubscriptionDates = async (req, res) => {
+  const { realtorId } = req.params;
+  const { start_date, end_date } = req.body;
+
+  try {
+    const subscription = await Subscription.findOneAndUpdate(
+      { realtor_id: realtorId, status: 'active' },
+      {
+        start_date: new Date(start_date),
+        end_date: new Date(end_date),
+        updated_at: new Date(),
+      },
+      { new: true } // return the updated document
+    );
+
+    if (!subscription) {
+      return res.status(404).json({ message: 'Active subscription not found for this realtor.' });
+    }
+
+    res.status(200).json({
+      message: 'Subscription dates updated successfully.',
+      subscription,
+    });
+  } catch (error) {
+    console.error('Error updating subscription:', error);
+    res.status(500).json({ message: 'Server error while updating subscription.' });
+  }
+};
+
 module.exports = {
   subscribeRealtor,
   getAllSubscriptions,
   getRealtorSubscriptions,
   cancelSubscription,
   getAllSubscriptionsFull,
+  updateSubscriptionDates,
 };
