@@ -45,7 +45,7 @@ const verifyEmail = async (req, res) => {
     user.email_verification_token = undefined;
     user.email_verification_token_expiry = undefined;
 
-    if (user.role === "buyer") {
+    if (user.role === "buyer" && user.account_type === "manual") {
       user.account_status = "active";
     }
 

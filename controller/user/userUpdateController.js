@@ -1,8 +1,16 @@
-const mongoose = require('mongoose');
+const bcrypt = require("bcryptjs");
 const User = require("../../models/User");
 const Realtor = require("../../models/Realtor");
-const { uploadToCloudinary, deleteFromCloudinary } = require("../../config/cloudinary");
-const { translateText } = require("../../services/translateService")
+const { sendVerificationEmail } = require("../../config/mailer");
+const crypto = require("crypto");
+const mongoose = require("mongoose");
+const admin = require("firebase-admin");
+
+const {
+  uploadToCloudinary,
+  deleteFromCloudinary,
+} = require("../../config/cloudinary");
+const { translateText } = require("../../services/translateService");
 
 exports.updateUser = async (req, res) => {
   const session = await mongoose.startSession();
@@ -13,7 +21,11 @@ exports.updateUser = async (req, res) => {
     const userId = req.params.userId;
     const { full_name, email, phone_number, business_type } = req.body;
 
-    const business_name = await translateText(req.body.business_name)
+    let business_name = null;
+    if (req.body.business_name) {
+      business_name = await translateText(req.body.business_name);
+    }
+
     // Fetch existing user
     let user = await User.findById(userId).session(session);
     if (!user) {
@@ -27,15 +39,29 @@ exports.updateUser = async (req, res) => {
         return res.status(400).json({ message: "Email is already in use." });
       }
       user.email_verified = false; // Mark email as unverified if changed
+      // Generate new verification token
+      const emailVerificationToken = crypto.randomBytes(32).toString("hex");
+      const emailVerificationTokenExpiry = Date.now() + 2 * 60 * 1000;
+
+      user.email_verification_token = emailVerificationToken;
+      user.email_verification_token_expiry = emailVerificationTokenExpiry;
+
+      // Send verification email
+      const verificationLink = `https://whale-app-4nsg6.ondigitalocean.app/auth/verify-email/${emailVerificationToken}`;
+      await sendVerificationEmail(email, verificationLink);
     }
 
     // Profile Picture Handling
     let imageUrl = user.profile_picture;
     if (req.files && req.files["profile_picture"]) {
-      const folderName = user.role === "realtor" ? "realtors_profiles" : "buyers_profiles";
+      const folderName =
+        user.role === "realtor" ? "realtors_profiles" : "buyers_profiles";
 
       // Upload new image
-      imageUrl = await uploadToCloudinary(req.files["profile_picture"][0].buffer, folderName);
+      imageUrl = await uploadToCloudinary(
+        req.files["profile_picture"][0].buffer,
+        folderName
+      );
 
       // Delete old image if exists
       if (user.profile_picture) {
@@ -64,17 +90,27 @@ exports.updateUser = async (req, res) => {
 
       if (req.files) {
         if (req.files["tax_id_image"]) {
-          taxIdImageUrl = await uploadToCloudinary(req.files["tax_id_image"][0].buffer, "realtors_documents");
-          if (realtor.tax_id_image) await deleteFromCloudinary(realtor.tax_id_image);
+          taxIdImageUrl = await uploadToCloudinary(
+            req.files["tax_id_image"][0].buffer,
+            "realtors_documents"
+          );
+          if (realtor.tax_id_image)
+            await deleteFromCloudinary(realtor.tax_id_image);
         }
         if (req.files["verification_doc_image"]) {
-          verificationDocImageUrl = await uploadToCloudinary(req.files["verification_doc_image"][0].buffer, "realtors_documents");
-          if (realtor.verification_doc_image) await deleteFromCloudinary(realtor.verification_doc_image);
+          verificationDocImageUrl = await uploadToCloudinary(
+            req.files["verification_doc_image"][0].buffer,
+            "realtors_documents"
+          );
+          if (realtor.verification_doc_image)
+            await deleteFromCloudinary(realtor.verification_doc_image);
         }
       }
 
       // Update realtor details
-      realtor.business_name = business_name || realtor.business_name;
+      if (business_name !== null) {
+        realtor.business_name = business_name;
+      }      
       realtor.business_type = business_type || realtor.business_type;
       realtor.tax_id_image = taxIdImageUrl;
       realtor.verification_doc_image = verificationDocImageUrl;
@@ -97,7 +133,6 @@ exports.updateUser = async (req, res) => {
         phone_verified: user.phone_verified,
       },
     });
-
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
@@ -105,4 +140,3 @@ exports.updateUser = async (req, res) => {
     return res.status(500).json({ message: "Server error. Please try again." });
   }
 };
-

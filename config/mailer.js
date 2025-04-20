@@ -36,7 +36,7 @@ async function sendVerificationEmail(email, verificationLink) {
     subject: "Verify Your Email Address",
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 8px;">
-        <h2 style="color: #333;">Welcome to Our Platform!</h2>
+        <h2 style="color: #333;">Welcome to Daar Live!</h2>
         <p style="font-size: 16px; color: #555;">
           Thank you for signing up. Please verify your email address by clicking the button below:
         </p>
