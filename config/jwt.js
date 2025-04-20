@@ -14,4 +14,14 @@ const generateToken = (user) => {
   return jwt.sign(payload, secretKey, { expiresIn: "1h" }); // Token expires in 1 hour
 };
 
-module.exports = { generateToken };
+const generateTokenPhone = (user) => {
+  const payload = { 
+    userId: user._id, 
+    role: "buyer",
+    phone_number: user.phone_number
+  };
+
+  return jwt.sign(payload, secretKey, { expiresIn: "1h" }); // Token expires in 1 hour
+};
+
+module.exports = { generateToken, generateTokenPhone };
