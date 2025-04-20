@@ -4,8 +4,8 @@ const Location = require("../../models/Location");
 
 exports.findNearbyProperties = async (req, res) => {
   try {
-    const { latitude, longitude } = req.query;
-    const maxDistance = 50000; // Default to 5km
+    const { latitude, longitude, user_id } = req.query;
+    const maxDistance = 15000; // 15 km in meters
 
     if (!latitude || !longitude) {
       return res.status(400).json({ error: "Latitude and Longitude are required" });
@@ -18,35 +18,83 @@ exports.findNearbyProperties = async (req, res) => {
       return res.status(400).json({ error: "Invalid latitude or longitude values" });
     }
 
-    // First, find nearby locations
+    // Find nearby locations
     const nearbyLocations = await Location.aggregate([
       {
         $geoNear: {
-          near: { type: "Point", coordinates: [lon, lat] }, // MongoDB requires [lng, lat]
+          near: { type: "Point", coordinates: [lon, lat] },
           distanceField: "distance",
-          maxDistance: maxDistance, // Distance in meters
+          maxDistance: maxDistance,
           spherical: true,
         },
       },
-      { $project: { _id: 1 } }, // Only return location IDs
+      { $project: { _id: 1 } },
     ]);
 
-    // Extract location IDs
     const locationIds = nearbyLocations.map((loc) => loc._id);
 
-    // Find properties linked to those locations
-    const nearbyProperties = await Property.find({ location: { $in: locationIds } })
-    .populate({
-      path: "owner_id",
-      select: "email full_name phone_number profile_picture", // Only these fields will be included
-    })
-    .populate("location")
-    .populate("media")
-    .populate("feature_details")
-    .populate("property_type")
-    .populate("property_subtype")
+    // Get properties with those location IDs
+    const properties = await Property.find({ location: { $in: locationIds } })
+      .populate({
+        path: "owner_id",
+        select: "email full_name phone_number profile_picture",
+      })
+      .populate("location")
+      .populate("media")
+      .populate("feature_details")
+      .populate("property_type")
+      .populate("property_subtype")
+      .lean();
 
-    return res.status(200).json({ success: true, properties: nearbyProperties });
+    // Enrich property data as done in getAllProperties
+    const propertiesWithDetails = await Promise.all(
+      properties.map(async (property) => {
+        const amenitiesDetails = await Amenities.find({
+          _id: { $in: property.amenities },
+        });
+
+        const reviewData = await getReviewsWithCount(property._id, "Property");
+
+        let savedStatus = "unlike";
+        if (user_id) {
+          const savedProperty = await SavedProperty.findOne({
+            user_id,
+            property_id: property._id,
+          });
+
+          if (savedProperty) {
+            savedStatus = savedProperty.status;
+          }
+        }
+
+        let realtorStats = null;
+        let realtorAvgRating = null;
+        let realtorReviewCount = null;
+
+        if (property.owner_id) {
+          realtorStats = await getRealtorStats(property.owner_id._id);
+          realtorAvgRating = await getAvgRating(property.owner_id._id);
+          realtorReviewCount = await getReviewCount(property.owner_id._id, "User");
+        }
+
+        return {
+          ...property,
+          amenities: amenitiesDetails,
+          review: reviewData,
+          saved_status: savedStatus,
+          realtor_stats: realtorStats,
+          realtor_review_count: realtorReviewCount,
+          realtor_avg_rating: realtorAvgRating,
+        };
+      })
+    );
+
+    return res.status(200).json({
+      totalProperties: propertiesWithDetails.length,
+      currentPage: 1,
+      totalPages: 1,
+      properties: propertiesWithDetails,
+    });
   } catch (error) {
     console.error("Error finding nearby properties:", error);
     return res.status(500).json({ error: "Internal Server Error" });
@@ -54,10 +102,11 @@ exports.findNearbyProperties = async (req, res) => {
 };
 
 
+
 exports.findNearbyEvents = async (req, res) => {
   try {
     const { latitude, longitude } = req.query;
-    const maxDistance = 50000; // Default to 5km
+    const maxDistance = 15000; // 15 km in meters
 
     if (!latitude || !longitude) {
       return res.status(400).json({ error: "Latitude and Longitude are required" });
