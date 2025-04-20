@@ -14,61 +14,40 @@ const {
 } = require("../../controller/reviews/getReviewsWithCount"); // Import the function
 const { getAvgRating } = require("../user/getAvgRating"); // Import the function
 
-async function getCityFromCoords(lat, lon) {
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY; // Replace with your actual key
-
-  const response = await axios.get(
-    "https://maps.googleapis.com/maps/api/geocode/json",
-    {
-      params: {
-        latlng: `${lat},${lon}`,
-        key: apiKey,
-      },
-    }
-  );
-
-  const results = response.data.results;
-  if (!results.length) return null;
-
-  const addressComponents = results[0].address_components;
-
-  for (const component of addressComponents) {
-    if (component.types.includes("locality")) {
-      return component.long_name; // usually the city
-    }
-    if (component.types.includes("administrative_area_level_2")) {
-      return component.long_name;
-    }
-  }
-
-  return null;
-}
-
 exports.findNearbyProperties = async (req, res) => {
   try {
     const { latitude, longitude, user_id } = req.query;
 
     if (!latitude || !longitude) {
-      return res
-        .status(400)
-        .json({ error: "Latitude and Longitude are required" });
+      return res.status(200).json({
+        success: true,
+        message: "Latitude and Longitude are required",
+        totalProperties: 0,
+        properties: [],
+      });
     }
 
     const lat = parseFloat(latitude);
     const lon = parseFloat(longitude);
 
     if (isNaN(lat) || isNaN(lon)) {
-      return res.status(400).json({ error: "Invalid latitude or longitude" });
+      return res.status(200).json({
+        success: true,
+        message: "Invalid latitude or longitude",
+        totalProperties: 0,
+        properties: [],
+      });
     }
 
     const targetCity = await getCityFromCoords(lat, lon);
-    // const targetCityTranslated = await translateText(targetCityOrg);
-    // const targetCity = targetCityTranslated.en;
 
     if (!targetCity) {
-      return res
-        .status(404)
-        .json({ error: "Could not determine city from coordinates" });
+      return res.status(200).json({
+        success: true,
+        message: "Could not determine city from coordinates",
+        totalProperties: 0,
+        properties: [],
+      });
     }
 
     const allProperties = await Property.find({})
@@ -86,14 +65,6 @@ exports.findNearbyProperties = async (req, res) => {
     const matchedProperties = [];
 
     for (const property of allProperties) {
-      // const loc = property.location;
-      // if (!loc || !loc.latitude || !loc.longitude) continue;
-
-      // let propertyCity = await getCityFromCoords(loc.latitude, loc.longitude);
-      // // const propertyCityTranslated = await translateText(propertyCityOrg);
-      // // const propertyCity = propertyCityTranslated.en;
-      // console.log(loc.latitude, loc.longitude)
-      // console.log(propertyCity, targetCity);
       if (property.city !== null) {
         let propertyCity = property.city.en;
         if (
@@ -105,7 +76,6 @@ exports.findNearbyProperties = async (req, res) => {
       }
     }
 
-    // Enrich matched properties
     const propertiesWithDetails = await Promise.all(
       matchedProperties.map(async (property) => {
         const amenitiesDetails = await Amenities.find({
@@ -159,46 +129,53 @@ exports.findNearbyProperties = async (req, res) => {
       properties: propertiesWithDetails,
     });
   } catch (error) {
-    console.error("Error in findPropertiesByCity:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error fetching properties by city",
-      error: error.message,
+    console.error("Error in findNearbyProperties:", error.message); // Optional for debugging
+    res.status(200).json({
+      success: true,
+      message: "No properties found due to an error",
+      totalProperties: 0,
+      properties: [],
     });
   }
 };
+
 
 exports.findNearbyEvents = async (req, res) => {
   try {
     const { latitude, longitude } = req.query;
 
     if (!latitude || !longitude) {
-      return res
-        .status(400)
-        .json({ message: "Latitude and Longitude are required" });
+      return res.status(200).json({
+        success: true,
+        message: "Latitude and Longitude are required",
+        totalEvents: 0,
+        events: [],
+      });
     }
 
     const lat = parseFloat(latitude);
     const lon = parseFloat(longitude);
 
     if (isNaN(lat) || isNaN(lon)) {
-      return res
-        .status(400)
-        .json({ message: "Invalid latitude or longitude values" });
+      return res.status(200).json({
+        success: true,
+        message: "Invalid latitude or longitude values",
+        totalEvents: 0,
+        events: [],
+      });
     }
 
-    // Step 1: Get city name from user's coordinates
     const userCity = await getCityFromCoords(lat, lon);
-    // const userCityTranslated = await translateText(userCityOrg);
-    // const userCity = userCityTranslated.en;
 
     if (!userCity) {
-      return res
-        .status(404)
-        .json({ message: "Could not determine city from coordinates" });
+      return res.status(200).json({
+        success: true,
+        message: "Could not determine city from coordinates",
+        totalEvents: 0,
+        events: [],
+      });
     }
 
-    // Step 2: Fetch all events
     const allEvents = await Event.find({})
       .populate({
         path: "host_id",
@@ -212,17 +189,9 @@ exports.findNearbyEvents = async (req, res) => {
 
     const matchedEvents = [];
 
-    // Step 3: Match events based on city of their location
     for (const event of allEvents) {
-      // const loc = event.location;
-      // if (!loc || !loc.latitude || !loc.longitude) continue;
-
-      // const eventCity = await getCityFromCoords(loc.latitude, loc.longitude);
-      // const eventCityTranslated = await translateText(eventCityOrg);
-      // const eventCity = eventCityTranslated.en;
       if (event.city !== null) {
         let eventCity = event.city.en;
-        console.log(eventCity, userCity);
         if (
           eventCity &&
           eventCity.trim().toLowerCase() === userCity.trim().toLowerCase()
@@ -233,17 +202,18 @@ exports.findNearbyEvents = async (req, res) => {
     }
 
     if (!matchedEvents.length) {
-      return res
-        .status(404)
-        .json({ message: `No events found in city: ${userCity}` });
+      return res.status(200).json({
+        success: true,
+        message: `No events found in city: ${userCity}`,
+        totalEvents: 0,
+        events: [],
+      });
     }
 
-    // Step 4: Get unique host IDs
     const uniqueHosts = [
       ...new Set(matchedEvents.map((event) => event.host_id._id.toString())),
     ];
 
-    // Step 5: Fetch host stats
     const hostStats = {};
     const hostAvgRating = {};
     const hostReviewCount = {};
@@ -253,7 +223,6 @@ exports.findNearbyEvents = async (req, res) => {
       hostReviewCount[hostId] = await getReviewCount(hostId, "User");
     }
 
-    // Step 6: Attach review and host info
     const enrichedEvents = await Promise.all(
       matchedEvents.map(async (event) => {
         const reviews = await getReviewsWithCount(event._id, "Event");
@@ -277,9 +246,12 @@ exports.findNearbyEvents = async (req, res) => {
     });
   } catch (error) {
     console.error("Error finding events by city:", error);
-    res.status(500).json({
-      message: "Error fetching events by city",
-      error: error.message,
+    res.status(200).json({
+      success: true,
+      message: "No events found due to internal error",
+      totalEvents: 0,
+      events: [],
     });
   }
 };
+
