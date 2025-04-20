@@ -8,6 +8,7 @@ const axios = require("axios");
 const { translateText } = require("../../services/translateService");
 
 const { getRealtorStats } = require("../../controller/stats/getRealtorStats"); // Import the function
+const { getHostsStats } = require("../stats/getHostStats"); // Import the function
 const {
   getReviewsWithCount,
   getReviewCount,
@@ -94,6 +95,8 @@ exports.findNearbyProperties = async (req, res) => {
 
     for (const property of allProperties) {
       if (property.city !== null) {
+        // const loc = property.location;
+        // let propertyCity = await getCityFromCoords(loc.latitude, loc.longitude);
         let propertyCity = property.city.en;
         if (
           propertyCity &&
@@ -220,6 +223,8 @@ exports.findNearbyEvents = async (req, res) => {
     for (const event of allEvents) {
       if (event.city !== null) {
         let eventCity = event.city.en;
+        // const loc = event.location;
+        // let eventCity = await getCityFromCoords(loc.latitude, loc.longitude);
         if (
           eventCity &&
           eventCity.trim().toLowerCase() === userCity.trim().toLowerCase()
