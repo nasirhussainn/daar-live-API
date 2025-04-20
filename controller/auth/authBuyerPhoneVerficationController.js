@@ -32,7 +32,6 @@ exports.sendOTPBuyer = async (req, res) => {
         phone_number,
         phone_otp: otp.toString(),
         phone_otp_expiry: otpExpiry,
-        phone_verified: false,
       },
       { upsert: true, new: true }
     );
@@ -51,6 +50,7 @@ exports.sendOTPBuyer = async (req, res) => {
 exports.verifyOTPBuyer = async (req, res) => {
   const { phone_number, code } = req.body;
 
+  let account_completion = false;
   if (!phone_number || !code) {
     return res
       .status(400)
@@ -78,11 +78,11 @@ exports.verifyOTPBuyer = async (req, res) => {
     if (!user.role) user.role = "buyer";
     if (user.account_status === "pending") {
       user.account_status = "active";
+      user.phone_verified = true;
     }
     if (!user.account_type) user.account_type = "phone";
 
     // Mark phone verified and clear OTP
-    user.phone_verified = true;
     user.phone_otp = undefined;
     user.phone_otp_expiry = undefined;
 
@@ -111,10 +111,11 @@ exports.verifyOTPBuyer = async (req, res) => {
         "Account created successfully. Please complete your profile.";
     } else if (
       user.account_status === "active" &&
-      (!user.full_name || !user.profile_picture)
+      (!user.full_name || !user.email)
     ) {
       responseMessage = "Login successful. Please complete your profile.";
     } else {
+      account_completion = true;
       responseMessage = "Login successful.";
     }
 
@@ -122,6 +123,7 @@ exports.verifyOTPBuyer = async (req, res) => {
       message: responseMessage,
       token: user.login_token,
       user: basicUserInfo,
+      account_completion: account_completion,
     });
   } catch (err) {
     console.error("Error verifying OTP:", err.message);
