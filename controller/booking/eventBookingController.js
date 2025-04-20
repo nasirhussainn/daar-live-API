@@ -29,7 +29,7 @@ const generateTickets = (numTickets) => {
 
 exports.bookEvent = async (req, res) => {
   try {
-    const { event_id, user_id, number_of_tickets, event_dates } = req.body;
+    const { event_id, user_id, number_of_tickets, event_dates, guest_name, guest_email, guest_phone, id_number } = req.body;
 
     // Check if event exists
     const event = await Event.findById(event_id);
@@ -97,6 +97,10 @@ exports.bookEvent = async (req, res) => {
       event_dates: event_dates || [],
       tickets: tickets || [],
       tickets,
+      guest_name,
+      guest_email,
+      guest_phone,
+      id_number,
     });
 
     await newBooking.save();

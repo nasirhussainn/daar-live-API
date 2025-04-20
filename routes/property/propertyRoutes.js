@@ -11,6 +11,7 @@ const { addProperty,
     getFilteredProperties,
  } = require('../../controller/properties/propertyController'); // Import the controller function
 
+// const { findNearbyProperties } = require('../../controller/explore/exploreController')
 const { findNearbyProperties } = require('../../controller/explore/exploreController')
 const router = express.Router();
 
