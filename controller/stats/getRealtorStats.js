@@ -22,9 +22,35 @@ const getRealtorStats = async (realtorId) => {
           { $group: { _id: null, soldCount: { $sum: 1 }, soldRevenue: { $sum: { $toDouble: "$price" } } } },
         ]),
         Booking.aggregate([
-          { $match: { owner_id: realtorObjectId, status: { $in: ["active", "completed", "confirmed"] } } },
-          { $group: { _id: null, rentedCount: { $sum: 1 }, rentedRevenue: { $sum: { $toDouble: "$payment_detail.amount" } } } },
-        ]),
+          {
+            $match: {
+              owner_id: realtorObjectId,
+              status: { $in: ["active", "completed", "confirmed"] },
+              property_id: { $ne: null } // Ensure it's a property booking
+            }
+          },
+          {
+            $lookup: {
+              from: "properties", // Collection name in MongoDB (should be lowercase plural)
+              localField: "property_id",
+              foreignField: "_id",
+              as: "property"
+            }
+          },
+          { $unwind: "$property" },
+          {
+            $match: {
+              "property.property_purpose": "rent"
+            }
+          },
+          {
+            $group: {
+              _id: null,
+              rentedCount: { $sum: 1 },
+              rentedRevenue: { $sum: { $toDouble: "$payment_detail.amount" } }
+            }
+          }
+        ]),        
         Realtor.findOne({ user_id: realtorObjectId }).select('total_revenue available_revenue').lean(),
       ]);
 
