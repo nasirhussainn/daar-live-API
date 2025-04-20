@@ -101,6 +101,7 @@ exports.verifyOTPBuyer = async (req, res) => {
       phone_number: user.phone_number,
       full_name: user.full_name,
       role: user.role,
+      _id: user._id,
     };
 
     let responseMessage;
