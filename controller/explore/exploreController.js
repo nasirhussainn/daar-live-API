@@ -14,6 +14,34 @@ const {
 } = require("../../controller/reviews/getReviewsWithCount"); // Import the function
 const { getAvgRating } = require("../user/getAvgRating"); // Import the function
 
+async function getCityFromCoords(lat, lon) {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY; // Replace with your actual key
+
+  const response = await axios.get("https://maps.googleapis.com/maps/api/geocode/json", {
+    params: {
+      latlng: `${lat},${lon}`,
+      key: apiKey,
+    },
+  });
+
+  const results = response.data.results;
+  if (!results.length) return null;
+
+  const addressComponents = results[0].address_components;
+
+  for (const component of addressComponents) {
+    if (component.types.includes("locality")) {
+      return component.long_name; // usually the city
+    }
+    if (component.types.includes("administrative_area_level_2")) {
+      return component.long_name;
+    }
+  }
+
+  return null;
+}
+
+
 exports.findNearbyProperties = async (req, res) => {
   try {
     const { latitude, longitude, user_id } = req.query;
