@@ -79,11 +79,8 @@ const subscribeRealtor = async (req, res) => {
     // ----------------- Update Subscription Revenue -----------------
     // Get the current date in YYYY-MM-DD format
     const currentDate = new Date().toISOString().split("T")[0];
-    await updateAdminRevenue(
-      plan.planAmount,
-      "subscription_revenue",
-      currentDate
-    );
+    await updateAdminRevenue(plan.planAmount, "subscription_revenue", currentDate);
+    await updateAdminRevenue(plan.planAmount, "total_revenue", currentDate)
 
     // ----------------------------------------------------------------
 

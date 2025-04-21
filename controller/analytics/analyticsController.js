@@ -10,52 +10,52 @@ const moment = require("moment");
 
 // Helper function to generate date ranges
 const getDateRanges = (period) => {
-  const today = moment().startOf('day');
+  const today = moment().startOf("day");
   switch (period) {
-    case '24h':
+    case "24h":
       return {
-        start: moment().subtract(24, 'hours').toDate(),
-        end: today.toDate()
+        start: moment().subtract(24, "hours").toDate(),
+        end: today.toDate(),
       };
-    case 'today':
+    case "today":
       return {
         start: today.toDate(),
-        end: moment().endOf('day').toDate()
+        end: moment().endOf("day").toDate(),
       };
-    case 'week':
+    case "week":
       return {
-        start: today.clone().subtract(7, 'days').toDate(),
-        end: today.toDate()
+        start: today.clone().subtract(7, "days").toDate(),
+        end: today.toDate(),
       };
-    case 'month':
+    case "month":
       return {
-        start: today.clone().subtract(30, 'days').toDate(),
-        end: today.toDate()
+        start: today.clone().subtract(30, "days").toDate(),
+        end: today.toDate(),
       };
-    case '3months':
+    case "3months":
       return {
-        start: today.clone().subtract(90, 'days').toDate(),
-        end: today.toDate()
+        start: today.clone().subtract(90, "days").toDate(),
+        end: today.toDate(),
       };
-    case '6months':
+    case "6months":
       return {
-        start: today.clone().subtract(180, 'days').toDate(),
-        end: today.toDate()
+        start: today.clone().subtract(180, "days").toDate(),
+        end: today.toDate(),
       };
-    case 'year':
+    case "year":
       return {
-        start: today.clone().subtract(1, 'year').toDate(),
-        end: today.toDate()
+        start: today.clone().subtract(1, "year").toDate(),
+        end: today.toDate(),
       };
-    case 'all':
+    case "all":
       return {
         start: new Date(0),
-        end: today.toDate()
+        end: today.toDate(),
       };
     default:
       return {
-        start: today.clone().subtract(30, 'days').toDate(),
-        end: today.toDate()
+        start: today.clone().subtract(30, "days").toDate(),
+        end: today.toDate(),
       };
   }
 };
@@ -66,16 +66,52 @@ const calculateGrowth = (current, previous) => {
   return ((current - previous) / previous) * 100;
 };
 
+const aggregateRevenue = async (startDate1, endDate1) => {
+  const result = await AdminRevenue.aggregate([
+    {
+      // Match records in the specified date range
+      $match: {
+        updated_at: { $gte: new Date(startDate1), $lte: new Date(endDate1) },
+      },
+    },
+    {
+      // Sum the relevant fields across all matched documents
+      $group: {
+        _id: null, // No specific grouping, sum all records
+        total_revenue: { $sum: "$total_revenue" },
+        admin_booking_revenue: { $sum: "$admin_booking_revenue" },
+        total_booking_revenue: { $sum: "$total_booking_revenue" },
+        total_percentage_revenue: { $sum: "$total_percentage_revenue" },
+        subscription_revenue: { $sum: "$subscription_revenue" },
+        featured_revenue: { $sum: "$featured_revenue" },
+      },
+    },
+  ]);
+
+  // If no records are found, return zeroes
+  if (result.length === 0) {
+    return {
+      total_revenue: 0,
+      admin_booking_revenue: 0,
+      total_booking_revenue: 0,
+      total_percentage_revenue: 0,
+      subscription_revenue: 0,
+      featured_revenue: 0,
+    };
+  }
+  return result[0]; // Returns the aggregated result
+};
+
 exports.getAnalytics = async (req, res) => {
   try {
-    const { period = 'month', customStart, customEnd } = req.query;
+    const { period = "month", customStart, customEnd } = req.query;
 
     // Handle custom date range
     let dateRange;
     if (customStart && customEnd) {
       dateRange = {
         start: new Date(customStart),
-        end: new Date(customEnd)
+        end: new Date(customEnd),
       };
     } else {
       dateRange = getDateRanges(period);
@@ -83,146 +119,153 @@ exports.getAnalytics = async (req, res) => {
 
     // Calculate previous period for comparison
     const previousPeriod = {
-      start: moment(dateRange.start).subtract(
-        moment(dateRange.end).diff(dateRange.start, 'days'), 
-        'days'
-      ).toDate(),
-      end: dateRange.start
+      start: moment(dateRange.start)
+        .subtract(moment(dateRange.end).diff(dateRange.start, "days"), "days")
+        .toDate(),
+      end: dateRange.start,
     };
 
     // Format periods for AdminRevenue lookup
-    const currentPeriodStr = moment(dateRange.start).format('YYYY-MM-DD');
-    const previousPeriodStr = moment(previousPeriod.start).format('YYYY-MM-DD');
+    const currentPeriodStr = moment(dateRange.start).format("YYYY-MM-DD");
+    const previousPeriodStr = moment(previousPeriod.start).format("YYYY-MM-DD");
 
     // 1. Fetch all analytics data in parallel
     const [
       // Basic counts
       currentCounts,
       previousCounts,
-      
+
       // Property status
       soldProperties,
       rentedBookings,
       prevSoldProperties,
       prevRentedBookings,
-      
+
       // Bookings
       currentBookings,
       previousBookings,
-      
+
       // Subscriptions
       currentSubscriptions,
       previousSubscriptions,
-      
+
       // All-time metrics (without revenue)
       allTimeMetrics,
 
       // Admin Revenue
       currentAdminRevenue,
-      previousAdminRevenue
+      previousAdminRevenue,
     ] = await Promise.all([
       // Current period counts
       Promise.all([
-        Property.countDocuments({ 
-          created_at: { $gte: dateRange.start, $lte: dateRange.end }
+        Property.countDocuments({
+          created_at: { $gte: dateRange.start, $lte: dateRange.end },
         }),
-        Event.countDocuments({ 
-          created_at: { $gte: dateRange.start, $lte: dateRange.end }
+        Event.countDocuments({
+          created_at: { $gte: dateRange.start, $lte: dateRange.end },
         }),
-        User.countDocuments({ 
-          createdAt: { $gte: dateRange.start, $lte: dateRange.end }
+        User.countDocuments({
+          createdAt: { $gte: dateRange.start, $lte: dateRange.end },
         }),
-        Realtor.countDocuments({ 
-          created_at: { $gte: dateRange.start, $lte: dateRange.end }
-        })
+        Realtor.countDocuments({
+          created_at: { $gte: dateRange.start, $lte: dateRange.end },
+        }),
       ]),
-      
+
       // Previous period counts
       Promise.all([
-        Property.countDocuments({ 
-          created_at: { $gte: previousPeriod.start, $lte: previousPeriod.end }
+        Property.countDocuments({
+          created_at: { $gte: previousPeriod.start, $lte: previousPeriod.end },
         }),
-        Event.countDocuments({ 
-          created_at: { $gte: previousPeriod.start, $lte: previousPeriod.end }
+        Event.countDocuments({
+          created_at: { $gte: previousPeriod.start, $lte: previousPeriod.end },
         }),
-        User.countDocuments({ 
-          createdAt: { $gte: previousPeriod.start, $lte: previousPeriod.end }
+        User.countDocuments({
+          createdAt: { $gte: previousPeriod.start, $lte: previousPeriod.end },
         }),
-        Realtor.countDocuments({ 
-          created_at: { $gte: previousPeriod.start, $lte: previousPeriod.end }
-        })
+        Realtor.countDocuments({
+          created_at: { $gte: previousPeriod.start, $lte: previousPeriod.end },
+        }),
       ]),
-      
+
       // Property status tracking - current
-      Property.countDocuments({ 
-        property_status: 'sold',
-        updated_at: { $gte: dateRange.start, $lte: dateRange.end }
+      Property.countDocuments({
+        property_status: "sold",
+        updated_at: { $gte: dateRange.start, $lte: dateRange.end },
       }),
-      
+
       // Rented properties - current
       Booking.find({
-        status: { $in: ['confirmed', 'completed', 'active'] },
-        booking_type: 'property',
-        created_at: { $gte: dateRange.start, $lte: dateRange.end }
-      }).distinct('property_id'),
-      
+        status: { $in: ["confirmed", "completed", "active"] },
+        booking_type: "property",
+        created_at: { $gte: dateRange.start, $lte: dateRange.end },
+      }).distinct("property_id"),
+
       // Property status tracking - previous
-      Property.countDocuments({ 
-        property_status: 'sold',
-        updated_at: { $gte: previousPeriod.start, $lte: previousPeriod.end }
+      Property.countDocuments({
+        property_status: "sold",
+        updated_at: { $gte: previousPeriod.start, $lte: previousPeriod.end },
       }),
-      
+
       // Rented properties - previous
       Booking.find({
-        status: { $in: ['confirmed', 'completed', 'active'] },
-        booking_type: 'property',
-        created_at: { $gte: previousPeriod.start, $lte: previousPeriod.end }
-      }).distinct('property_id'),
-      
+        status: { $in: ["confirmed", "completed", "active"] },
+        booking_type: "property",
+        created_at: { $gte: previousPeriod.start, $lte: previousPeriod.end },
+      }).distinct("property_id"),
+
       // Current bookings
       Booking.find({
-        status: { $in: ['confirmed', 'completed', 'active'] },
-        created_at: { $gte: dateRange.start, $lte: dateRange.end }
+        status: { $in: ["confirmed", "completed", "active"] },
+        created_at: { $gte: dateRange.start, $lte: dateRange.end },
       }),
-      
+
       // Previous bookings
       Booking.find({
-        status: { $in: ['confirmed', 'completed', 'active'] },
-        created_at: { $gte: previousPeriod.start, $lte: previousPeriod.end }
+        status: { $in: ["confirmed", "completed", "active"] },
+        created_at: { $gte: previousPeriod.start, $lte: previousPeriod.end },
       }),
-      
+
       // Current active subscriptions
       Subscription.countDocuments({
-        status: 'active',
-        created_at: { $gte: dateRange.start, $lte: dateRange.end }
+        status: "active",
+        created_at: { $gte: dateRange.start, $lte: dateRange.end },
       }),
-      
+
       // Previous active subscriptions
       Subscription.countDocuments({
-        status: 'active',
-        created_at: { $gte: previousPeriod.start, $lte: previousPeriod.end }
+        status: "active",
+        created_at: { $gte: previousPeriod.start, $lte: previousPeriod.end },
       }),
-      
+
       // All-time metrics (without revenue)
       Promise.all([
         Property.countDocuments(),
         Event.countDocuments(),
         User.countDocuments(),
-        Realtor.countDocuments()
+        Realtor.countDocuments(),
       ]),
 
       // Current Admin Revenue
-      AdminRevenue.findOne({ period: currentPeriodStr }),
-      
+      // AdminRevenue.findOne({ period: currentPeriodStr }),
+      aggregateRevenue(currentPeriodStr, dateRange.end),
+
       // Previous Admin Revenue
-      AdminRevenue.findOne({ period: previousPeriodStr })
+      // AdminRevenue.findOne({ period: previousPeriodStr })
+      aggregateRevenue(previousPeriodStr, previousPeriod.end),
     ]);
 
     // 2. Process and organize the data
-    // Destructure counts
-    const [total_properties, total_events, total_users, total_realtors] = currentCounts;
-    const [prev_total_properties, prev_total_events, prev_total_users, prev_total_realtors] = previousCounts;
-    const [allTimeProperties, allTimeEvents, allTimeUsers, allTimeRealtors] = allTimeMetrics;
+    const [total_properties, total_events, total_users, total_realtors] =
+      currentCounts;
+    const [
+      prev_total_properties,
+      prev_total_events,
+      prev_total_users,
+      prev_total_realtors,
+    ] = previousCounts;
+    const [allTimeProperties, allTimeEvents, allTimeUsers, allTimeRealtors] =
+      allTimeMetrics;
 
     const total_buyers = total_users - total_realtors;
     const prev_total_buyers = prev_total_users - prev_total_realtors;
@@ -234,7 +277,7 @@ exports.getAnalytics = async (req, res) => {
       total_booking_revenue: 0,
       total_percentage_revenue: 0,
       subscription_revenue: 0,
-      featured_revenue: 0
+      featured_revenue: 0,
     };
 
     const prevRevenueData = previousAdminRevenue || {
@@ -243,7 +286,7 @@ exports.getAnalytics = async (req, res) => {
       total_booking_revenue: 0,
       total_percentage_revenue: 0,
       subscription_revenue: 0,
-      featured_revenue: 0
+      featured_revenue: 0,
     };
 
     // Calculate growth percentages
@@ -254,13 +297,31 @@ exports.getAnalytics = async (req, res) => {
       buyers: calculateGrowth(total_buyers, prev_total_buyers),
       realtors: calculateGrowth(total_realtors, prev_total_realtors),
       soldProperties: calculateGrowth(soldProperties, prevSoldProperties),
-      rentedProperties: calculateGrowth(rentedBookings.length, prevRentedBookings.length),
+      rentedProperties: calculateGrowth(
+        rentedBookings.length,
+        prevRentedBookings.length
+      ),
       // Admin revenue growth metrics
-      totalRevenue: calculateGrowth(currentRevenueData.total_revenue, prevRevenueData.total_revenue),
-      adminBookingRevenue: calculateGrowth(currentRevenueData.admin_booking_revenue, prevRevenueData.admin_booking_revenue),
-      totalBookingRevenue: calculateGrowth(currentRevenueData.total_booking_revenue, prevRevenueData.total_booking_revenue),
-      percentageRevenue: calculateGrowth(currentRevenueData.total_percentage_revenue, prevRevenueData.total_percentage_revenue),
-      featuredRevenue: calculateGrowth(currentRevenueData.featured_revenue, prevRevenueData.featured_revenue)
+      totalRevenue: calculateGrowth(
+        currentRevenueData.total_revenue,
+        prevRevenueData.total_revenue
+      ),
+      adminBookingRevenue: calculateGrowth(
+        currentRevenueData.admin_booking_revenue,
+        prevRevenueData.admin_booking_revenue
+      ),
+      totalBookingRevenue: calculateGrowth(
+        currentRevenueData.total_booking_revenue,
+        prevRevenueData.total_booking_revenue
+      ),
+      percentageRevenue: calculateGrowth(
+        currentRevenueData.total_percentage_revenue,
+        prevRevenueData.total_percentage_revenue
+      ),
+      featuredRevenue: calculateGrowth(
+        currentRevenueData.featured_revenue,
+        prevRevenueData.featured_revenue
+      ),
     };
 
     // 3. Prepare the response
@@ -270,12 +331,12 @@ exports.getAnalytics = async (req, res) => {
         period: {
           current: {
             start: dateRange.start,
-            end: dateRange.end
+            end: dateRange.end,
           },
           previous: {
             start: previousPeriod.start,
-            end: previousPeriod.end
-          }
+            end: previousPeriod.end,
+          },
         },
         counts: {
           properties: total_properties,
@@ -283,13 +344,15 @@ exports.getAnalytics = async (req, res) => {
           users: total_users,
           buyers: total_buyers,
           realtors: total_realtors,
-          subscriptions: currentSubscriptions
+          subscriptions: currentSubscriptions,
         },
         property_status: {
           sold: soldProperties,
           rented: {
             unique_properties: rentedBookings.length,
-            all_bookings: currentBookings.filter(b => b.booking_type === 'property').length
+            all_bookings: currentBookings.filter(
+              (b) => b.booking_type === "property"
+            ).length,
           },
         },
         revenue: {
@@ -298,11 +361,11 @@ exports.getAnalytics = async (req, res) => {
             booking: {
               admin_portion: currentRevenueData.admin_booking_revenue,
               total: currentRevenueData.total_booking_revenue,
-              percentage: currentRevenueData.total_percentage_revenue
+              percentage: currentRevenueData.total_percentage_revenue,
             },
             subscription: currentRevenueData.subscription_revenue,
-            featured: currentRevenueData.featured_revenue
-          }
+            featured: currentRevenueData.featured_revenue,
+          },
         },
         growth: {
           properties: parseFloat(growthPercentages.properties.toFixed(2)),
@@ -310,31 +373,42 @@ exports.getAnalytics = async (req, res) => {
           users: parseFloat(growthPercentages.users.toFixed(2)),
           buyers: parseFloat(growthPercentages.buyers.toFixed(2)),
           realtors: parseFloat(growthPercentages.realtors.toFixed(2)),
-          sold_properties: parseFloat(growthPercentages.soldProperties.toFixed(2)),
-          rented_properties: parseFloat(growthPercentages.rentedProperties.toFixed(2)),
+          sold_properties: parseFloat(
+            growthPercentages.soldProperties.toFixed(2)
+          ),
+          rented_properties: parseFloat(
+            growthPercentages.rentedProperties.toFixed(2)
+          ),
           total_revenue: parseFloat(growthPercentages.totalRevenue.toFixed(2)),
-          admin_booking_revenue: parseFloat(growthPercentages.adminBookingRevenue.toFixed(2)),
-          total_booking_revenue: parseFloat(growthPercentages.totalBookingRevenue.toFixed(2)),
-          percentage_revenue: parseFloat(growthPercentages.percentageRevenue.toFixed(2)),
-          featured_revenue: parseFloat(growthPercentages.featuredRevenue.toFixed(2))
+          admin_booking_revenue: parseFloat(
+            growthPercentages.adminBookingRevenue.toFixed(2)
+          ),
+          total_booking_revenue: parseFloat(
+            growthPercentages.totalBookingRevenue.toFixed(2)
+          ),
+          percentage_revenue: parseFloat(
+            growthPercentages.percentageRevenue.toFixed(2)
+          ),
+          featured_revenue: parseFloat(
+            growthPercentages.featuredRevenue.toFixed(2)
+          ),
         },
         all_time: {
           properties: allTimeProperties,
           events: allTimeEvents,
           users: allTimeUsers,
-          realtors: allTimeRealtors
-        }
-      }
+          realtors: allTimeRealtors,
+        },
+      },
     };
 
     res.status(200).json(response);
-
   } catch (error) {
-    console.error('Error in getAnalytics:', error);
+    console.error("Error in getAnalytics:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch analytics data',
-      error: error.message
+      message: "Failed to fetch analytics data",
+      error: error.message,
     });
   }
 };

@@ -718,11 +718,8 @@ exports.featureEvent = async (req, res) => {
 
     // --------------Update Featured Listing Revenue-----------------
     const currentDate = new Date().toISOString().split("T")[0];
-    await updateAdminRevenue(
-      transaction_price,
-      "featured_revenue",
-      currentDate
-    );
+    await updateAdminRevenue(transaction_price, "featured_revenue", currentDate);
+    await updateAdminRevenue(transaction_price, "total_revenue", currentDate)
     // ------------------------------------------------------------
 
     // Commit transaction
