@@ -36,6 +36,7 @@
     "firebase-admin": "^13.1.0",
     "format": "^0.2.2",
     "google-translate-api": "^2.3.0",
+    "haversine": "^1.1.1",
     "ioredis": "^5.5.0",
     "jsonwebtoken": "^9.0.2",
     "moment": "^2.30.1",

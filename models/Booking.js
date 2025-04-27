@@ -78,7 +78,6 @@ const BookingSchema = new Schema({
   cancel_by: {
     type: String,
     enum: ["admin", "user"], 
-    required: true,
   },
 
   cancelation_reason: { type: Map, of: String, default: null },
