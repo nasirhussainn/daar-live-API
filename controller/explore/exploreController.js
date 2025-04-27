@@ -6,7 +6,6 @@ const Amenities = require("../../models/admin/Amenities");
 const SavedProperty = require("../../models/SavedProperty");
 const axios = require("axios");
 const { translateText } = require("../../services/translateService");
-const Haversine = require("haversine");
 
 const { getRealtorStats } = require("../../controller/stats/getRealtorStats"); // Import the function
 const { getHostsStats } = require("../stats/getHostStats"); // Import the function
