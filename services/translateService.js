@@ -1,6 +1,6 @@
 // services/translateService.js
 const { Translate } = require("@google-cloud/translate").v2;
-
+const countryShortForms = require("../config/countryShortForms.json");
 const translate = new Translate({
   key: process.env.GOOGLE_CLOUD_TRANSLATION,
 });
@@ -26,4 +26,41 @@ async function translateText(text, langs = targetLanguages) {
   return translations;
 }
 
-module.exports = { translateText };
+// First check direct match, then try translation
+async function translateToEnglish(userInput) {
+  try {
+    const input = userInput.trim().toUpperCase();
+
+    // Direct match check first
+    if (countryShortForms[input]) {
+      return countryShortForms[input];
+    }
+
+    // If not found, then translate
+    const [translation] = await translate.translate(userInput, { to: "en" });
+    const translatedInput = translation.trim().toUpperCase();
+
+    // Again check if translated text is a short form
+    if (countryShortForms[translatedInput]) {
+      return countryShortForms[translatedInput];
+    }
+
+    return translation; // Otherwise, use the translated result directly
+  } catch (err) {
+    console.error(`Translation to English failed:`, err.message);
+    return userInput; // fallback
+  }
+}
+
+// Simple general-purpose English translation
+async function simpleTranslateToEnglish(userInput) {
+  try {
+    const [translation] = await translate.translate(userInput, { to: "en" });
+    return translation;
+  } catch (err) {
+    console.error(`Simple translation failed:`, err.message);
+    return userInput; // fallback to original
+  }
+}
+
+module.exports = { translateText, translateToEnglish, simpleTranslateToEnglish };

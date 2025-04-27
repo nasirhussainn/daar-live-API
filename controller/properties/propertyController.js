@@ -7,13 +7,14 @@ const PropertySubtype = require("../../models/admin/PropertySubtype");
 const FeaturedEntity = require("../../models/FeaturedEntity");
 const SavedProperty = require("../../models/SavedProperty");
 const Realtor = require("../../models/Realtor");
+const User = require("../../models/User")
 const Review = require("../../models/Review");
 const Booking = require("../../models/Booking");
 const PaymentHistory = require("../../models/PaymentHistory");
 const AdminRevenue = require("../../models/admin/AdminRevenue"); // AdminRevenue model
 const { updateAdminRevenue } = require("../../services/updateAdminRevenue"); // AdminRevenue service
 const { sendResponse } = require("../../services/translateHelper"); // sendResponse service
-const { translateText } = require("../../services/translateService");
+const { translateText, translateToEnglish, simpleTranslateToEnglish } = require("../../services/translateService");
 
 const {
   uploadMultipleToCloudinary,
@@ -926,6 +927,9 @@ exports.getFilteredProperties = async (req, res) => {
       state,
       city,
       isFeatured,
+      // new searching
+      title,
+      realtor,
     } = req.query;
 
     // Build the filter object
@@ -1013,9 +1017,42 @@ exports.getFilteredProperties = async (req, res) => {
     }
 
     // Location filters
-    if (country) filter.country = country;
-    if (state) filter.state = state;
-    if (city) filter.city = city;
+    if (city) {
+      const englishCity = await simpleTranslateToEnglish(city);
+      filter['city.en'] = { $regex: new RegExp(englishCity, "i") };
+    }
+    
+    if (state) {
+      const englishState = await simpleTranslateToEnglish(state);
+      filter['state.en'] = { $regex: new RegExp(englishState, "i") };
+    }
+    
+    if (country) {
+      const translatedCountry = await translateToEnglish(country);
+      console.log(translatedCountry)
+      filter["country.en"] = { $regex: new RegExp(`^${translatedCountry}$`, "i") };
+    }
+
+    if (title) {
+      const translatedTitle = await simpleTranslateToEnglish(title);
+      filter['title.en'] = { $regex: translatedTitle, $options: 'i' }; 
+    }
+    
+    if (realtor) {
+      const translatedRealtor = await simpleTranslateToEnglish(realtor);
+      const users = await User.find({
+        full_name: { $regex: translatedRealtor, $options: 'i' }
+      }).select('_id'); 
+      if (users.length > 0) {
+        filter.owner_id = { $in: users.map(user => user._id) };
+      } else {
+        return res.status(200).json({
+          totalProperties: 0,
+          properties: [],
+        });
+      }
+    }
+
 
     // Featured filter
     if (isFeatured === "true") {

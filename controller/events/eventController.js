@@ -8,9 +8,10 @@ const FeaturedEntity = require("../../models/FeaturedEntity");
 const Review = require("../../models/Review");
 const PaymentHistory = require("../../models/PaymentHistory");
 const Realtor = require("../../models/Realtor");
+const User = require("../../models/User");
 const AdminRevenue = require("../../models/admin/AdminRevenue"); // AdminRevenue model
 const { updateAdminRevenue } = require("../../services/updateAdminRevenue"); // AdminRevenue service
-const { translateText } = require("../../services/translateService");
+const { translateText, translateToEnglish, simpleTranslateToEnglish } = require("../../services/translateService");
 
 const { getHostsStats } = require("../stats/getHostStats"); // Import the function
 const {
@@ -770,11 +771,15 @@ exports.getFilteredEvents = async (req, res) => {
       featured,
       country,
       city,
+      state,
       min_rating,
       host_id,
       created_by,
       time_range,
       entry_type,
+      //new search
+      title,
+      realtor
     } = req.query;
 
     const filter = {
@@ -837,8 +842,22 @@ exports.getFilteredEvents = async (req, res) => {
     if (entry_type) filter.entry_type = entry_type;
     if (status) filter.status = status;
     if (featured) filter.is_feature = featured === "true";
-    if (country) filter.country = country;
-    if (city) filter.city = city;
+    // Location filters
+    if (city) {
+      const englishCity = await simpleTranslateToEnglish(city);
+      filter['city.en'] = { $regex: new RegExp(englishCity, "i") };
+    }
+    
+    if (state) {
+      const englishState = await simpleTranslateToEnglish(state);
+      filter['state.en'] = { $regex: new RegExp(englishState, "i") };
+    }
+    
+    if (country) {
+      const translatedCountry = await translateToEnglish(country);
+      console.log(translatedCountry)
+      filter["country.en"] = { $regex: new RegExp(`^${translatedCountry}$`, "i") };
+    }
     if (min_rating) filter.avg_rating = { $gte: Number(min_rating) };
     if (host_id) filter.host_id = new mongoose.Types.ObjectId(host_id);
     if (created_by) filter.created_by = created_by;
@@ -847,6 +866,27 @@ exports.getFilteredEvents = async (req, res) => {
       const [startTime, endTime] = time_range.split("-");
       filter.start_time = { $gte: startTime };
       filter.end_time = { $lte: endTime };
+    }
+
+    if (title) {
+      const translatedTitle = await simpleTranslateToEnglish(title);
+      filter['title.en'] = { $regex: translatedTitle, $options: 'i' }; 
+    }
+    
+
+    if (realtor) {
+      const translatedRealtor = await simpleTranslateToEnglish(realtor);
+      const users = await User.find({
+        full_name: { $regex: translatedRealtor, $options: 'i' }
+      }).select('_id'); 
+      if (users.length > 0) {
+        filter.host_id = { $in: users.map(user => user._id) };
+      } else {
+        return res.status(200).json({
+          totalEvents: 0,
+          events: [],
+        });
+      }
     }
 
     const totalEvents = await Event.countDocuments(filter);
