@@ -36,6 +36,7 @@ const EventSchema = new Schema({
 
     entry_type: { type: String, enum:['free', 'paid'] },
     entry_price: { type: Number },
+    entry_price_YER: {type: Number, required: false},
 
     location: { type: Schema.Types.ObjectId, ref: 'Location' },
     media: { type: Schema.Types.ObjectId, ref: 'Media' },
@@ -58,6 +59,12 @@ const EventSchema = new Schema({
     allow_booking: { type: Boolean, default: true },  
 
     avg_rating: { type: Number, default: 0 },
+
+    currency: {
+      type: String,
+      enum: ['USD', 'YER'],
+      default: 'USD', 
+    },
 
     created_at: { type: Date, default: Date.now },
     updated_at: { type: Date, default: Date.now }

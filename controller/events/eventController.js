@@ -50,6 +50,8 @@ exports.addEvent = async (req, res) => {
       payment_date,
       transaction_price,
       is_feature,
+      price_YER,
+      currency,
     } = req.body;
 
     const title = await translateText(req.body.title);
@@ -182,6 +184,8 @@ exports.addEvent = async (req, res) => {
       event_status,
       is_feature,
       created_by,
+      currency,
+      price_YER,
     });
 
     const savedEvent = await eventData.save({ session });
@@ -486,6 +490,8 @@ exports.updateEvent = async (req, res) => {
       transaction_price,
       is_feature,
       allow_booking,
+      price_YER,
+      currency,
     } = req.body;
 
     // Step 1: Find existing event
@@ -524,6 +530,8 @@ exports.updateEvent = async (req, res) => {
     if (transaction_price) updateData.transaction_price = transaction_price;
     if (typeof is_feature !== "undefined") updateData.is_feature = is_feature;
     if (typeof allow_booking !== "undefined") updateData.allow_booking = allow_booking;
+    if (price_YER) updateData.price_YER = price_YER;
+    if (currency) updateData.currency = currency;
 
     // Step 5: Validate event_type if provided
     if (req.body.event_type) {

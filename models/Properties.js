@@ -61,13 +61,14 @@ const PropertySchema = new Schema({
 
   area_size: { type: String, required: true }, // Changed from String to Number
   price: { type: Number, required: true },
+  price_YER: {type: Number, required: false},
 
   bedrooms: { type: Number, required: true },
   bathrooms: { type: Number, required: true },
 
   amenities: [{ type: Schema.Types.ObjectId, ref: "Amenities" }], // List of amenities
 
-  security_deposit: { type: String }, // Changed to match request field name
+  security_deposit: { type: Number }, // Changed to match request field name
 
   is_available: { type: Boolean, default: true },
   is_feature: { type: Boolean, default: false },
@@ -87,6 +88,13 @@ const PropertySchema = new Schema({
     type: Number,
     default: 0,
   },
+
+  currency: {
+    type: String,
+    enum: ['USD', 'YER'],
+    default: 'USD', 
+  },
+  
 
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now },

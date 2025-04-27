@@ -55,6 +55,7 @@ exports.addProperty = async (req, res) => {
       property_type,
       property_subtype,
       price,
+      price_YER,
       location,
       area_size,
       bedrooms,
@@ -66,6 +67,7 @@ exports.addProperty = async (req, res) => {
       payment_date,
       transaction_price,
       is_feature,
+      currency,
     } = req.body;
 
     const title = await translateText(req.body.title);
@@ -226,6 +228,8 @@ exports.addProperty = async (req, res) => {
       allow_booking,
       property_status,
       created_by,
+      price_YER,
+      currency
     });
 
     const savedProperty = await propertyData.save({ session });
@@ -711,6 +715,8 @@ exports.updateProperty = async (req, res) => {
       charge_per,
       security_deposit,
       amenities,
+      price_YER,
+      currency,
     } = req.body;
 
     // Step 1: Find the existing property
@@ -743,6 +749,8 @@ exports.updateProperty = async (req, res) => {
     if (bathrooms) updateData.bathrooms = bathrooms;
     if (charge_per) updateData.charge_per = charge_per;
     if (security_deposit) updateData.security_deposit = security_deposit;
+    if (price_YER) updateData.price_YER = price_YER;
+    if (currency) updateData.currency = currency;
 
     // Step 3: Validate and update property_subtype if provided
     if (
