@@ -311,21 +311,23 @@ async function sendPropertyBookingCancellationEmail(booking) {
     const buyer = await User.findById(booking.user_id);
     if (!buyer) throw new Error("Buyer not found");
 
-    // Fetch realtor details
+    // Fetch property details
+    const property = await Property.findById(booking.property_id);
+    if (!property) throw new Error("Property not found");
+
+    // Determine realtor (owner)
     let realtor;
+    let isOwnerAdmin = false;
     if (booking.owner_type === "Admin") {
       realtor = await Admin.findById(booking.owner_id);
-      realtor.full_name = "Admin";
+      if (realtor) realtor.full_name = "Admin";
+      isOwnerAdmin = true;
     } else {
       realtor = await User.findById(booking.owner_id);
     }
     if (!realtor) throw new Error("Realtor not found");
 
-    // Fetch property details
-    const property = await Property.findById(booking.property_id);
-    if (!property) throw new Error("Property not found");
-
-    // Construct email content for buyer
+    // Construct email content
     const buyerEmailSubject = "Booking Cancellation - Important Update";
     const buyerEmailBody = `
       <p>Dear ${buyer.full_name},</p>
@@ -343,7 +345,6 @@ async function sendPropertyBookingCancellationEmail(booking) {
       <p>Thank you for choosing our service.</p>
     `;
 
-    // Construct email content for realtor
     const realtorEmailSubject = "Booking Cancellation Notification";
     const realtorEmailBody = `
       <p>Dear ${realtor.full_name},</p>
@@ -361,7 +362,23 @@ async function sendPropertyBookingCancellationEmail(booking) {
       <p>Daar Live</p>
     `;
 
-    // Send email to buyer
+    const adminEmailSubject = "Booking Cancellation Admin Notification";
+    const adminEmailBody = `
+      <p>Dear Admin,</p>
+      <p>A booking has been canceled.</p>
+      <p><strong>Booking Details:</strong></p>
+      <ul>
+        <li><strong>Property:</strong> ${property.title.get('en')}</li>
+        <li><strong>Booked by:</strong> ${buyer.full_name} (${buyer.email})</li>
+        <li><strong>Booking Start Date:</strong> ${new Date(booking.start_date).toLocaleDateString()}</li>
+        <li><strong>Booking End Date:</strong> ${new Date(booking.end_date).toLocaleDateString()}</li>
+        <li><strong>Cancellation Reason:</strong> ${booking.cancelation_reason.get('en') || "Not provided"}</li>
+      </ul>
+      <p>Regards,</p>
+      <p>Daar Live</p>
+    `;
+
+    // Send email to Buyer
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: buyer.email,
@@ -369,7 +386,7 @@ async function sendPropertyBookingCancellationEmail(booking) {
       html: buyerEmailBody,
     });
 
-    // Send email to realtor
+    // Send email to Realtor (owner)
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: realtor.email,
@@ -377,11 +394,22 @@ async function sendPropertyBookingCancellationEmail(booking) {
       html: realtorEmailBody,
     });
 
+    // Check if we also need to send email to Admin
+    if (!isOwnerAdmin) {
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: process.env.ADMIN_EMAIL, // Use your admin email from env
+        subject: adminEmailSubject,
+        html: adminEmailBody,
+      });
+    }
+
     console.log("Booking cancellation emails sent successfully.");
   } catch (error) {
     console.error("Error sending booking cancellation emails:", error.message);
   }
 }
+
 
 async function sendEventBookingCancellationEmail(booking) {
   try {
@@ -395,7 +423,9 @@ async function sendEventBookingCancellationEmail(booking) {
 
     // Fetch host (event organizer) details
     let host;
-    if (booking.owner_type === "Admin") {
+    const isOwnerAdmin = booking.owner_type === "Admin";
+
+    if (isOwnerAdmin) {
       host = await Admin.findById(booking.owner_id);
       host.full_name = "Admin";
     } else {
@@ -449,18 +479,39 @@ async function sendEventBookingCancellationEmail(booking) {
         <p>We would like to inform you that a booking for your event <strong>${event.title.get('en')}</strong> has been canceled.</p>
         <p><strong>Canceled By:</strong> ${buyer.full_name} (${buyer.email})</p>
         <p><strong>Number of Tickets Canceled:</strong> ${booking.tickets.length}</p>
-        <p><strong>Cancelation Reason:</strong> ${booking.cancelation_reason.get('en') || "Not provided"}</p>
+        <p><strong>Cancellation Reason:</strong> ${booking.cancelation_reason.get('en') || "Not provided"}</p>
         ${ticketDetailsHTML}
         <p>Best regards,</p>
         <p>Daar Live</p>
       `,
     });
 
+    // Send email to Admin ONLY IF owner is NOT Admin
+    if (!isOwnerAdmin) {
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: process.env.ADMIN_EMAIL,
+        subject: "Event Booking Cancellation - Admin Notification",
+        html: `
+          <p>Dear Admin,</p>
+          <p>A booking for the event <strong>${event.title.get('en')}</strong> has been canceled.</p>
+          <p><strong>Buyer:</strong> ${buyer.full_name} (${buyer.email})</p>
+          <p><strong>Host:</strong> ${host.full_name} (${host.email})</p>
+          <p><strong>Number of Tickets Canceled:</strong> ${booking.tickets.length}</p>
+          <p><strong>Cancellation Reason:</strong> ${booking.cancelation_reason.get('en') || "Not provided"}</p>
+          ${ticketDetailsHTML}
+          <p>Best regards,</p>
+          <p>Daar Live System</p>
+        `,
+      });
+    }
+
     console.log("Event booking cancellation emails sent successfully.");
   } catch (error) {
     console.error("Error sending event booking cancellation emails:", error.message);
   }
 }
+
 
 
 /**
