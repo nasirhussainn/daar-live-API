@@ -88,6 +88,7 @@ async function sendPropertyBookingConfirmationEmail(booking) {
     if (!buyer) throw new Error("Buyer not found");
 
     // Fetch realtor details
+    let realtor;
     if (booking.owner_type === "Admin") {
       realtor = await Admin.findById(booking.owner_id);
       realtor.full_name = "Admin";
@@ -100,7 +101,7 @@ async function sendPropertyBookingConfirmationEmail(booking) {
     const property = await Property.findById(booking.property_id);
     if (!property) throw new Error("Property not found");
 
-    // Construct email content
+    // Construct email content for buyer
     const emailSubject = "Booking Confirmation - Your Booking Details";
     const emailBody = `
       <p>Dear ${buyer.full_name},</p>
@@ -108,21 +109,11 @@ async function sendPropertyBookingConfirmationEmail(booking) {
       <p><strong>Booking Details:</strong></p>
       <ul>
         <li><strong>Property:</strong> ${property.title.get('en')}</li>
-        <li><strong>Location:</strong> ${property.city.get('en')}, ${property.state.get('en')}, ${
-      property.country.get('en')
-    }</li>
-        <li><strong>Booking Start Date:</strong> ${new Date(
-          booking.start_date
-        ).toLocaleDateString()}</li>
-        <li><strong>Booking End Date:</strong> ${new Date(
-          booking.end_date
-        ).toLocaleDateString()}</li>
-        <li><strong>Security Deposit:</strong> $${
-          booking.security_deposit || "N/A"
-        }</li>
-        <li><strong>Confirmation Ticket:</strong> ${
-          booking.confirmation_ticket
-        }</li>
+        <li><strong>Location:</strong> ${property.city.get('en')}, ${property.state.get('en')}, ${property.country.get('en')}</li>
+        <li><strong>Booking Start Date:</strong> ${new Date(booking.start_date).toLocaleDateString()}</li>
+        <li><strong>Booking End Date:</strong> ${new Date(booking.end_date).toLocaleDateString()}</li>
+        <li><strong>Security Deposit:</strong> $${booking.security_deposit || "N/A"}</li>
+        <li><strong>Confirmation Ticket:</strong> ${booking.confirmation_ticket}</li>
       </ul>
       <p>For any queries, please contact the property owner:</p>
       <p><strong>Realtor:</strong> ${realtor.full_name} (${realtor.email})</p>
@@ -152,11 +143,34 @@ async function sendPropertyBookingConfirmationEmail(booking) {
       `,
     });
 
+    // If the owner is not Admin, send an email to Admin as well
+    if (booking.owner_type !== "Admin") {
+      const admin = await Admin.findOne();  // Assuming there's only one Admin or fetching the relevant Admin
+      if (admin) {
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: admin.email,
+          subject: `New Booking for Property: ${property.title.get('en')}`,
+          html: `
+            <p>Dear Admin,</p>
+            <p>A new booking has been made for the property <strong>${property.title.get('en')}</strong>.</p>
+            <p>Booking details:</p>
+            ${emailBody} <!-- Reusing the same email content -->
+            <p>Best regards,</p>
+            <p>Daar Live</p>
+          `,
+        });
+      } else {
+        console.error("Admin not found. Booking confirmation email not sent to Admin.");
+      }
+    }
+
     console.log("Booking confirmation emails sent successfully.");
   } catch (error) {
     console.error("Error sending booking confirmation emails:", error.message);
   }
 }
+
 
 async function sendEventBookingConfirmationEmail(booking) {
   try {
@@ -169,6 +183,7 @@ async function sendEventBookingConfirmationEmail(booking) {
     if (!event) throw new Error("Event not found");
 
     // Fetch host (event organizer) details
+    let host;
     if (booking.owner_type === "Admin") {
       host = await Admin.findById(booking.owner_id);
       host.full_name = "Admin";
@@ -189,28 +204,18 @@ async function sendEventBookingConfirmationEmail(booking) {
 
     const emailBody = `
       <p>Dear ${buyer.full_name},</p>
-      <p>Your booking for the event <strong>${
-        event.title.get('en')
-      }</strong> has been successfully confirmed.</p>
+      <p>Your booking for the event <strong>${event.title.get('en')}</strong> has been successfully confirmed.</p>
       <p><strong>Event Details:</strong></p>
       <ul>
         <li><strong>Event:</strong> ${event.title.get('en')}</li>
-        <li><strong>Date:</strong> ${new Date(
-          event.start_date
-        ).toLocaleDateString()}</li>
+        <li><strong>Date:</strong> ${new Date(event.start_date).toLocaleDateString()}</li>
         <li><strong>Location:</strong> ${event.location.address}, ${
       event.city.get('en')
     }, ${event.state.get('en')}</li>
         <li><strong>Number of Tickets:</strong> ${booking.tickets.length}</li>
-        <li><strong>Guest Name:</strong> ${
-          booking.guest_name || buyer.full_name
-        }</li>
-        <li><strong>Guest Email:</strong> ${
-          booking.guest_email || buyer.email
-        }</li>
-        <li><strong>Confirmation Ticket:</strong> ${
-          booking.confirmation_ticket
-        }</li>
+        <li><strong>Guest Name:</strong> ${booking.guest_name || buyer.full_name}</li>
+        <li><strong>Guest Email:</strong> ${booking.guest_email || buyer.email}</li>
+        <li><strong>Confirmation Ticket:</strong> ${booking.confirmation_ticket}</li>
         ${ticketDetailsHTML}
       </ul>
       <p>Your tickets are attached as a PDF file.</p>
@@ -268,6 +273,28 @@ async function sendEventBookingConfirmationEmail(booking) {
       `,
     });
 
+    // If the owner is not Admin, send an email to Admin as well
+    if (booking.owner_type !== "Admin") {
+      const admin = await Admin.findOne();  // Assuming there's only one Admin or fetching the relevant Admin
+      if (admin) {
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: admin.email,
+          subject: `New Booking for Event: ${event.title.get('en')}`,
+          html: `
+            <p>Dear Admin,</p>
+            <p>A new booking has been made for the event <strong>${event.title.get('en')}</strong>.</p>
+            <p>Booking details:</p>
+            ${emailBody} <!-- Reusing the same email content -->
+            <p>Best regards,</p>
+            <p>Daar Live</p>
+          `,
+        });
+      } else {
+        console.error("Admin not found. Booking confirmation email not sent to Admin.");
+      }
+    }
+
     console.log("Event booking confirmation emails sent successfully.");
   } catch (error) {
     console.error(
@@ -276,6 +303,7 @@ async function sendEventBookingConfirmationEmail(booking) {
     );
   }
 }
+
 
 async function sendPropertyBookingCancellationEmail(booking) {
   try {

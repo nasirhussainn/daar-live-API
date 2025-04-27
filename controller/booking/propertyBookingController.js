@@ -222,9 +222,9 @@ exports.confirmPropertyBooking = async (req, res) => {
     //--------------------- ✅ Notification and Payment---------------------
     await sendNotification(
       booking.user_id,
-      "booking",
+      "Booking",
       booking._id,
-      "Booking Confirmed",
+      "Property Booking Confirmed",
       `Your booking has been confirmed! Your confirmation ticket is ${booking.confirmation_ticket}.`
     );
     // ✅ Send Notification to Realtor
@@ -232,7 +232,7 @@ exports.confirmPropertyBooking = async (req, res) => {
       booking.owner_id,
       "booking",
       booking._id,
-      "Booking Confirmed",
+      "Property Booking Confirmed",
       "A booking for your property has been confirmed."
     );
     await logPaymentHistory(booking, payment_detail, "booking_property");
@@ -251,7 +251,7 @@ exports.confirmPropertyBooking = async (req, res) => {
 exports.cancelPropertyBooking = async (req, res) => {
   try {
     const { booking_id } = req.params;
-    const { cancelation_reason } = req.body;
+    const { cancelation_reason, cancel_by } = req.body;
 
     // Find booking by ID
     const booking = await Booking.findById(booking_id);
@@ -262,17 +262,19 @@ exports.cancelPropertyBooking = async (req, res) => {
     if (!property)
       return res.status(404).json({ message: "Property not found" });
 
-    // Check if cancellation is allowed
-    if (!booking.is_cancellable) {
-      return res
-        .status(400)
-        .json({ message: "This booking cannot be canceled" });
+    const now = new Date();
+
+    // If the booking has started, prevent cancellation
+    if (new Date(booking.start_date) <= now) {
+      return res.status(400).json({ message: "This booking has already started and cannot be canceled." });
     }
 
-    try {
+    // Check if admin is canceling or if user is canceling within the 72-hour window
+    if (cancel_by === "admin" || (booking.is_cancellable)) {
       // Update booking status and save
       booking.status = "canceled";
       booking.cancelation_reason = await translateText(cancelation_reason);
+      booking.cancel_by = cancel_by; // Track who canceled the booking (admin or user)
       await booking.save();
 
       // Mark property as available again
@@ -281,37 +283,44 @@ exports.cancelPropertyBooking = async (req, res) => {
         property.booking_id = null;
         await property.save();
       }
-    } catch (error) {
-      console.error("Error canceling booking:", error);
+
+      // Update revenue based on cancellation
+      const result = await updateRevenue(booking_id, true);
+
+      // Send Cancellation Email
+      await sendPropertyBookingCancellationEmail(booking);
+
+      //------------------- ✅ Notification ---------------------
+      const cancelByMessage = cancel_by === "admin" ? "by an admin" : "by you";
+      // ✅ Send Notification to User
+      await sendNotification(
+        booking.user_id,
+        "Booking",
+        booking._id,
+        "Booking Canceled",
+        `Your booking has been canceled ${cancelByMessage}!`
+      );
+
+      // ✅ Send Notification to Realtor
+      await sendNotification(
+        booking.realtor_id,
+        "Booking",
+        booking._id,
+        "Booking Canceled",
+        `A booking for your property has been canceled by ${cancel_by}`
+      );
+      //---------------------------------------------------------
+
+      res.status(200).json({ message: "Booking canceled successfully", booking });
+    } else {
+      res.status(400).json({ message: "This booking cannot be canceled at this time" });
     }
-
-    const result = await updateRevenue(booking_id, true); 
-
-    await sendPropertyBookingCancellationEmail(booking);
-
-    // ✅ Send Notification to User
-    await Notification.create({
-      user: booking.user_id,
-      notification_type: "Booking",
-      reference_id: booking._id,
-      title: "Booking Canceled",
-      message: `Your booking has been canceled!`,
-    });
-
-    // ✅ Send Notification to Realtor
-    await Notification.create({
-      user: booking.realtor_id,
-      notification_type: "Booking",
-      reference_id: booking._id,
-      title: "Booking Canceled",
-      message: `A booking for your property has been canceled.`,
-    });
-
-    res.status(200).json({ message: "Booking canceled successfully", booking });
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
+
+
 
 // ✅ Get All Bookings with Optional Status Filter
 exports.getAllPropertyBookings = async (req, res) => {

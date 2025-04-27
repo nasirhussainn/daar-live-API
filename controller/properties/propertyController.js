@@ -410,20 +410,6 @@ exports.getPropertyById = async (req, res) => {
       return res.status(404).json({ message: "Property not found" });
     }
 
-    // Optimized View Tracking (Single atomic operation)
-    if (user_id) {
-      await Property.updateOne(
-        {
-          _id: id,
-          unique_views: { $ne: new mongoose.Types.ObjectId(user_id) },
-        },
-        {
-          $addToSet: { unique_views: new mongoose.Types.ObjectId(user_id) },
-          $inc: { view_count: 1 },
-        }
-      );
-    }
-
     // Fetch amenities details
     const amenitiesDetails = await Amenities.find({
       _id: { $in: property.amenities },
@@ -1120,6 +1106,61 @@ exports.getFilteredProperties = async (req, res) => {
     res.status(500).json({
       message: "Error fetching filtered properties",
       error: error.message,
+    });
+  }
+};
+
+exports.trackPropertyView = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id } = req.query;
+
+    // 1. Validate required fields
+    if (!user_id) {
+      return res.status(400).json({ 
+        success: false,
+        message: "user_id is required" 
+      });
+    }
+
+    // 2. Verify user exists
+    const userExists = await User.exists({ 
+      _id: new mongoose.Types.ObjectId(user_id) 
+    });
+
+    if (!userExists) {
+      return res.status(404).json({ 
+        success: false,
+        message: "User not found" 
+      });
+    }
+
+    // 3. Track view if user hasn't viewed before
+    const result = await Property.updateOne(
+      {
+        _id: id,
+        unique_views: { $ne: new mongoose.Types.ObjectId(user_id) },
+      },
+      {
+        $addToSet: { unique_views: new mongoose.Types.ObjectId(user_id) },
+        $inc: { view_count: 1 },
+      }
+    );
+
+    res.status(200).json({
+      success: true,
+      isNewView: result.modifiedCount > 0,
+      viewCount: result.modifiedCount > 0 
+        ? await Property.findById(id).select('view_count -_id')
+        : undefined
+    });
+
+  } catch (error) {
+    console.error("View tracking failed:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Internal server error",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };

@@ -75,6 +75,12 @@ const BookingSchema = new Schema({
 
   is_cancellable: { type: Boolean, default: true },
 
+  cancel_by: {
+    type: String,
+    enum: ["admin", "user"], 
+    required: true,
+  },
+
   cancelation_reason: { type: Map, of: String, default: null },
 
   status: {
