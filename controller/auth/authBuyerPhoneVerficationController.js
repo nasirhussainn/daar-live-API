@@ -24,7 +24,7 @@ exports.sendOTPBuyer = async (req, res) => {
 
 Thank you for using Daar Live. 
 
-Your verification code is: **${otp}**
+Your verification code is: ${otp}
 
 Please enter this code to verify your phone number. This code will expire in 5 minutes, so make sure to use it promptly.
 
