@@ -79,6 +79,15 @@ const PropertySchema = new Schema({
   is_booked: { type: Boolean, default: false }, // Tracks if the property is booked
   cancelation_reason: { type: Map, of: String, default: null },
 
+  unique_views: {
+    type: [Schema.Types.ObjectId],
+    default: [],
+  },
+  view_count: {
+    type: Number,
+    default: 0,
+  },
+
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now },
 });

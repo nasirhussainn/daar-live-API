@@ -115,8 +115,9 @@ exports.getSavedProperties = async (req, res) => {
           realtorReviewCount = await getReviewCount(property.owner_id._id, "User");
         }
 
+        const { unique_views, ...propertyWithoutUniqueViews } = property;
         return {
-          ...property,
+          ...propertyWithoutUniqueViews,
           amenities: amenitiesDetails,
           review: reviewData,
           saved_status: savedStatus,

@@ -7,14 +7,18 @@ const PropertySubtype = require("../../models/admin/PropertySubtype");
 const FeaturedEntity = require("../../models/FeaturedEntity");
 const SavedProperty = require("../../models/SavedProperty");
 const Realtor = require("../../models/Realtor");
-const User = require("../../models/User")
+const User = require("../../models/User");
 const Review = require("../../models/Review");
 const Booking = require("../../models/Booking");
 const PaymentHistory = require("../../models/PaymentHistory");
 const AdminRevenue = require("../../models/admin/AdminRevenue"); // AdminRevenue model
 const { updateAdminRevenue } = require("../../services/updateAdminRevenue"); // AdminRevenue service
 const { sendResponse } = require("../../services/translateHelper"); // sendResponse service
-const { translateText, translateToEnglish, simpleTranslateToEnglish } = require("../../services/translateService");
+const {
+  translateText,
+  translateToEnglish,
+  simpleTranslateToEnglish,
+} = require("../../services/translateService");
 
 const {
   uploadMultipleToCloudinary,
@@ -358,8 +362,9 @@ exports.getAllProperties = async (req, res) => {
         }
 
         // Return the full property data including language-specific fields (title, description, etc.)
+        const { unique_views, ...propertyWithoutUniqueViews } = property;
         return {
-          ...property, // Keep the property as is (includes language fields like title, description, etc.)
+          ...propertyWithoutUniqueViews, // Keep the property as is (includes language fields like title, description, etc.)
           amenities: amenitiesDetails, // Replace IDs with actual amenities details
           review: reviewData,
           saved_status: savedStatus, // Include saved property status
@@ -405,6 +410,20 @@ exports.getPropertyById = async (req, res) => {
       return res.status(404).json({ message: "Property not found" });
     }
 
+    // Optimized View Tracking (Single atomic operation)
+    if (user_id) {
+      await Property.updateOne(
+        {
+          _id: id,
+          unique_views: { $ne: new mongoose.Types.ObjectId(user_id) },
+        },
+        {
+          $addToSet: { unique_views: new mongoose.Types.ObjectId(user_id) },
+          $inc: { view_count: 1 },
+        }
+      );
+    }
+
     // Fetch amenities details
     const amenitiesDetails = await Amenities.find({
       _id: { $in: property.amenities },
@@ -436,8 +455,9 @@ exports.getPropertyById = async (req, res) => {
       reatorReviewCount = await getReviewCount(property.owner_id._id, "User");
     }
 
+    const { unique_views, ...propertyWithoutUniqueViews } = property;
     res.status(200).json({
-      ...property,
+      ...propertyWithoutUniqueViews,
       amenities: amenitiesDetails,
       reviews: reviewData,
       saved_status, // Include saved status
@@ -500,8 +520,9 @@ exports.getAllPropertiesByOwnerId = async (req, res) => {
 
         const reviewData = await getReviewsWithCount(property._id, "Property");
 
+        const { unique_views, ...propertyWithoutUniqueViews } = property;
         return {
-          ...property,
+          ...propertyWithoutUniqueViews,
           amenities: amenitiesDetails, // Replace IDs with actual amenities details
           reviews: reviewData, // Include review details
           realtor_stats: realtorStats,
@@ -631,8 +652,12 @@ exports.featureProperty = async (req, res) => {
 
     // --------------Update Featured Listing Revenue-----------------
     const currentDate = new Date().toISOString().split("T")[0];
-    await updateAdminRevenue(transaction_price, "featured_revenue", currentDate);
-    await updateAdminRevenue(transaction_price, "total_revenue", currentDate)
+    await updateAdminRevenue(
+      transaction_price,
+      "featured_revenue",
+      currentDate
+    );
+    await updateAdminRevenue(transaction_price, "total_revenue", currentDate);
     // ------------------------------------------------------------
 
     // Commit transaction
@@ -1019,32 +1044,34 @@ exports.getFilteredProperties = async (req, res) => {
     // Location filters
     if (city) {
       const englishCity = await simpleTranslateToEnglish(city);
-      filter['city.en'] = { $regex: new RegExp(englishCity, "i") };
+      filter["city.en"] = { $regex: new RegExp(englishCity, "i") };
     }
-    
+
     if (state) {
       const englishState = await simpleTranslateToEnglish(state);
-      filter['state.en'] = { $regex: new RegExp(englishState, "i") };
+      filter["state.en"] = { $regex: new RegExp(englishState, "i") };
     }
-    
+
     if (country) {
       const translatedCountry = await translateToEnglish(country);
-      console.log(translatedCountry)
-      filter["country.en"] = { $regex: new RegExp(`^${translatedCountry}$`, "i") };
+      console.log(translatedCountry);
+      filter["country.en"] = {
+        $regex: new RegExp(`^${translatedCountry}$`, "i"),
+      };
     }
 
     if (title) {
       const translatedTitle = await simpleTranslateToEnglish(title);
-      filter['title.en'] = { $regex: translatedTitle, $options: 'i' }; 
+      filter["title.en"] = { $regex: translatedTitle, $options: "i" };
     }
-    
+
     if (realtor) {
       const translatedRealtor = await simpleTranslateToEnglish(realtor);
       const users = await User.find({
-        full_name: { $regex: translatedRealtor, $options: 'i' }
-      }).select('_id'); 
+        full_name: { $regex: translatedRealtor, $options: "i" },
+      }).select("_id");
       if (users.length > 0) {
-        filter.owner_id = { $in: users.map(user => user._id) };
+        filter.owner_id = { $in: users.map((user) => user._id) };
       } else {
         return res.status(200).json({
           totalProperties: 0,
@@ -1052,7 +1079,6 @@ exports.getFilteredProperties = async (req, res) => {
         });
       }
     }
-
 
     // Featured filter
     if (isFeatured === "true") {
@@ -1080,10 +1106,13 @@ exports.getFilteredProperties = async (req, res) => {
     // Response
     const response = {
       totalProperties,
-      properties: properties.map((property) => ({
-        ...property,
-      })),
-    };
+      properties: properties.map((property) => {
+        const { unique_views, ...propertyWithoutUniqueViews } = property;
+        return {
+          ...propertyWithoutUniqueViews,
+        };
+      }),
+    };    
 
     res.status(200).json(response);
   } catch (error) {
