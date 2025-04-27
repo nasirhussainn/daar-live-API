@@ -113,75 +113,146 @@ exports.getAllCheckLogs = async (req, res) => {
     const startDate = start ? new Date(start) : null;
     const endDate = end ? new Date(end) : null;
 
+    // Fetch bookings with all necessary populated data
     const bookings = await Booking.find({
-      check_in_out_logs: { $exists: true, $ne: [] },
-    }).select(
-      'booking_type property_id event_id user_id owner_id check_in_out_logs'
-    );
+      check_in_out_logs: { $exists: true, $ne: [] }
+    })
+    .populate([
+      {
+        path: 'property_id',
+        model: 'Property',
+        select: 'title description property_type property_subtype location media amenities',
+        populate: [
+          {
+            path: 'property_type',
+            model: 'PropertyType',
+            select: 'name'
+          },
+          {
+            path: 'property_subtype',
+            model: 'PropertySubtype',
+            select: 'name'
+          },
+          {
+            path: 'location',
+            model: 'Location',
+          },
+          {
+            path: 'media',
+            model: 'Media',
+            select: 'images videos'
+          },
+          {
+            path: 'amenities',
+            model: 'Amenities'
+          }
+        ]
+      },
+      {
+        path: 'event_id',
+        model: 'Event',
+        select: 'title description event_type location media',
+        populate: [
+          {
+            path: 'event_type',
+            model: 'EventType',
+            select: 'name'
+          },
+          {
+            path: 'location',
+            model: 'Location',
+          },
+          {
+            path: 'media',
+            model: 'Media',
+            select: 'images videos'
+          }
+        ]
+      },
+      {
+        path: 'user_id',
+        model: 'User',
+        select: 'full_name email phone_number profile_picture'
+      },
+      {
+        path: 'owner_id',
+        modelPath: 'owner_type', // Dynamic reference based on owner_type
+        select: 'full_name email phone_number'
+      }
+    ])
+    .select('booking_type property_id event_id user_id owner_id owner_type check_in_out_logs');
 
     const checkIns = [];
     const checkOuts = [];
 
-    bookings.forEach(booking => {
+    // Process each booking
+    for (const booking of bookings) {
       const {
         booking_type,
         property_id,
         event_id,
         user_id,
         owner_id,
-        check_in_out_logs,
+        owner_type,
+        check_in_out_logs
       } = booking;
 
-      check_in_out_logs.forEach(log => {
-        const commonDetails = {
-          booking_type,
-          property_or_event_id: booking_type === 'property' ? property_id : event_id,
-          user_id,
-          owner_id,
-        };
+      // Common details with populated data
+      const commonDetails = {
+        booking_type,
+        booking_item: booking_type === 'property' ? {
+          type: 'Property',
+          details: property_id
+        } : {
+          type: 'Event',
+          details: event_id
+        },
+        user: user_id,
+        owner: {
+          type: owner_type,
+          details: owner_id
+        }
+      };
 
+      // Process each log entry
+      for (const log of check_in_out_logs) {
         if (log.check_in_time) {
           const inTime = new Date(log.check_in_time);
-          if (
-            (!startDate || inTime >= startDate) &&
-            (!endDate || inTime <= endDate)
-          ) {
+          if ((!startDate || inTime >= startDate) && (!endDate || inTime <= endDate)) {
             checkIns.push({
               ...commonDetails,
               timestamp: inTime,
               type: 'check_in',
+              log_details: log
             });
           }
         }
 
         if (log.check_out_time) {
           const outTime = new Date(log.check_out_time);
-          if (
-            (!startDate || outTime >= startDate) &&
-            (!endDate || outTime <= endDate)
-          ) {
+          if ((!startDate || outTime >= startDate) && (!endDate || outTime <= endDate)) {
             checkOuts.push({
               ...commonDetails,
               timestamp: outTime,
               type: 'check_out',
+              log_details: log
             });
           }
         }
-      });
-    });
+      }
+    }
 
-    // Sort
+    // Sort by timestamp (newest first)
     checkIns.sort((a, b) => b.timestamp - a.timestamp);
     checkOuts.sort((a, b) => b.timestamp - a.timestamp);
 
-    // Paginate
-    const checkInStart = (page - 1) * limit;
-    const checkOutStart = (page - 1) * limit;
-
-    const paginatedCheckIns = checkIns.slice(checkInStart, checkInStart + limit);
-    const paginatedCheckOuts = checkOuts.slice(checkOutStart, checkOutStart + limit);
+    // Paginate results
+    const startIndex = (page - 1) * limit;
+    const paginatedCheckIns = checkIns.slice(startIndex, startIndex + limit);
+    const paginatedCheckOuts = checkOuts.slice(startIndex, startIndex + limit);
 
     res.json({
+      success: true,
       page,
       limit,
       total_check_ins: checkIns.length,
@@ -190,8 +261,11 @@ exports.getAllCheckLogs = async (req, res) => {
       check_outs: paginatedCheckOuts,
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error while fetching check logs' });
+    console.error('Error fetching check logs:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error while fetching check logs',
+    });
   }
 };
 
