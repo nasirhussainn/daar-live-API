@@ -550,7 +550,7 @@ exports.getBookedPropertyDetails = async (req, res) => {
 
         if (booking.owner_type === "User") {
           const user = await User.findById(booking.owner_id).select("full_name");
-          ownerName = user?.name || null;
+          ownerName = user?.full_name || null;
         } else if (booking.owner_type === "Admin") {
           const admin = await Admin.findById(booking.owner_id).select("name");
           ownerName = admin?.name || null;
