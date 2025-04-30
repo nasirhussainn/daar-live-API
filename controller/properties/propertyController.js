@@ -946,9 +946,9 @@ exports.getFilteredProperties = async (req, res) => {
       state,
       city,
       isFeatured,
-      // new searching
       title,
       realtor,
+      id,
     } = req.query;
 
     // Build the filter object
@@ -1074,6 +1074,10 @@ exports.getFilteredProperties = async (req, res) => {
       }
     }
 
+    if(id){
+      filter._id = id;
+    }
+
     // Featured filter
     if (isFeatured === "true") {
       filter.is_feature = true;
@@ -1095,7 +1099,7 @@ exports.getFilteredProperties = async (req, res) => {
       .populate("property_subtype")
       .populate("amenities")
       .sort({ created_at: -1 })
-      .lean(); // Sort by newest first
+      .lean(); 
 
     // Response
     const response = {

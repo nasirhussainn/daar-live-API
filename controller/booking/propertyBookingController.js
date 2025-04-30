@@ -537,17 +537,39 @@ exports.getBookedPropertyDetails = async (req, res) => {
   try {
     const { property_id } = req.params;
 
-    // Query for bookings with 'active' or 'confirmed' status
+    // Find bookings with status 'active' or 'confirmed'
     const bookings = await Booking.find({
       property_id,
-      status: { $in: ["active", "confirmed"] }, // Only active or confirmed bookings
+      status: { $in: ["active", "confirmed"] },
     });
 
-    res.status(200).json(bookings.length > 0 ? bookings : []); // Return bookings or empty array
+    // Enrich each booking with owner's name based on owner_type
+    const enrichedBookings = await Promise.all(
+      bookings.map(async (booking) => {
+        let ownerName = null;
+
+        if (booking.owner_type === "User") {
+          const user = await User.findById(booking.owner_id).select("full_name");
+          ownerName = user?.name || null;
+        } else if (booking.owner_type === "Admin") {
+          const admin = await Admin.findById(booking.owner_id).select("name");
+          ownerName = admin?.name || null;
+        }
+
+        // Add owner_name field to booking object
+        return {
+          ...booking.toObject(),
+          owner_name: ownerName,
+        };
+      })
+    );
+
+    res.status(200).json(enrichedBookings);
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
+
 
 exports.getSlots = async (req, res) => {
   try {
