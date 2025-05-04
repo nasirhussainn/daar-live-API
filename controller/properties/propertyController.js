@@ -80,11 +80,11 @@ exports.addProperty = async (req, res) => {
     const city = req.body.city ? await translateText(req.body.city) : null;
 
     // Validate subscription/trial limits (throws error if limit reached)
-    await validateSubscriptionLimits({
-      userId: owner_id,
-      entityType: "property",
-      session,
-    });
+    // await validateSubscriptionLimits({
+    //   userId: owner_id,
+    //   entityType: "property",
+    //   session,
+    // });
 
     // Step 2: Validate property_subtype against property_purpose
     const subType = await PropertySubtype.findById(property_subtype);

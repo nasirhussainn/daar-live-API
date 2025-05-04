@@ -62,11 +62,11 @@ exports.addEvent = async (req, res) => {
     const city = req.body.city ? await translateText(req.body.city) : null;
 
     // Step 2: Validate subscription/trial limits
-    await validateSubscriptionLimits({
-      userId: host_id,
-      entityType: "event",
-      session,
-    });
+    // await validateSubscriptionLimits({
+    //   userId: host_id,
+    //   entityType: "event",
+    //   session,
+    // });
 
     // Step 3: Entry price validation
     if (entry_type === "paid" && (!entry_price || entry_price == 0)) {
