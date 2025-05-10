@@ -5,14 +5,18 @@ const { uploadToCloudinary } = require("../../config/cloudinary");
 const { sendVerificationEmail } = require("../../config/mailer");
 const crypto = require("crypto");
 const mongoose = require("mongoose");
-const admin = require("firebase-admin");;
+const admin = require("firebase-admin");
 const { generateToken } = require("../../config/jwt");
-const { translateText } = require("../../services/translateService")
+const { translateText } = require("../../services/translateService");
+const { sendNotification } = require("../../controller/notification/sendNotification")
+const { getSuperAdminId } = require("../../services/getSuperAdminId");
 
 const BASE_URL = process.env.BASE_URL;
 
 admin.initializeApp({
-  credential: admin.credential.cert(require("../../config/firebaseServiceAccount.json")),
+  credential: admin.credential.cert(
+    require("../../config/firebaseServiceAccount.json")
+  ),
 });
 
 // Manual Signup with Profile Picture Upload
@@ -22,119 +26,150 @@ exports.signup = async (req, res) => {
   const session = await mongoose.startSession();
 
   try {
-      session.startTransaction(); // Start transaction
+    session.startTransaction(); // Start transaction
 
-      const { full_name, email, password, role, phone_number, business_type } = req.body;
+    const { full_name, email, password, role, phone_number, business_type } =
+      req.body;
 
-      // const business_name = await translateText(req.body.business_name)
+    // const business_name = await translateText(req.body.business_name)
 
-      // Validate required fields
-      if (!full_name || !email || !password || !role) {
-          return res.status(400).json({ message: "Missing required fields." });
+    // Validate required fields
+    if (!full_name || !email || !password || !role) {
+      return res.status(400).json({ message: "Missing required fields." });
+    }
+
+    if (role !== "buyer") {
+      phone_issue = false;
+    }
+
+    // Ensure business details for realtors
+    if (role === "realtor" && !business_type) {
+      return res
+        .status(400)
+        .json({ message: "Business type is required for realtors." });
+    }
+
+    // Check if user already exists
+    let existingUser = await User.findOne({ email, role });
+    if (existingUser) {
+      return res
+        .status(400)
+        .json({ message: `User with this email already exists` });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Upload profile picture to Cloudinary
+    let imageUrl = null;
+    if (req.files["profile_picture"]) {
+      const folderName =
+        role === "realtor" ? "realtors_profiles" : "buyers_profiles";
+      imageUrl = await uploadToCloudinary(
+        req.files["profile_picture"][0].buffer,
+        folderName
+      );
+    }
+
+    // Upload Tax ID and Verification Doc (only for realtors)
+    let taxIdImageUrl = null;
+    let verificationDocImageUrl = null;
+
+    if (role === "realtor") {
+      if (req.files["tax_id_image"]) {
+        taxIdImageUrl = await uploadToCloudinary(
+          req.files["tax_id_image"][0].buffer,
+          "realtors_documents"
+        );
       }
-
-      if (role !== "buyer") {
-          phone_issue = false;
+      if (req.files["verification_doc_image"]) {
+        verificationDocImageUrl = await uploadToCloudinary(
+          req.files["verification_doc_image"][0].buffer,
+          "realtors_documents"
+        );
       }
+    }
 
-      // Ensure business details for realtors
-      if (role === "realtor" && !business_type) {
-          return res.status(400).json({ message: "Business type is required for realtors." });
-      }
+    // Generate email verification token
+    const emailVerificationToken = crypto.randomBytes(32).toString("hex");
+    const emailVerificationTokenExpiry = Date.now() + 2 * 60 * 1000;
 
-      // Check if user already exists
-      let existingUser = await User.findOne({ email, role });
-      if (existingUser) {
-          return res.status(400).json({ message: `User with this email already exists` });
-      }
+    // Create new user
+    const newUser = new User({
+      full_name,
+      email,
+      password: hashedPassword,
+      phone_number: phone_number || null,
+      role,
+      account_type: signup_type,
+      profile_picture: imageUrl,
+      email_verified: false,
+      email_verification_token: emailVerificationToken,
+      email_verification_token_expiry: emailVerificationTokenExpiry,
+      phone_verified: phone_issue,
+    });
 
-      // Hash password
-      const hashedPassword = await bcrypt.hash(password, 10);
+    await newUser.save({ session });
 
-      // Upload profile picture to Cloudinary
-      let imageUrl = null;
-      if (req.files["profile_picture"]) {
-          const folderName = role === "realtor" ? "realtors_profiles" : "buyers_profiles";
-          imageUrl = await uploadToCloudinary(req.files["profile_picture"][0].buffer, folderName);
-      }
-
-      // Upload Tax ID and Verification Doc (only for realtors)
-      let taxIdImageUrl = null;
-      let verificationDocImageUrl = null;
-
-      if (role === "realtor") {
-          if (req.files["tax_id_image"]) {
-              taxIdImageUrl = await uploadToCloudinary(req.files["tax_id_image"][0].buffer, "realtors_documents");
-          }
-          if (req.files["verification_doc_image"]) {
-              verificationDocImageUrl = await uploadToCloudinary(req.files["verification_doc_image"][0].buffer, "realtors_documents");
-          }
-      }
-
-      // Generate email verification token
-      const emailVerificationToken = crypto.randomBytes(32).toString("hex");
-      const emailVerificationTokenExpiry = Date.now() + 2 * 60 * 1000;
-
-      // Create new user
-      const newUser = new User({
-          full_name,
-          email,
-          password: hashedPassword,
-          phone_number: phone_number || null,
-          role,
-          account_type: signup_type,
-          profile_picture: imageUrl,
-          email_verified: false,
-          email_verification_token: emailVerificationToken,
-          email_verification_token_expiry: emailVerificationTokenExpiry,
-          phone_verified: phone_issue,
+    // If the user is a realtor, create a corresponding Realtor document
+    if (role === "realtor") {
+      const newRealtor = new Realtor({
+        user_id: newUser._id,
+        business_name: req.body.business_name
+          ? await translateText(req.body.business_name)
+          : null,
+        business_type, // Set as required in future steps
+        tax_id_image: taxIdImageUrl,
+        verification_doc_image: verificationDocImageUrl,
+        avg_rating: 0,
+        is_subscribed: false,
+        bank_details: [], // Empty initially
+        total_revenue: 0,
+        available_revenue: 0,
       });
 
-      await newUser.save({ session });
+      await newRealtor.save({ session });
 
-      // If the user is a realtor, create a corresponding Realtor document
-      if (role === "realtor") {
-          const newRealtor = new Realtor({
-              user_id: newUser._id,
-              business_name: req.body.business_name ? await translateText(req.body.business_name) : null,
-              business_type, // Set as required in future steps
-              tax_id_image: taxIdImageUrl,
-              verification_doc_image: verificationDocImageUrl,
-              avg_rating: 0,
-              is_subscribed: false,
-              bank_details: [], // Empty initially
-              total_revenue: 0,
-              available_revenue: 0,
-          });
-
-          await newRealtor.save({ session });
+      // ✅ Notify admin about new Realtor signup (account approval request)
+      try {
+        const superAdminId = await getSuperAdminId();
+        await sendNotification(
+          superAdminId,
+          "Account",
+          newRealtor._id,
+          "New Realtor Signup",
+          `${newUser.full_name} has signed up as a Realtor and is awaiting account approval.`
+        );
+      } catch (error) {
+        console.error("Error sending notification:", error);
       }
+    }
 
-      await session.commitTransaction();
-      session.endSession();
+    await session.commitTransaction();
+    session.endSession();
 
-      // Send email verification
-      const verificationLink = `https://whale-app-4nsg6.ondigitalocean.app/auth/verify-email/${emailVerificationToken}`;
-      await sendVerificationEmail(email, verificationLink);
+    // Send email verification
+    const verificationLink = `https://whale-app-4nsg6.ondigitalocean.app/auth/verify-email/${emailVerificationToken}`;
+    await sendVerificationEmail(email, verificationLink);
 
-      return res.status(201).json({
-          message: "User registered successfully. Please verify your email.",
-          user: {
-              full_name: newUser.full_name,
-              email: newUser.email,
-              phone_number: newUser.phone_number,
-              role: newUser.role,
-              account_type: newUser.account_type,
-              profile_picture: newUser.profile_picture,
-              email_verified: newUser.email_verified,
-              phone_verified: newUser.phone_verified,
-          },
-      });
+    return res.status(201).json({
+      message: "User registered successfully. Please verify your email.",
+      user: {
+        full_name: newUser.full_name,
+        email: newUser.email,
+        phone_number: newUser.phone_number,
+        role: newUser.role,
+        account_type: newUser.account_type,
+        profile_picture: newUser.profile_picture,
+        email_verified: newUser.email_verified,
+        phone_verified: newUser.phone_verified,
+      },
+    });
   } catch (error) {
-      await session.abortTransaction();
-      session.endSession();
-      console.error("Signup error:", error);
-      return res.status(500).json({ message: "Server error. Please try again." });
+    await session.abortTransaction();
+    session.endSession();
+    console.error("Signup error:", error);
+    return res.status(500).json({ message: "Server error. Please try again." });
   }
 };
 
@@ -152,7 +187,9 @@ exports.firebaseSignup = async (req, res) => {
     const { uid, email, name, picture } = decodedToken;
 
     if (role !== "buyer") {
-      return res.status(400).json({ message: "Google/Apple signup is only available for buyers." });
+      return res
+        .status(400)
+        .json({ message: "Google/Apple signup is only available for buyers." });
     }
 
     let existingUser = await User.findOne({ email, role });
@@ -161,7 +198,9 @@ exports.firebaseSignup = async (req, res) => {
       if (existingUser.account_type === "google") {
         const userJwt = generateToken(existingUser);
         existingUser.login_token = userJwt;
-        existingUser.login_token_expiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        existingUser.login_token_expiry = new Date(
+          Date.now() + 7 * 24 * 60 * 60 * 1000
+        );
         await existingUser.save();
 
         return res.status(200).json({
@@ -177,7 +216,9 @@ exports.firebaseSignup = async (req, res) => {
           },
         });
       } else {
-        return res.status(400).json({ message: "User already exists with a different signup method." });
+        return res.status(400).json({
+          message: "User already exists with a different signup method.",
+        });
       }
     } else {
       let imageUrl = picture || null;
@@ -216,7 +257,6 @@ exports.firebaseSignup = async (req, res) => {
     return res.status(500).json({ message: "Server error. Please try again." });
   }
 };
-
 
 // 🔹 Social Authentication (Google/Apple) - Only for Buyers
 exports.socialAuth = async (req, res) => {
@@ -257,7 +297,10 @@ exports.socialAuth = async (req, res) => {
     let imageUrl = null;
     if (req.files && req.files["profile_picture"]) {
       const folderName = "buyers_profiles";
-      imageUrl = await uploadToCloudinary(req.files["profile_picture"][0].buffer, folderName);
+      imageUrl = await uploadToCloudinary(
+        req.files["profile_picture"][0].buffer,
+        folderName
+      );
     }
 
     // Register new user
@@ -290,7 +333,6 @@ exports.socialAuth = async (req, res) => {
         profile_picture: newUser.profile_picture,
       },
     });
-
   } catch (error) {
     console.error("Social Auth Error:", error);
     return res.status(500).json({ message: "Server error. Please try again." });

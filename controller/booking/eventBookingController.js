@@ -9,6 +9,7 @@ const sendNotification = require("../notification/sendNotification");
 const updateRevenue = require("./updateRevenue");
 const Settings = require("../../models/admin/Settings");
 const { translateText } = require("../../services/translateService")
+const { getSuperAdminId } = require('../../services/getSuperAdminId'); 
 
 // ✅ Book an Event
 const generateTickets = (numTickets) => {
@@ -152,17 +153,44 @@ exports.confirmEventBooking = async (req, res) => {
     // Send confirmation email
     await sendEventBookingConfirmationEmail(booking);
 
-    const result = await updateRevenue(booking_id); 
+    const result = await updateRevenue(booking_id);
 
-    //--------------------- ✅ Notification and Payment---------------------
-    await sendNotification(booking.user_id, "Booking", booking._id, "Event Booking Confirmed",
+    //--------------------- ✅ Notification and Payment ---------------------
+    // ✅ Notify the user
+    await sendNotification(
+      booking.user_id,
+      "Booking",
+      booking._id,
+      "Event Booking Confirmed",
       `Your booking has been confirmed! Your confirmation ticket is ${booking.confirmation_ticket}.`
     );
-    await sendNotification(booking.owner_id, "Booking", booking._id,"Event Booking Confirmed",
+
+    // ✅ Notify the event owner
+    await sendNotification(
+      booking.owner_id,
+      "Booking",
+      booking._id,
+      "Event Booking Confirmed",
       "A booking for your event has been confirmed."
     );
-     await logPaymentHistory(booking, payment_detail, "booking_event");
-     // -------------------------------------------------------------
+
+    // ✅ Notify the super admin (only if not same as event owner)
+    const superAdminId = await getSuperAdminId();
+    if (
+      superAdminId &&
+      String(superAdminId) !== String(booking.owner_id)
+    ) {
+      await sendNotification(
+        superAdminId,
+        "Booking",
+        booking._id,
+        "New Event Booking Confirmed",
+        `A new booking has been confirmed for event ID: ${booking.event_id}.`
+      );
+    }
+
+    await logPaymentHistory(booking, payment_detail, "booking_event");
+    // -------------------------------------------------------------
 
     res
       .status(200)
@@ -171,6 +199,7 @@ exports.confirmEventBooking = async (req, res) => {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
+
 
 // ✅ Cancel Event Booking
 exports.cancelEventBooking = async (req, res) => {

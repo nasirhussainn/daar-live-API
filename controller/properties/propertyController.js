@@ -14,6 +14,8 @@ const PaymentHistory = require("../../models/PaymentHistory");
 const AdminRevenue = require("../../models/admin/AdminRevenue"); // AdminRevenue model
 const { updateAdminRevenue } = require("../../services/updateAdminRevenue"); // AdminRevenue service
 const { sendResponse } = require("../../services/translateHelper"); // sendResponse service
+const { getSuperAdminId } = require("../../services/getSuperAdminId");
+
 const {
   translateText,
   translateToEnglish,
@@ -36,6 +38,7 @@ const {
 } = require("../../services/subscriptionLimits");
 
 const Admin = require("../../models/Admin"); // Import the Admin model
+const sendNotification = require("../notification/sendNotification");
 
 async function determineCreatedBy(owner_id) {
   const isAdmin = await Admin.exists({ _id: owner_id }); // Check if owner_id exists in Admin collection
@@ -229,7 +232,7 @@ exports.addProperty = async (req, res) => {
       property_status,
       created_by,
       price_YER,
-      currency
+      currency,
     });
 
     const savedProperty = await propertyData.save({ session });
@@ -271,6 +274,28 @@ exports.addProperty = async (req, res) => {
     // Commit the transaction
     await session.commitTransaction();
     session.endSession();
+
+    // ✅ Send notification to Admin for approval
+    if (is_feature !== "true" || is_feature !== true) {
+      try {
+        const adminId = await getSuperAdminId();
+        const notificationTitle = "New property approval request";
+        const notificationMessage = `A new property (ID: ${savedProperty._id}) has been added and requires approval.`;
+
+        await sendNotification(
+          adminId,
+          "Property", 
+          savedProperty._id,
+          notificationTitle,
+          notificationMessage
+        );
+      } catch (notifyErr) {
+        console.error(
+          "Failed to send approval notification to admin:",
+          notifyErr.message
+        );
+      }
+    }
 
     // Step 9: Return success response
     res.status(201).json({
@@ -1074,7 +1099,7 @@ exports.getFilteredProperties = async (req, res) => {
       }
     }
 
-    if(id){
+    if (id) {
       filter._id = id;
     }
 
@@ -1099,7 +1124,7 @@ exports.getFilteredProperties = async (req, res) => {
       .populate("property_subtype")
       .populate("amenities")
       .sort({ created_at: -1 })
-      .lean(); 
+      .lean();
 
     // Response
     const response = {
@@ -1110,7 +1135,7 @@ exports.getFilteredProperties = async (req, res) => {
           ...propertyWithoutUniqueViews,
         };
       }),
-    };    
+    };
 
     res.status(200).json(response);
   } catch (error) {
@@ -1129,21 +1154,21 @@ exports.trackPropertyView = async (req, res) => {
 
     // 1. Validate required fields
     if (!user_id) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: "user_id is required" 
+        message: "user_id is required",
       });
     }
 
     // 2. Verify user exists
-    const userExists = await User.exists({ 
-      _id: new mongoose.Types.ObjectId(user_id) 
+    const userExists = await User.exists({
+      _id: new mongoose.Types.ObjectId(user_id),
     });
 
     if (!userExists) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: "User not found" 
+        message: "User not found",
       });
     }
 
@@ -1162,17 +1187,17 @@ exports.trackPropertyView = async (req, res) => {
     res.status(200).json({
       success: true,
       isNewView: result.modifiedCount > 0,
-      viewCount: result.modifiedCount > 0 
-        ? await Property.findById(id).select('view_count -_id')
-        : undefined
+      viewCount:
+        result.modifiedCount > 0
+          ? await Property.findById(id).select("view_count -_id")
+          : undefined,
     });
-
   } catch (error) {
     console.error("View tracking failed:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       message: "Internal server error",
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };

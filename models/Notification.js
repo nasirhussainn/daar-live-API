@@ -6,17 +6,17 @@ const NotificationSchema = new Schema(
     user: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
-      refPath: "user_type", // 👈 dynamic reference based on this field
+      refPath: "user_type", 
     },
     user_type: {
       type: String,
       required: true,
-      enum: ["User", "Admin"], // 👈 make sure only valid model names are allowed
+      enum: ["User", "Admin"], 
     },
 
     notification_type: {
       type: String,
-      enum: ["Booking", "Review", "Property", "Event", "Chat"], // Type of notification
+      enum: ["Booking", "Review", "Property", "Event", "Chat", "Account"], 
       required: true,
     },
 
@@ -25,12 +25,11 @@ const NotificationSchema = new Schema(
       refPath: "notification_type",
       required: false,
     },
-    // The ID of the related booking, review, property, or event
 
-    title: { type: Map, of: String, required: true }, // Short title of the notification
-    message: { type: Map, of: String, required: true }, // Description of the notification
+    title: { type: Map, of: String, required: true }, 
+    message: { type: Map, of: String, required: true }, 
 
-    is_read: { type: Boolean, default: false }, // Track if the user has seen the notification
+    is_read: { type: Boolean, default: false }, 
 
     created_at: { type: Date, default: Date.now },
   },

@@ -9,7 +9,8 @@ const { logPaymentHistory } = require("./paymentHistoryService");
 const sendNotification = require("../notification/sendNotification");
 const Settings = require("../../models/admin/Settings");
 const updateRevenue = require("./updateRevenue"); 
-const { translateText } = require("../../services/translateService")
+const { translateText } = require("../../services/translateService");
+const { getSuperAdminId } = require('../../services/getSuperAdminId'); 
 
 const normalizeTime = (time) => {
   let date = new Date(`1970-01-01 ${time}`);
@@ -181,6 +182,7 @@ exports.bookProperty = async (req, res) => {
   }
 };
 
+
 exports.confirmPropertyBooking = async (req, res) => {
   try {
     const { booking_id, payment_detail } = req.body;
@@ -219,7 +221,8 @@ exports.confirmPropertyBooking = async (req, res) => {
 
     await sendPropertyBookingConfirmationEmail(booking);
 
-    //--------------------- ✅ Notification and Payment---------------------
+    //--------------------- ✅ Notification and Payment ---------------------
+    // ✅ Send notification to the user
     await sendNotification(
       booking.user_id,
       "Booking",
@@ -227,14 +230,31 @@ exports.confirmPropertyBooking = async (req, res) => {
       "Property Booking Confirmed",
       `Your booking has been confirmed! Your confirmation ticket is ${booking.confirmation_ticket}.`
     );
-    // ✅ Send Notification to Realtor
+
+    // ✅ Send Notification to Realtor/Owner
     await sendNotification(
       booking.owner_id,
-      "booking",
+      "Booking", 
       booking._id,
       "Property Booking Confirmed",
       "A booking for your property has been confirmed."
     );
+
+    // ✅ Send Notification to Super Admin (avoid duplicate if owner is same admin)
+    const superAdminId = await getSuperAdminId();
+    if (
+      superAdminId &&
+      String(superAdminId) !== String(booking.owner_id) // check if different
+    ) {
+      await sendNotification(
+        superAdminId,
+        "Booking",
+        booking._id,
+        "New Property Booking Confirmed",
+        `A new booking has been confirmed for property ID: ${booking.property_id}.`
+      );
+    }
+
     await logPaymentHistory(booking, payment_detail, "booking_property");
     // ------------------------------------------------------------------------
 
