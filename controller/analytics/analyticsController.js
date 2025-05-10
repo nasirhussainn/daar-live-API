@@ -155,6 +155,13 @@ exports.getAnalytics = async (req, res) => {
       // Admin Revenue
       currentAdminRevenue,
       previousAdminRevenue,
+
+      // New booking counts for analytics: total, canceled, confirmed, live
+      totalBookingCount,
+      canceledBookingCount,
+      confirmedBookingCount,
+      liveBookingCount,
+      completedBookingCount,
     ] = await Promise.all([
       // Current period counts
       Promise.all([
@@ -247,12 +254,35 @@ exports.getAnalytics = async (req, res) => {
       ]),
 
       // Current Admin Revenue
-      // AdminRevenue.findOne({ period: currentPeriodStr }),
       aggregateRevenue(currentPeriodStr, dateRange.end),
 
       // Previous Admin Revenue
-      // AdminRevenue.findOne({ period: previousPeriodStr })
       aggregateRevenue(previousPeriodStr, previousPeriod.end),
+
+      // New booking counts: total, canceled, confirmed, live, completed (active statuses)
+      Booking.countDocuments({
+        created_at: { $gte: dateRange.start, $lte: dateRange.end },
+      }),
+
+      Booking.countDocuments({
+        status: "canceled",
+        created_at: { $gte: dateRange.start, $lte: dateRange.end },
+      }),
+
+      Booking.countDocuments({
+        status: "confirmed",
+        created_at: { $gte: dateRange.start, $lte: dateRange.end },
+      }),
+
+      Booking.countDocuments({
+        status: "active",
+        created_at: { $gte: dateRange.start, $lte: dateRange.end },
+      }),
+
+      Booking.countDocuments({
+        status: "completed",
+        created_at: { $gte: dateRange.start, $lte: dateRange.end },
+      }),
     ]);
 
     // 2. Process and organize the data
@@ -322,6 +352,12 @@ exports.getAnalytics = async (req, res) => {
         currentRevenueData.featured_revenue,
         prevRevenueData.featured_revenue
       ),
+      // New growth metrics for bookings counts
+      totalBookingCount: calculateGrowth(totalBookingCount, 0), // no previous data; defaulting prev=0
+      canceledBookingCount: calculateGrowth(canceledBookingCount, 0),
+      confirmedBookingCount: calculateGrowth(confirmedBookingCount, 0),
+      liveBookingCount: calculateGrowth(liveBookingCount, 0),
+      completedBookingCount: calculateGrowth(completedBookingCount, 0),
     };
 
     // 3. Prepare the response
@@ -354,6 +390,13 @@ exports.getAnalytics = async (req, res) => {
               (b) => b.booking_type === "property"
             ).length,
           },
+        },
+        booking_status_counts: {
+          total: totalBookingCount,
+          canceled: canceledBookingCount,
+          confirmed: confirmedBookingCount,
+          live: liveBookingCount,
+          completed: completedBookingCount,
         },
         revenue: {
           admin_revenue: {
@@ -391,6 +434,21 @@ exports.getAnalytics = async (req, res) => {
           ),
           featured_revenue: parseFloat(
             growthPercentages.featuredRevenue.toFixed(2)
+          ),
+          total_booking_count: parseFloat(
+            growthPercentages.totalBookingCount.toFixed(2)
+          ),
+          canceled_booking_count: parseFloat(
+            growthPercentages.canceledBookingCount.toFixed(2)
+          ),
+          confirmed_booking_count: parseFloat(
+            growthPercentages.confirmedBookingCount.toFixed(2)
+          ),
+          live_booking_count: parseFloat(
+            growthPercentages.liveBookingCount.toFixed(2)
+          ),
+          completed_booking_count: parseFloat(
+            growthPercentages.completedBookingCount.toFixed(2)
           ),
         },
         all_time: {
