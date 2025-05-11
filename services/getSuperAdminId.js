@@ -2,7 +2,7 @@ const Admin = require('../models/Admin');
 
 async function getSuperAdminId() {
   try {
-    const superAdmin = await Admin.findOne({ isSuperAdmin: true }).select('_id');
+    const superAdmin = await Admin.findOne({ isSuperAdmin: { $in: [true, 'true'] } }).select('_id');
     if (!superAdmin) {
       throw new Error('Super admin not found');
     }
