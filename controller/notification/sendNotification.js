@@ -1,5 +1,5 @@
 const Notification = require("../../models/Notification");
-const resolveUserType = require("../../services/userTypeResolver"); // adjust path
+const resolveUserType = require("../../services/userTypeResolver"); 
 const { translateText } = require("../../services/translateService")
 
 const sendNotification = async (userId, type, referenceId, title, message) => {

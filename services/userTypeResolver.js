@@ -1,5 +1,5 @@
 // helpers/resolveUserType.js
-const Admin = require("../models/Admin"); // adjust path as needed
+const Admin = require("../models/Admin");
 
 /**
  * Determines the model type (Admin or User) based on the given ID.

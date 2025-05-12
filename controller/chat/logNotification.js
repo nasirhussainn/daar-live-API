@@ -1,4 +1,4 @@
-const sendNotification = require("../notification/sendNotification"); // adjust the path if needed
+const sendNotification = require("../notification/sendNotification"); 
 
 const logNotification = async (receiverId, senderId, senderType, text, chatId) => {
   try {

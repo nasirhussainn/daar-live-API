@@ -1,5 +1,5 @@
 const twilio = require("twilio");
-const User = require("../../models/User"); // Adjust the path if needed
+const User = require("../../models/User");
 const { generateTokenPhone } = require("../../config/jwt"); // JWT helper function
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;

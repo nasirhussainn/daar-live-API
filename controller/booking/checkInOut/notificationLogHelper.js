@@ -1,4 +1,4 @@
-const sendNotification = require("../../notification/sendNotification"); // adjust the path as needed
+const sendNotification = require("../../notification/sendNotification"); 
 
 /**
  * Logs check-in/out notifications for both the booking user and the owner (User/Admin)
