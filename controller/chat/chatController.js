@@ -460,3 +460,23 @@ exports.getChatDetailsById = async (req, res) => {
       .json({ message: "Error fetching chat details", error: error.message });
   }
 };
+
+exports.getUnreadChatCount = async (req, res) => {
+  try {
+    const participantId = req.params.participantId;
+
+    const chatsWithUnread = await Chat.find({
+      [`unreadCount.${participantId}`]: { $gt: 0 },
+    }).countDocuments();
+
+    return res.status(200).json({
+      unreadChatCount: chatsWithUnread,
+    });
+  } catch (error) {
+    console.error("Error fetching unread chat count:", error);
+    res.status(500).json({
+      message: "Error fetching unread chat count",
+      error: error.message,
+    });
+  }
+};
