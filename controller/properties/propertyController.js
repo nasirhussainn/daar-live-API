@@ -1220,9 +1220,8 @@ exports.updateUnavailableSlots = async (req, res) => {
       return res.status(404).json({ message: "Property not found" });
     }
 
-    // Validate each new slot and check for conflicts
+    // Validate each slot
     const validatedSlots = [];
-    const existingUnavailableSlots = property.unavailable_slots || [];
 
     // Helper functions
     const normalizeDate = (date) => {
@@ -1252,10 +1251,10 @@ exports.updateUnavailableSlots = async (req, res) => {
       const startDate = new Date(slot.start_date);
       const endDate = new Date(slot.end_date);
 
-      // Validate dates
-      if (startDate > endDate) {
+      // Validate dates (updated to allow same day)
+      if (startDate.getTime() > endDate.getTime()) {
         return res.status(400).json({
-          message: "start_date must be before end_date",
+          message: "start_date must not be after end_date",
         });
       }
 
@@ -1267,51 +1266,27 @@ exports.updateUnavailableSlots = async (req, res) => {
           });
         }
 
-        if (
-          normalizeDate(startDate).getTime() !==
-          normalizeDate(endDate).getTime()
-        ) {
+        if (normalizeDate(startDate).getTime() !== normalizeDate(endDate).getTime()) {
           return res.status(400).json({
             message: "Hourly slots must be on the same day",
           });
         }
       }
 
-      // Check for conflicts with existing unavailable slots
-      const hasUnavailableConflict = existingUnavailableSlots.some(
-        (existing) => {
-          const existingStartDate = new Date(existing.start_date);
-          const existingEndDate = new Date(existing.end_date);
+      validatedSlots.push({
+        start_date: startDate,
+        end_date: endDate,
+        start_time: property.charge_per === "per_hour" ? slot.start_time : null,
+        end_time: property.charge_per === "per_hour" ? slot.end_time : null,
+      });
+    }
 
-          const dateConflict =
-            startDate <= existingEndDate && endDate >= existingStartDate;
-          if (!dateConflict) return false;
-
-          if (property.charge_per !== "per_hour") return true;
-
-          const newStartMins = timeToMinutes(slot.start_time);
-          const newEndMins = timeToMinutes(slot.end_time);
-          const existingStartMins = timeToMinutes(existing.start_time);
-          const existingEndMins = timeToMinutes(existing.end_time);
-
-          return (
-            newStartMins < existingEndMins && newEndMins > existingStartMins
-          );
-        }
-      );
-
-      if (hasUnavailableConflict) {
-        return res.status(400).json({
-          message: `Slot conflicts with existing unavailable period`,
-          conflicting_slot: slot,
-        });
-      }
-
-      // Check for conflicts with existing bookings
+    // Check for conflicts with existing bookings against ALL new slots
+    for (const slot of validatedSlots) {
       const bookingConflict = await checkBookingConflicts(
         property_id,
-        startDate,
-        endDate,
+        slot.start_date,
+        slot.end_date,
         slot.start_time,
         slot.end_time,
         property.charge_per
@@ -1323,25 +1298,15 @@ exports.updateUnavailableSlots = async (req, res) => {
           conflicting_booking: bookingConflict.details,
         });
       }
-
-      validatedSlots.push({
-        start_date: startDate,
-        end_date: endDate,
-        start_time: property.charge_per === "per_hour" ? slot.start_time : null,
-        end_time: property.charge_per === "per_hour" ? slot.end_time : null,
-      });
     }
 
-    // Update property with new unavailable slots
-    property.unavailable_slots = [
-      ...existingUnavailableSlots,
-      ...validatedSlots,
-    ];
+    // COMPLETELY REPLACE the unavailable slots with the new set
+    property.unavailable_slots = validatedSlots;
     await property.save();
 
     res.status(200).json({
       message: "Unavailable slots updated successfully",
-      added_slots: validatedSlots,
+      updated_slots: property.unavailable_slots,
       total_unavailable_slots: property.unavailable_slots.length,
     });
   } catch (error) {
