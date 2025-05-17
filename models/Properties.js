@@ -94,6 +94,16 @@ const PropertySchema = new Schema({
     enum: ['USD', 'YER'],
     default: 'USD', 
   },
+
+  //unavailable slots
+  unavailable_slots: [
+    {
+      start_date: { type: Date, required: true },
+      end_date: { type: Date, required: true },
+      start_time: { type: String, default: null },
+      end_time: { type: String, default: null },
+    }
+  ],  
   
 
   created_at: { type: Date, default: Date.now },

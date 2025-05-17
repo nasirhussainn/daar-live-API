@@ -10,6 +10,8 @@ const { addProperty,
     updateProperty,
     getFilteredProperties,
     trackPropertyView,
+    updateUnavailableSlots,
+    clearUnavailableSlots
  } = require('../../controller/properties/propertyController'); // Import the controller function
 
 // const { findNearbyProperties } = require('../../controller/explore/exploreController')
@@ -27,5 +29,8 @@ router.put('/feature', featureProperty)
 router.get('/explore', findNearbyProperties)
 router.get('/filter', getFilteredProperties)
 router.put('/view/:id', trackPropertyView)
+
+router.put('/disable-slot/:property_id', updateUnavailableSlots)
+router.put('/clear-slot/:property_id', clearUnavailableSlots)
 
 module.exports = router;

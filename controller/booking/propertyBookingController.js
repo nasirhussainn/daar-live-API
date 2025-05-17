@@ -3,14 +3,17 @@ const Property = require("../../models/Properties");
 const User = require("../../models/User");
 const Admin = require("../../models/Admin");
 const Review = require("../../models/Review");
-const { sendPropertyBookingConfirmationEmail, sendPropertyBookingCancellationEmail } = require("../../config/mailer");
+const {
+  sendPropertyBookingConfirmationEmail,
+  sendPropertyBookingCancellationEmail,
+} = require("../../config/mailer");
 const Notification = require("../../models/Notification");
 const { logPaymentHistory } = require("./paymentHistoryService");
 const sendNotification = require("../notification/sendNotification");
 const Settings = require("../../models/admin/Settings");
-const updateRevenue = require("./updateRevenue"); 
+const updateRevenue = require("./updateRevenue");
 const { translateText } = require("../../services/translateService");
-const { getSuperAdminId } = require('../../services/getSuperAdminId'); 
+const { getSuperAdminId } = require("../../services/getSuperAdminId");
 
 const normalizeTime = (time) => {
   let date = new Date(`1970-01-01 ${time}`);
@@ -24,6 +27,101 @@ const normalizeTime = (time) => {
   return `${hours}:${minutes} ${period}`;
 };
 
+// Updated conflict checker with exclusion support
+async function hasBookingConflict(propertyId, startDate, endDate, slots, excludeBookingId = null) {
+  const normalizedStart = new Date(startDate);
+  normalizedStart.setUTCHours(0, 0, 0, 0);
+  
+  const normalizedEnd = new Date(endDate);
+  normalizedEnd.setUTCHours(23, 59, 59, 999);
+
+  const query = {
+    property_id: propertyId,
+    status: { $in: ["active", "confirmed", "pending"] },
+    $or: [
+      { start_date: { $lt: normalizedEnd }, end_date: { $gt: normalizedStart } },
+    ],
+  };
+
+  if (excludeBookingId) {
+    query._id = { $ne: excludeBookingId };
+  }
+
+  const conflictingBookings = await Booking.find(query).select("slots");
+
+  if (!slots || !slots.length) return conflictingBookings.length > 0;
+
+  return conflictingBookings.some(booking => {
+    return booking.slots.some(bookedSlot => {
+      return slots.some(newSlot => {
+        const bookedStart = normalizeTime(bookedSlot.start_time);
+        const bookedEnd = normalizeTime(bookedSlot.end_time);
+        const newStart = normalizeTime(newSlot.start_time);
+        const newEnd = normalizeTime(newSlot.end_time);
+
+        return (
+          (newStart >= bookedStart && newStart < bookedEnd) ||
+          (newEnd > bookedStart && newEnd <= bookedEnd) ||
+          (newStart <= bookedStart && newEnd >= bookedEnd)
+        );
+      });
+    });
+  });
+}
+
+// Updated unavailable slots checker with exclusion support
+async function hasUnavailableConflict(property, startDate, endDate, slots, excludeBookingId = null) {
+  if (!property.unavailable_slots?.length) return false;
+
+  const normalizedStart = new Date(startDate);
+  normalizedStart.setUTCHours(0, 0, 0, 0);
+  
+  const normalizedEnd = new Date(endDate);
+  normalizedEnd.setUTCHours(23, 59, 59, 999);
+
+  // Filter unavailable slots for the date range
+  const unavailableSlots = property.unavailable_slots.filter(slot => {
+    const slotStart = new Date(slot.start_date);
+    const slotEnd = new Date(slot.end_date);
+    return slotStart <= normalizedEnd && slotEnd >= normalizedStart;
+  });
+
+  if (!unavailableSlots.length) return false;
+
+  // For daily bookings
+  if (property.charge_per !== "per_hour") return true;
+
+  // For hourly bookings, check each slot
+  return slots.some(slot => {
+    const slotStart = normalizeTime(slot.start_time);
+    const slotEnd = normalizeTime(slot.end_time);
+
+    return unavailableSlots.some(unavailable => {
+      const unavailableStart = normalizeTime(unavailable.start_time);
+      const unavailableEnd = normalizeTime(unavailable.end_time);
+
+      return (
+        (slotStart >= unavailableStart && slotStart < unavailableEnd) ||
+        (slotEnd > unavailableStart && slotEnd <= unavailableEnd) ||
+        (slotStart <= unavailableStart && slotEnd >= unavailableEnd)
+      );
+    });
+  });
+}
+
+// Helper function to get property owner
+async function getPropertyOwner(property) {
+  const isAdminOwner = property.created_by === "Admin";
+  const owner = await (isAdminOwner 
+    ? Admin.findById(property.owner_id).lean()
+    : User.findById(property.owner_id).lean());
+    
+  return {
+    owner,
+    ownerType: isAdminOwner ? "Admin" : "User"
+  };
+}
+
 exports.bookProperty = async (req, res) => {
   try {
     const {
@@ -31,7 +129,7 @@ exports.bookProperty = async (req, res) => {
       user_id,
       start_date,
       end_date,
-      slots, // New: Array of slots for hourly bookings
+      slots,
       security_deposit,
       guest_name,
       guest_email,
@@ -39,42 +137,75 @@ exports.bookProperty = async (req, res) => {
       id_number,
     } = req.body;
 
+    // Validate input dates
+    const startDate = new Date(start_date);
+    const endDate = new Date(end_date);
+
     // Check if property exists
     const property = await Property.findById(property_id);
-    if (!property)
+    if (!property) {
       return res.status(404).json({ message: "Property not found" });
-
-    // Check if property allows booking
-    if (!property.is_available) {
-      return res.status(400).json({
-        message: "This property cannot be booked as it is not available",
-      });
-    }
-    if (!property.allow_booking) {
-      return res
-        .status(400)
-        .json({ message: "This property cannot be booked" });
     }
 
-    // Ensure per_hour bookings have the same start and end date
-    if (property.charge_per === "per_hour" && start_date !== end_date) {
+    // Check property availability
+    if (!property.is_available || !property.allow_booking) {
       return res.status(400).json({
-        message: "For per-hour bookings, start and end date must be the same.",
+        message: "This property cannot be booked currently",
       });
     }
 
-    // Check if the user already has a pending booking for this property
-    let existingPendingBooking = await Booking.findOne({
+    // Validate hourly booking requirements
+    if (property.charge_per === "per_hour") {
+      if (start_date !== end_date) {
+        return res.status(400).json({
+          message: "For per-hour bookings, start and end date must be the same",
+        });
+      }
+      if (!slots || !slots.length) {
+        return res.status(400).json({
+          message: "Time slots are required for hourly bookings",
+        });
+      }
+    }
+
+    // Check for existing pending booking
+    const existingPendingBooking = await Booking.findOne({
       property_id,
       user_id,
       status: "pending",
     });
 
     if (existingPendingBooking) {
-      // Update pending booking if it exists
-      existingPendingBooking.start_date = start_date || null;
-      existingPendingBooking.end_date = end_date || null;
-      existingPendingBooking.slots = slots?.length ? slots : [];
+      // Create temporary booking object to validate conflicts
+      const tempBooking = {
+        ...existingPendingBooking.toObject(),
+        start_date: startDate,
+        end_date: endDate,
+        slots: slots || []
+      };
+
+      // Check for conflicts with unavailable slots (excluding current booking)
+      if (await hasUnavailableConflict(property, startDate, endDate, slots, existingPendingBooking._id)) {
+        return res.status(400).json({
+          message: property.charge_per === "per_hour"
+            ? "Property is unavailable for the selected time slots"
+            : "Property is unavailable for the selected dates",
+        });
+      }
+
+      // Check for conflicts with existing bookings (excluding current booking)
+      if (await hasBookingConflict(property_id, startDate, endDate, slots, existingPendingBooking._id)) {
+        return res.status(400).json({
+          message: property.charge_per === "per_hour"
+            ? "Property is already booked for the selected time slots"
+            : "Property is already booked for the selected dates",
+        });
+      }
+
+      // Only update if no conflicts found
+      existingPendingBooking.start_date = startDate;
+      existingPendingBooking.end_date = endDate;
+      existingPendingBooking.slots = slots || [];
       existingPendingBooking.security_deposit = security_deposit;
       existingPendingBooking.guest_name = guest_name || null;
       existingPendingBooking.guest_email = guest_email || null;
@@ -90,84 +221,45 @@ exports.bookProperty = async (req, res) => {
       });
     }
 
-    // Check for overlapping bookings
-    let bookingConflict = false;
-
-    if (property.charge_per !== "per_hour") {
-      // Check for conflicts in daily bookings
-      const startDate = new Date(start_date);
-      const endDate = new Date(end_date);
-
-      bookingConflict = await Booking.findOne({
-        property_id,
-        status: { $in: ["active", "confirmed", "pending"] },
-        start_date: { $lt: endDate },
-        end_date: { $gt: startDate },
-      });
-    } else if (property.charge_per === "per_hour" && slots?.length) {
-      const startDateOnly = new Date(start_date);
-      startDateOnly.setUTCHours(0, 0, 0, 0); // Normalize to start of day
-      const nextDay = new Date(startDateOnly);
-      nextDay.setUTCDate(nextDay.getUTCDate() + 1); // Move to next day
-
-      const existingBookings = await Booking.find({
-        property_id,
-        status: { $in: ["active", "confirmed", "pending"] },
-        start_date: { $gte: startDateOnly, $lt: nextDay }, // Match only the specific date
-      });
-
-      bookingConflict = existingBookings.some((booking) =>
-        booking.slots.some((slot) =>
-          slots.some(
-            (newSlot) =>
-              normalizeTime(slot.start_time) ===
-                normalizeTime(newSlot.start_time) ||
-              normalizeTime(slot.end_time) === normalizeTime(newSlot.end_time)
-          )
-        )
-      );
-    }
-
-    if (bookingConflict) {
+    // Check for conflicts with unavailable slots
+    if (await hasUnavailableConflict(property, startDate, endDate, slots)) {
       return res.status(400).json({
-        message:
-          property.charge_per === "per_hour"
-            ? "Property is already booked for the selected slots on this date"
-            : "Property is already booked for the selected dates",
+        message: property.charge_per === "per_hour"
+          ? "Property is unavailable for the selected time slots"
+          : "Property is unavailable for the selected dates",
       });
     }
 
-    // Get Owner of the Property (Admin or User)
-    let owner;
-    let ownerType;
-
-    if (property.created_by === "Admin") {
-      owner = await Admin.findById(property.owner_id).lean();
-      ownerType = "Admin";
-    } else {
-      owner = await User.findById(property.owner_id).lean();
-      ownerType = "User";
+    // Check for conflicts with existing bookings
+    if (await hasBookingConflict(property_id, startDate, endDate, slots)) {
+      return res.status(400).json({
+        message: property.charge_per === "per_hour"
+          ? "Property is already booked for the selected time slots"
+          : "Property is already booked for the selected dates",
+      });
     }
 
+    // Get property owner
+    const { owner, ownerType } = await getPropertyOwner(property);
     if (!owner) {
       return res.status(404).json({ message: "Property owner not found" });
     }
 
-    // Create a new booking with "pending" status
+    // Create new booking
     const newBooking = new Booking({
       booking_type: "property",
       property_id,
       user_id,
-      owner_type: ownerType, // Dynamically set owner type
-      owner_id: owner._id, // Set owner reference ID
-      start_date: start_date || null,
-      end_date: end_date || null,
-      slots: property.charge_per === "per_hour" ? slots : [], // Save slots only for hourly bookings
+      owner_type: ownerType,
+      owner_id: owner._id,
+      start_date: start_date,
+      end_date: end_date,
+      slots: property.charge_per === "per_hour" ? slots : [],
       security_deposit,
       status: "pending",
-      guest_name: guest_name || null,
-      guest_email: guest_email || null,
-      guest_phone: guest_phone || null,
+      guest_name,
+      guest_email,
+      guest_phone,
       id_number,
     });
 
@@ -181,7 +273,6 @@ exports.bookProperty = async (req, res) => {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
-
 
 exports.confirmPropertyBooking = async (req, res) => {
   try {
@@ -234,7 +325,7 @@ exports.confirmPropertyBooking = async (req, res) => {
     // ✅ Send Notification to Realtor/Owner
     await sendNotification(
       booking.owner_id,
-      "Booking", 
+      "Booking",
       booking._id,
       "Property Booking Confirmed",
       "A booking for your property has been confirmed."
@@ -286,11 +377,15 @@ exports.cancelPropertyBooking = async (req, res) => {
 
     // If the booking has started, prevent cancellation
     if (new Date(booking.start_date) <= now) {
-      return res.status(400).json({ message: "This booking has already started and cannot be canceled." });
+      return res
+        .status(400)
+        .json({
+          message: "This booking has already started and cannot be canceled.",
+        });
     }
 
     // Check if admin is canceling or if user is canceling within the 72-hour window
-    if (cancel_by === "admin" || (booking.is_cancellable)) {
+    if (cancel_by === "admin" || booking.is_cancellable) {
       // Update booking status and save
       booking.status = "canceled";
       booking.cancelation_reason = await translateText(cancelation_reason);
@@ -331,16 +426,18 @@ exports.cancelPropertyBooking = async (req, res) => {
       );
       //---------------------------------------------------------
 
-      res.status(200).json({ message: "Booking canceled successfully", booking });
+      res
+        .status(200)
+        .json({ message: "Booking canceled successfully", booking });
     } else {
-      res.status(400).json({ message: "This booking cannot be canceled at this time" });
+      res
+        .status(400)
+        .json({ message: "This booking cannot be canceled at this time" });
     }
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
-
-
 
 // ✅ Get All Bookings with Optional Status Filter
 exports.getAllPropertyBookings = async (req, res) => {
@@ -391,7 +488,7 @@ exports.getAllPropertyBookings = async (req, res) => {
               select: "full_name email profile_picture",
             }) // Reviewer details
             .select("review_description review_rating createdAt")
-            .lean()
+            .lean();
         }
 
         return {
@@ -456,7 +553,7 @@ exports.getPropertyBookingById = async (req, res) => {
           select: "full_name email profile_picture",
         }) // Reviewer details
         .select("review_description review_rating createdAt")
-        .lean()
+        .lean();
     }
 
     // Construct final response
@@ -531,7 +628,7 @@ exports.getBookingsByEntitiesId = async (req, res) => {
               select: "full_name email profile_picture",
             }) // Reviewer details
             .select("review_description review_rating createdAt")
-            .lean()
+            .lean();
         }
         return {
           ...booking,
@@ -569,7 +666,9 @@ exports.getBookedPropertyDetails = async (req, res) => {
         let ownerName = null;
 
         if (booking.owner_type === "User") {
-          const user = await User.findById(booking.owner_id).select("full_name");
+          const user = await User.findById(booking.owner_id).select(
+            "full_name"
+          );
           ownerName = user?.full_name || null;
         } else if (booking.owner_type === "Admin") {
           const admin = await Admin.findById(booking.owner_id).select("name");
@@ -590,109 +689,123 @@ exports.getBookedPropertyDetails = async (req, res) => {
   }
 };
 
-
 exports.getSlots = async (req, res) => {
   try {
     const { property_id, date } = req.query;
 
+    // Validate input
     if (!property_id || !date) {
-      return res
-        .status(400)
-        .json({ message: "Property ID and date are required" });
+      return res.status(400).json({ message: "Property ID and date are required" });
     }
 
-    // Convert date string to a Date object
     const selectedDate = new Date(date);
+    if (isNaN(selectedDate.getTime())) {
+      return res.status(400).json({ message: "Invalid date format" });
+    }
 
     // Find property
-    const property = await Property.findById(property_id);
+    const property = await Property.findById(property_id)
+      .select('charge_per unavailable_slots');
     if (!property) {
       return res.status(404).json({ message: "Property not found" });
     }
 
-    // Check if the property is hourly-based
     if (property.charge_per !== "per_hour") {
-      return res
-        .status(400)
-        .json({ message: "This property does not support hourly booking" });
+      return res.status(400).json({ message: "Only Hourly booking supported" });
     }
 
-    // Define the start and end of the selected date
+    // Set date boundaries
     const startOfDay = new Date(selectedDate);
-    startOfDay.setUTCHours(0, 0, 0, 0); // Start of the day (00:00 UTC)
+    startOfDay.setUTCHours(0, 0, 0, 0);
     const endOfDay = new Date(selectedDate);
-    endOfDay.setUTCHours(23, 59, 59, 999); // End of the day (23:59 UTC)
+    endOfDay.setUTCHours(23, 59, 59, 999);
 
-    // Query bookings within this date range
-    const bookedSlots = await Booking.find({
-      property_id,
-      status: { $in: ["active", "confirmed", "pending", "completed"] }, // Include "completed"
-      start_date: { $gte: startOfDay, $lt: endOfDay }, // Ensure only the selected date
-    }).select("slots start_date"); // Include start_date in the selection
+    // Get all blocked periods
+    const [bookings, unavailableSlots] = await Promise.all([
+      Booking.find({
+        property_id,
+        status: { $in: ["active", "confirmed", "pending"] },
+        start_date: { $gte: startOfDay, $lt: endOfDay }
+      }).select("slots"),
+      
+      (property.unavailable_slots || []).filter(slot => {
+        const slotStart = new Date(slot.start_date);
+        const slotEnd = new Date(slot.end_date);
+        return slotStart <= endOfDay && slotEnd >= startOfDay;
+      })
+    ]);
 
-    // Convert booked slots into a flat array
-    let bookedTimes = [];
-    bookedSlots.forEach((booking) => {
-      bookedTimes.push(...booking.slots);
+    // Generate ALL 24 hourly slots
+    const allSlots = Array.from({ length: 24 }, (_, hour) => {
+      const startHour = hour % 12 || 12;
+      const endHour = (hour + 1) % 12 || 12;
+      const period = hour < 12 ? 'AM' : 'PM';
+      const nextPeriod = (hour + 1) < 12 ? 'AM' : 'PM';
+      
+      return {
+        start_time: `${startHour}:00 ${period}`,
+        end_time: `${endHour}:00 ${nextPeriod}`
+      };
     });
 
-    // Define property working hours (example: 8 AM - 8 PM)
-    const openingTime = "00:00 AM";
-    const closingTime = "11:59 PM";
+    // Convert time to minutes (0-1439)
+    const timeToMinutes = timeStr => {
+      const [time, period] = timeStr.split(' ');
+      const [hours, minutes] = time.split(':').map(Number);
+      return (hours % 12 + (period === 'PM' ? 12 : 0)) * 60 + minutes;
+    };
 
-    // Convert time to minutes for easy calculations
-    function timeToMinutes(time) {
-      const [hour, minute, period] = time.match(/(\d+):(\d+) (\w{2})/).slice(1);
-      let hours = parseInt(hour, 10);
-      if (period === "PM" && hours !== 12) hours += 12;
-      if (period === "AM" && hours === 12) hours = 0;
-      return hours * 60 + parseInt(minute, 10);
-    }
+    // Check if slot is blocked
+    const isBlocked = (slotStart, slotEnd) => {
+      // Check unavailable slots first
+      for (const slot of unavailableSlots) {
+        const blockStart = timeToMinutes(slot.start_time);
+        const blockEnd = timeToMinutes(slot.end_time);
+        
+        if (slotStart < blockEnd && slotEnd > blockStart) {
+          return true;
+        }
+      }
 
-    const openingMinutes = timeToMinutes(openingTime);
-    const closingMinutes = timeToMinutes(closingTime);
+      // Check bookings
+      for (const booking of bookings) {
+        for (const bookedSlot of booking.slots) {
+          const bookedStart = timeToMinutes(bookedSlot.start_time);
+          const bookedEnd = timeToMinutes(bookedSlot.end_time);
+          
+          if (slotStart < bookedEnd && slotEnd > bookedStart) {
+            return true;
+          }
+        }
+      }
 
-    // Generate all possible 1-hour slots within working hours
-    let allSlots = [];
-    for (
-      let start = openingMinutes;
-      start + 60 <= closingMinutes;
-      start += 60
-    ) {
-      const end = start + 60;
-      allSlots.push({
-        start_time: `${Math.floor(start / 60) % 12 || 12}:${(start % 60)
-          .toString()
-          .padStart(2, "0")} ${start < 720 ? "AM" : "PM"}`,
-        end_time: `${Math.floor(end / 60) % 12 || 12}:${(end % 60)
-          .toString()
-          .padStart(2, "0")} ${end < 720 ? "AM" : "PM"}`,
-      });
-    }
+      return false;
+    };
 
-    // Filter out booked slots
-    const availableSlots = allSlots.filter((slot) => {
-      // Check if the slot overlaps with any booked slot
-      return !bookedTimes.some((booked) => {
-        const bookedStart = timeToMinutes(booked.start_time);
-        const bookedEnd = timeToMinutes(booked.end_time);
-        const slotStart = timeToMinutes(slot.start_time);
-        const slotEnd = timeToMinutes(slot.end_time);
-
-        // Check for overlap
-        return (
-          (slotStart >= bookedStart && slotStart < bookedEnd) || // Slot starts during a booked slot
-          (slotEnd > bookedStart && slotEnd <= bookedEnd) || // Slot ends during a booked slot
-          (slotStart <= bookedStart && slotEnd >= bookedEnd) // Slot completely overlaps a booked slot
-        );
-      });
+    // Filter available slots
+    const availableSlots = allSlots.filter(slot => {
+      const slotStart = timeToMinutes(slot.start_time);
+      const slotEnd = timeToMinutes(slot.end_time);
+      
+      // Handle overnight slot (11PM-12AM)
+      if (slotEnd < slotStart) {
+        return !isBlocked(slotStart, 1440) && !isBlocked(0, slotEnd);
+      }
+      
+      return !isBlocked(slotStart, slotEnd);
     });
 
     res.status(200).json({
       message: "Slots fetched successfully",
       available_slots: availableSlots,
-      booked_slots: bookedTimes, // Send booked slots separately
+      booked_slots: bookings.flatMap(b => b.slots),
+      unavailable_slots: unavailableSlots.map(s => ({
+        start_time: s.start_time,
+        end_time: s.end_time
+      })),
+      date: date
     });
+
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
   }

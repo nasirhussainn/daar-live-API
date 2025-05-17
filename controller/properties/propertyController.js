@@ -284,7 +284,7 @@ exports.addProperty = async (req, res) => {
 
         await sendNotification(
           adminId,
-          "Property", 
+          "Property",
           savedProperty._id,
           notificationTitle,
           notificationMessage
@@ -1198,6 +1198,260 @@ exports.trackPropertyView = async (req, res) => {
       success: false,
       message: "Internal server error",
       error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
+// controllers/propertyController.js
+
+exports.updateUnavailableSlots = async (req, res) => {
+  try {
+    const { property_id } = req.params;
+    const { slots } = req.body;
+
+    // Validate input
+    if (!Array.isArray(slots)) {
+      return res.status(400).json({ message: "Slots must be an array" });
+    }
+
+    // Check property exists
+    const property = await Property.findById(property_id);
+    if (!property) {
+      return res.status(404).json({ message: "Property not found" });
+    }
+
+    // Validate each new slot and check for conflicts
+    const validatedSlots = [];
+    const existingUnavailableSlots = property.unavailable_slots || [];
+
+    // Helper functions
+    const normalizeDate = (date) => {
+      const d = new Date(date);
+      d.setUTCHours(0, 0, 0, 0);
+      return d;
+    };
+
+    const timeToMinutes = (time) => {
+      if (!time) return 0;
+      const [hour, minute, period] = time.match(/(\d+):(\d+) (\w{2})/).slice(1);
+      let hours = parseInt(hour, 10);
+      if (period === "PM" && hours !== 12) hours += 12;
+      if (period === "AM" && hours === 12) hours = 0;
+      return hours * 60 + parseInt(minute, 10);
+    };
+
+    for (const slot of slots) {
+      // Basic validation
+      if (!slot.start_date || !slot.end_date) {
+        return res.status(400).json({
+          message: "Each slot must have start_date and end_date",
+        });
+      }
+
+      // Convert to Date objects
+      const startDate = new Date(slot.start_date);
+      const endDate = new Date(slot.end_date);
+
+      // Validate dates
+      if (startDate > endDate) {
+        return res.status(400).json({
+          message: "start_date must be before end_date",
+        });
+      }
+
+      // For hourly properties, validate times
+      if (property.charge_per === "per_hour") {
+        if (!slot.start_time || !slot.end_time) {
+          return res.status(400).json({
+            message: "Hourly properties require start_time and end_time",
+          });
+        }
+
+        if (
+          normalizeDate(startDate).getTime() !==
+          normalizeDate(endDate).getTime()
+        ) {
+          return res.status(400).json({
+            message: "Hourly slots must be on the same day",
+          });
+        }
+      }
+
+      // Check for conflicts with existing unavailable slots
+      const hasUnavailableConflict = existingUnavailableSlots.some(
+        (existing) => {
+          const existingStartDate = new Date(existing.start_date);
+          const existingEndDate = new Date(existing.end_date);
+
+          const dateConflict =
+            startDate <= existingEndDate && endDate >= existingStartDate;
+          if (!dateConflict) return false;
+
+          if (property.charge_per !== "per_hour") return true;
+
+          const newStartMins = timeToMinutes(slot.start_time);
+          const newEndMins = timeToMinutes(slot.end_time);
+          const existingStartMins = timeToMinutes(existing.start_time);
+          const existingEndMins = timeToMinutes(existing.end_time);
+
+          return (
+            newStartMins < existingEndMins && newEndMins > existingStartMins
+          );
+        }
+      );
+
+      if (hasUnavailableConflict) {
+        return res.status(400).json({
+          message: `Slot conflicts with existing unavailable period`,
+          conflicting_slot: slot,
+        });
+      }
+
+      // Check for conflicts with existing bookings
+      const bookingConflict = await checkBookingConflicts(
+        property_id,
+        startDate,
+        endDate,
+        slot.start_time,
+        slot.end_time,
+        property.charge_per
+      );
+
+      if (bookingConflict.exists) {
+        return res.status(400).json({
+          message: `Slot conflicts with existing ${bookingConflict.status} booking`,
+          conflicting_booking: bookingConflict.details,
+        });
+      }
+
+      validatedSlots.push({
+        start_date: startDate,
+        end_date: endDate,
+        start_time: property.charge_per === "per_hour" ? slot.start_time : null,
+        end_time: property.charge_per === "per_hour" ? slot.end_time : null,
+      });
+    }
+
+    // Update property with new unavailable slots
+    property.unavailable_slots = [
+      ...existingUnavailableSlots,
+      ...validatedSlots,
+    ];
+    await property.save();
+
+    res.status(200).json({
+      message: "Unavailable slots updated successfully",
+      added_slots: validatedSlots,
+      total_unavailable_slots: property.unavailable_slots.length,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error updating unavailable slots",
+      error: error.message,
+    });
+  }
+};
+
+// Helper function to check booking conflicts
+async function checkBookingConflicts(
+  propertyId,
+  startDate,
+  endDate,
+  startTime,
+  endTime,
+  chargePer
+) {
+  const normalizedStart = new Date(startDate);
+  normalizedStart.setUTCHours(0, 0, 0, 0);
+
+  const normalizedEnd = new Date(endDate);
+  normalizedEnd.setUTCHours(23, 59, 59, 999);
+
+  // Find conflicting bookings
+  const conflictingBookings = await Booking.find({
+    property_id: propertyId,
+    status: { $in: ["confirmed", "pending"] },
+    $or: [
+      {
+        start_date: { $lt: normalizedEnd },
+        end_date: { $gt: normalizedStart },
+      },
+    ],
+  }).select("start_date end_date slots status");
+
+  if (chargePer !== "per_hour") {
+    return {
+      exists: conflictingBookings.length > 0,
+      status: conflictingBookings[0]?.status || "confirmed",
+      details: conflictingBookings[0] || null,
+    };
+  }
+
+  // For hourly bookings, check time slots
+  const timeToMinutes = (time) => {
+    const [hour, minute, period] = time.match(/(\d+):(\d+) (\w{2})/).slice(1);
+    let hours = parseInt(hour, 10);
+    if (period === "PM" && hours !== 12) hours += 12;
+    if (period === "AM" && hours === 12) hours = 0;
+    return hours * 60 + parseInt(minute, 10);
+  };
+
+  const newStart = timeToMinutes(startTime);
+  const newEnd = timeToMinutes(endTime);
+
+  for (const booking of conflictingBookings) {
+    for (const bookedSlot of booking.slots) {
+      const bookedStart = timeToMinutes(bookedSlot.start_time);
+      const bookedEnd = timeToMinutes(bookedSlot.end_time);
+
+      if (newStart < bookedEnd && newEnd > bookedStart) {
+        return {
+          exists: true,
+          status: booking.status,
+          details: {
+            booking_id: booking._id,
+            start_date: booking.start_date,
+            end_date: booking.end_date,
+            slot: bookedSlot,
+          },
+        };
+      }
+    }
+  }
+
+  return { exists: false };
+}
+
+exports.clearUnavailableSlots = async (req, res) => {
+  try {
+    const { property_id } = req.params;
+    const { slot_ids } = req.body; // Array of slot IDs to remove (optional)
+
+    const property = await Property.findById(property_id);
+    if (!property) {
+      return res.status(404).json({ message: "Property not found" });
+    }
+
+    if (slot_ids && Array.isArray(slot_ids)) {
+      // Remove specific slots
+      property.unavailable_slots = property.unavailable_slots.filter(
+        (slot) => !slot_ids.includes(slot._id.toString())
+      );
+    } else {
+      // Clear all slots
+      property.unavailable_slots = [];
+    }
+
+    await property.save();
+
+    res.status(200).json({
+      message: "Unavailable slots cleared successfully",
+      property,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error clearing unavailable slots",
+      error: error.message,
     });
   }
 };
