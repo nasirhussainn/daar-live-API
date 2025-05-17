@@ -1425,28 +1425,40 @@ async function checkBookingConflicts(
 exports.clearUnavailableSlots = async (req, res) => {
   try {
     const { property_id } = req.params;
-    const { slot_ids } = req.body; // Array of slot IDs to remove (optional)
+    const { slot_ids } = req.body; // Can be comma-separated string or array
 
     const property = await Property.findById(property_id);
     if (!property) {
       return res.status(404).json({ message: "Property not found" });
     }
 
-    if (slot_ids && Array.isArray(slot_ids)) {
-      // Remove specific slots
+    // Handle both comma-separated string and array input
+    let idsToRemove = [];
+    if (slot_ids) {
+      idsToRemove = Array.isArray(slot_ids) 
+        ? slot_ids 
+        : slot_ids.split(',').map(id => id.trim());
+    }
+
+    if (idsToRemove.length > 0) {
+      // Remove specific slots by IDs
       property.unavailable_slots = property.unavailable_slots.filter(
-        (slot) => !slot_ids.includes(slot._id.toString())
+        (slot) => !idsToRemove.includes(slot._id.toString())
       );
     } else {
-      // Clear all slots
+      // Clear all slots if no IDs provided
       property.unavailable_slots = [];
     }
 
     await property.save();
 
     res.status(200).json({
-      message: "Unavailable slots cleared successfully",
-      property,
+      message: idsToRemove.length > 0 
+        ? "Selected unavailable slots removed successfully" 
+        : "All unavailable slots cleared successfully",
+      removed_count: idsToRemove.length > 0 ? idsToRemove.length : property.unavailable_slots.length,
+      remaining_slots: property.unavailable_slots.length,
+      property
     });
   } catch (error) {
     res.status(500).json({

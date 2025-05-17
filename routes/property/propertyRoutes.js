@@ -31,6 +31,6 @@ router.get('/filter', getFilteredProperties)
 router.put('/view/:id', trackPropertyView)
 
 router.put('/disable-slot/:property_id', updateUnavailableSlots)
-router.put('/clear-slot/:property_id', clearUnavailableSlots)
+router.delete('/clear-slot/:property_id', clearUnavailableSlots)
 
 module.exports = router;
