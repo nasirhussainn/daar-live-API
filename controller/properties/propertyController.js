@@ -1220,9 +1220,6 @@ exports.updateUnavailableSlots = async (req, res) => {
       return res.status(404).json({ message: "Property not found" });
     }
 
-    // Validate each slot
-    const validatedSlots = [];
-
     // Helper functions
     const normalizeDate = (date) => {
       const d = new Date(date);
@@ -1239,6 +1236,11 @@ exports.updateUnavailableSlots = async (req, res) => {
       return hours * 60 + parseInt(minute, 10);
     };
 
+    // Process new slots
+    const newSlots = [];
+    const existingSlots = property.unavailable_slots || [];
+    let updatedSlots = [...existingSlots]; // Start with existing slots
+
     for (const slot of slots) {
       // Basic validation
       if (!slot.start_date || !slot.end_date) {
@@ -1251,7 +1253,7 @@ exports.updateUnavailableSlots = async (req, res) => {
       const startDate = new Date(slot.start_date);
       const endDate = new Date(slot.end_date);
 
-      // Validate dates (updated to allow same day)
+      // Validate dates
       if (startDate.getTime() > endDate.getTime()) {
         return res.status(400).json({
           message: "start_date must not be after end_date",
@@ -1271,18 +1273,43 @@ exports.updateUnavailableSlots = async (req, res) => {
             message: "Hourly slots must be on the same day",
           });
         }
-      }
 
-      validatedSlots.push({
-        start_date: startDate,
-        end_date: endDate,
-        start_time: property.charge_per === "per_hour" ? slot.start_time : null,
-        end_time: property.charge_per === "per_hour" ? slot.end_time : null,
-      });
+        // For hourly properties, check if this date already exists
+        const normalizedNewDate = normalizeDate(startDate).getTime();
+        const existingIndex = updatedSlots.findIndex(existing => {
+          return normalizeDate(existing.start_date).getTime() === normalizedNewDate;
+        });
+
+        if (existingIndex !== -1) {
+          // Replace existing slot for this date
+          updatedSlots[existingIndex] = {
+            start_date: startDate,
+            end_date: endDate,
+            start_time: slot.start_time,
+            end_time: slot.end_time
+          };
+        } else {
+          // Add new slot for new date
+          updatedSlots.push({
+            start_date: startDate,
+            end_date: endDate,
+            start_time: slot.start_time,
+            end_time: slot.end_time
+          });
+        }
+      } else {
+        // For non-hourly properties, just add the new slot
+        updatedSlots.push({
+          start_date: startDate,
+          end_date: endDate,
+          start_time: null,
+          end_time: null
+        });
+      }
     }
 
-    // Check for conflicts with existing bookings against ALL new slots
-    for (const slot of validatedSlots) {
+    // Check for conflicts with existing bookings against ALL slots
+    for (const slot of updatedSlots) {
       const bookingConflict = await checkBookingConflicts(
         property_id,
         slot.start_date,
@@ -1300,8 +1327,8 @@ exports.updateUnavailableSlots = async (req, res) => {
       }
     }
 
-    // COMPLETELY REPLACE the unavailable slots with the new set
-    property.unavailable_slots = validatedSlots;
+    // Update the property with the combined slots
+    property.unavailable_slots = updatedSlots;
     await property.save();
 
     res.status(200).json({
