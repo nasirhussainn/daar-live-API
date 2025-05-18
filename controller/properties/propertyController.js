@@ -1227,9 +1227,14 @@ exports.updateUnavailableSlots = async (req, res) => {
       return d;
     };
 
+    const normalizeTimeString = (time) => {
+      return time.trim().replace(/\s+/g, ' '); // Normalize spacing
+    };
+
     const timeToMinutes = (time) => {
       if (!time) return 0;
-      const [hour, minute, period] = time.match(/(\d+):(\d+) (\w{2})/).slice(1);
+      const normalizedTime = normalizeTimeString(time);
+      const [hour, minute, period] = normalizedTime.match(/(\d+):(\d+) (\w{2})/).slice(1);
       let hours = parseInt(hour, 10);
       if (period === "PM" && hours !== 12) hours += 12;
       if (period === "AM" && hours === 12) hours = 0;
@@ -1237,10 +1242,22 @@ exports.updateUnavailableSlots = async (req, res) => {
     };
 
     // Process new slots
-    const newSlots = [];
     const existingSlots = property.unavailable_slots || [];
-    let updatedSlots = [...existingSlots]; // Start with existing slots
+    let updatedSlots = [...existingSlots];
 
+    // For hourly properties, group existing slots by date
+    const existingSlotsByDate = new Map();
+    if (property.charge_per === "per_hour") {
+      existingSlots.forEach(slot => {
+        const dateKey = normalizeDate(slot.start_date).getTime();
+        if (!existingSlotsByDate.has(dateKey)) {
+          existingSlotsByDate.set(dateKey, []);
+        }
+        existingSlotsByDate.get(dateKey).push(slot);
+      });
+    }
+
+    // Process each new slot
     for (const slot of slots) {
       // Basic validation
       if (!slot.start_date || !slot.end_date) {
@@ -1260,7 +1277,7 @@ exports.updateUnavailableSlots = async (req, res) => {
         });
       }
 
-      // For hourly properties, validate times
+      // For hourly properties
       if (property.charge_per === "per_hour") {
         if (!slot.start_time || !slot.end_time) {
           return res.status(400).json({
@@ -1274,31 +1291,29 @@ exports.updateUnavailableSlots = async (req, res) => {
           });
         }
 
-        // For hourly properties, check if this date already exists
-        const normalizedNewDate = normalizeDate(startDate).getTime();
-        const existingIndex = updatedSlots.findIndex(existing => {
-          return normalizeDate(existing.start_date).getTime() === normalizedNewDate;
+        // Normalize time strings
+        const normalizedStartTime = normalizeTimeString(slot.start_time);
+        const normalizedEndTime = normalizeTimeString(slot.end_time);
+
+        const dateKey = normalizeDate(startDate).getTime();
+        
+        // Remove any existing slots for this exact time range
+        updatedSlots = updatedSlots.filter(existing => {
+          if (normalizeDate(existing.start_date).getTime() !== dateKey) return true;
+          const existingStart = existing.start_time ? normalizeTimeString(existing.start_time) : null;
+          const existingEnd = existing.end_time ? normalizeTimeString(existing.end_time) : null;
+          return !(existingStart === normalizedStartTime && existingEnd === normalizedEndTime);
         });
 
-        if (existingIndex !== -1) {
-          // Replace existing slot for this date
-          updatedSlots[existingIndex] = {
-            start_date: startDate,
-            end_date: endDate,
-            start_time: slot.start_time,
-            end_time: slot.end_time
-          };
-        } else {
-          // Add new slot for new date
-          updatedSlots.push({
-            start_date: startDate,
-            end_date: endDate,
-            start_time: slot.start_time,
-            end_time: slot.end_time
-          });
-        }
+        // Add the new slot
+        updatedSlots.push({
+          start_date: startDate,
+          end_date: endDate,
+          start_time: normalizedStartTime,
+          end_time: normalizedEndTime
+        });
       } else {
-        // For non-hourly properties, just add the new slot
+        // For non-hourly properties
         updatedSlots.push({
           start_date: startDate,
           end_date: endDate,
