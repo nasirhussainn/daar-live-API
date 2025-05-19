@@ -8,7 +8,7 @@ const mongoose = require("mongoose");
 const admin = require("firebase-admin");
 const { generateToken } = require("../../config/jwt");
 const { translateText } = require("../../services/translateService");
-const { sendNotification } = require("../../controller/notification/sendNotification")
+const sendNotification = require("../notification/sendNotification");
 const { getSuperAdminId } = require("../../services/getSuperAdminId");
 
 const BASE_URL = process.env.BASE_URL;
