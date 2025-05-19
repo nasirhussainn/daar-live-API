@@ -135,7 +135,7 @@ exports.signup = async (req, res) => {
         const superAdminId = await getSuperAdminId();
         await sendNotification(
           superAdminId,
-          "Account",
+          "User",
           newUser._id,
           "New Realtor Signup",
           `${newUser.full_name} has signed up as a Realtor and is awaiting account approval.`
