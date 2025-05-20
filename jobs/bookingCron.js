@@ -8,10 +8,11 @@ const activateOngoingBookings = async () => {
 
   try {
     const now = new Date();
+    const yemenNow = new Date(now.getTime() + 3 * 60 * 60 * 1000);
 
     // Find confirmed bookings where start date has arrived
     const startingBookings = await Booking.find({
-      start_date: { $lt: now },
+      start_date: { $lt: yemenNow },
       status: "confirmed",
     });
 
@@ -35,10 +36,11 @@ const expireCompletedBookings = async () => {
 
   try {
     const now = new Date();
+    const yemenNow = new Date(now.getTime() + 3 * 60 * 60 * 1000);
 
     // Find ongoing bookings where end date has passed
     const expiredBookings = await Booking.find({
-      end_date: { $lt: now },
+      end_date: { $lt: yemenNow },
       status: "active",
     });
 
@@ -69,12 +71,13 @@ const updateCancellableBookings = async () => {
 
   try {
     const now = new Date();
+    const yemenNow = new Date(now.getTime() + 3 * 60 * 60 * 1000);
     const cutoffTime = new Date(now.getTime() + 72 * 60 * 60 * 1000); // 72 hours from now
 
     // Find cancellable property bookings
     const propertyBookings = await Booking.find({
       booking_type: "property",
-      start_date: { $lte: cutoffTime, $gte: now },
+      start_date: { $lte: cutoffTime, $gte: yemenNow },
       is_cancellable: true,
       status: "confirmed",
     });
@@ -82,7 +85,7 @@ const updateCancellableBookings = async () => {
     // Find cancellable event bookings (only check the first event date)
     const eventBookings = await Booking.find({
       booking_type: "event",
-      "event_dates.0.date": { $lte: cutoffTime, $gte: now }, // Only the first event date
+      "event_dates.0.date": { $lte: cutoffTime, $gte: yemenNow }, // Only the first event date
       is_cancellable: true,
       status: "confirmed",
     });
@@ -107,7 +110,8 @@ const deleteExpiredPendingBookings = async () => {
 
   try {
     const now = new Date();
-    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000); // 2 hours ago
+    const yemenNow = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+    const twoHoursAgo = new Date(yemenNow.getTime() - 3 * 60 * 60 * 1000); 
 
     // Find and delete bookings that are pending for more than 2 hours
     const deletedBookings = await Booking.deleteMany({
@@ -123,7 +127,7 @@ const deleteExpiredPendingBookings = async () => {
 
 // Schedule: Runs every 30 minutes
 cron.schedule(
-  "*/30 * * * *",
+  "*/1 * * * *",
   async () => {
     try {
       console.log("🏠 Running property-related scheduled tasks...");

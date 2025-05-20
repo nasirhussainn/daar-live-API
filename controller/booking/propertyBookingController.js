@@ -137,14 +137,30 @@ exports.bookProperty = async (req, res) => {
       id_number,
     } = req.body;
 
-    // Validate input dates
-    const startDate = new Date(start_date);
-    const endDate = new Date(end_date);
+    // Date normalization functions
+    const normalizeDate = (dateStr) => {
+      const [year, month, day] = dateStr.split('-').map(Number);
+      return new Date(Date.UTC(year, month - 1, day));
+    };
+
+    const normalizeToEndOfDay = (date) => {
+      const d = new Date(date);
+      d.setUTCHours(23, 59, 59, 999);
+      return d;
+    };
 
     // Check if property exists
     const property = await Property.findById(property_id);
     if (!property) {
       return res.status(404).json({ message: "Property not found" });
+    }
+
+    // Normalize dates based on property type
+    let startDate = normalizeDate(start_date);
+    let endDate = normalizeDate(end_date);
+    
+    if (property.charge_per === "per_hour") {
+      endDate = normalizeToEndOfDay(endDate); // Set to end of day
     }
 
     // Check property availability
@@ -175,17 +191,43 @@ exports.bookProperty = async (req, res) => {
       status: "pending",
     });
 
-    if (existingPendingBooking) {
-      // Create temporary booking object to validate conflicts
-      const tempBooking = {
-        ...existingPendingBooking.toObject(),
-        start_date: startDate,
-        end_date: endDate,
-        slots: slots || []
-      };
+    // Conflict checking functions (modified for hourly properties)
+    const checkConflicts = async (excludeId = null) => {
+      if (property.charge_per === "per_hour") {
+        // For hourly, only check date portion
+        const startOfDay = normalizeDate(start_date);
+        const endOfDay = normalizeToEndOfDay(start_date);
+        
+        // Check unavailable slots (date only)
+        const unavailableConflict = await hasUnavailableConflict(
+          property, 
+          startOfDay, 
+          endOfDay, 
+          slots, 
+          excludeId,
+        );
+        
+        if (unavailableConflict) return true;
+        
+        // Check booking conflicts (date only)
+        return await hasBookingConflict(
+          property_id, 
+          startOfDay, 
+          endOfDay, 
+          slots, 
+          excludeId,
+        );
+      } else {
+        // Regular date checking for non-hourly
+        return (
+          await hasUnavailableConflict(property, startDate, endDate, slots, excludeId) ||
+          await hasBookingConflict(property_id, startDate, endDate, slots, excludeId)
+        );
+      }
+    };
 
-      // Check for conflicts with unavailable slots (excluding current booking)
-      if (await hasUnavailableConflict(property, startDate, endDate, slots, existingPendingBooking._id)) {
+    if (existingPendingBooking) {
+      if (await checkConflicts(existingPendingBooking._id)) {
         return res.status(400).json({
           message: property.charge_per === "per_hour"
             ? "Property is unavailable for the selected time slots"
@@ -193,16 +235,7 @@ exports.bookProperty = async (req, res) => {
         });
       }
 
-      // Check for conflicts with existing bookings (excluding current booking)
-      if (await hasBookingConflict(property_id, startDate, endDate, slots, existingPendingBooking._id)) {
-        return res.status(400).json({
-          message: property.charge_per === "per_hour"
-            ? "Property is already booked for the selected time slots"
-            : "Property is already booked for the selected dates",
-        });
-      }
-
-      // Only update if no conflicts found
+      // Update existing booking
       existingPendingBooking.start_date = startDate;
       existingPendingBooking.end_date = endDate;
       existingPendingBooking.slots = slots || [];
@@ -221,21 +254,12 @@ exports.bookProperty = async (req, res) => {
       });
     }
 
-    // Check for conflicts with unavailable slots
-    if (await hasUnavailableConflict(property, startDate, endDate, slots)) {
+    // Check for conflicts for new booking
+    if (await checkConflicts()) {
       return res.status(400).json({
         message: property.charge_per === "per_hour"
           ? "Property is unavailable for the selected time slots"
           : "Property is unavailable for the selected dates",
-      });
-    }
-
-    // Check for conflicts with existing bookings
-    if (await hasBookingConflict(property_id, startDate, endDate, slots)) {
-      return res.status(400).json({
-        message: property.charge_per === "per_hour"
-          ? "Property is already booked for the selected time slots"
-          : "Property is already booked for the selected dates",
       });
     }
 
@@ -252,8 +276,8 @@ exports.bookProperty = async (req, res) => {
       user_id,
       owner_type: ownerType,
       owner_id: owner._id,
-      start_date: start_date,
-      end_date: end_date,
+      start_date: startDate,
+      end_date: endDate,
       slots: property.charge_per === "per_hour" ? slots : [],
       security_deposit,
       status: "pending",
@@ -270,7 +294,10 @@ exports.bookProperty = async (req, res) => {
       booking: newBooking,
     });
   } catch (error) {
-    res.status(500).json({ message: "Server Error", error: error.message });
+    res.status(500).json({ 
+      message: "Server Error", 
+      error: error.message 
+    });
   }
 };
 

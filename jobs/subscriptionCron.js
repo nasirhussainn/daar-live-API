@@ -27,9 +27,10 @@ const deactivateExpiredSubscriptions = async () => {
 
   try {
     const today = new Date();
+    const yemenNow = new Date(today.getTime() + 3 * 60 * 60 * 1000);
 
     const potentialExpiredSubs = await Subscription.find({
-      end_date: { $lt: today },
+      end_date: { $lt: yemenNow },
       status: "active",
     });
 
@@ -86,11 +87,12 @@ const handleExpiredFreeTrials = async () => {
     const today = new Date();
     const freeTrialExpiryDate = new Date(today);
     freeTrialExpiryDate.setDate(today.getDate() - settings.free_trial_days); // Calculate the expiry date
+    const yemenNowfreeTrialExpiryDate = new Date(freeTrialExpiryDate.getTime() + 3 * 60 * 60 * 1000);
 
     // Find realtors with expired free trials
     const realtorsWithExpiredTrials = await Realtor.find({
       has_used_free_trial: false,
-      created_at: { $lt: freeTrialExpiryDate }, // Realtors who created their account before the free trial expiry date
+      created_at: { $lt: yemenNowfreeTrialExpiryDate }, // Realtors who created their account before the free trial expiry date
     });    
 
     for (const realtor of realtorsWithExpiredTrials) {
@@ -113,11 +115,12 @@ const expireFeaturedProperties = async () => {
 
   try {
     const now = new Date();
+    const yemenNow = new Date(now.getTime() + 3 * 60 * 60 * 1000);
     
     // Find expired featured entities where expiration_date has passed
     const expiredFeatures = await FeaturedEntity.find({
       is_active: true,
-      expiration_date: { $lte: now }, // Directly use expiration_date from schema
+      expiration_date: { $lte: yemenNow }, // Directly use expiration_date from schema
     });
 
     for (const feature of expiredFeatures) {
