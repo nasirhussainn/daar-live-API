@@ -1243,11 +1243,14 @@ exports.updateUnavailableSlots = async (req, res) => {
 
     // Process new slots
     const existingSlots = property.unavailable_slots || [];
-    let updatedSlots = [...existingSlots];
+    let updatedSlots = [];
 
-    // For hourly properties, group existing slots by date
-    const existingSlotsByDate = new Map();
+    // For hourly properties, we'll merge with existing slots
     if (property.charge_per === "per_hour") {
+      updatedSlots = [...existingSlots];
+      const existingSlotsByDate = new Map();
+      
+      // Group existing slots by date
       existingSlots.forEach(slot => {
         const dateKey = normalizeDate(slot.start_date).getTime();
         if (!existingSlotsByDate.has(dateKey)) {
@@ -1313,7 +1316,8 @@ exports.updateUnavailableSlots = async (req, res) => {
           end_time: normalizedEndTime
         });
       } else {
-        // For non-hourly properties
+        // For non-hourly properties, just add to the new slots array
+        // (we'll completely replace existing slots later)
         updatedSlots.push({
           start_date: startDate,
           end_date: endDate,
@@ -1321,6 +1325,11 @@ exports.updateUnavailableSlots = async (req, res) => {
           end_time: null
         });
       }
+    }
+
+    // For non-hourly properties, use ONLY the new slots (complete replacement)
+    if (property.charge_per !== "per_hour") {
+      updatedSlots = [...updatedSlots]; // This is now the complete set
     }
 
     // Check for conflicts with existing bookings against ALL slots
