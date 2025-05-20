@@ -127,7 +127,7 @@ const deleteExpiredPendingBookings = async () => {
 
 // Schedule: Runs every 30 minutes
 cron.schedule(
-  "*/1 * * * *",
+  "*/30 * * * *",
   async () => {
     try {
       console.log("🏠 Running property-related scheduled tasks...");
