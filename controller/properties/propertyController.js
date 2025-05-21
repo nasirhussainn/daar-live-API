@@ -1245,18 +1245,19 @@ exports.updateUnavailableSlots = async (req, res) => {
     const existingSlots = property.unavailable_slots || [];
     let updatedSlots = [];
 
-    // For hourly properties, we'll merge with existing slots
     if (property.charge_per === "per_hour") {
-      updatedSlots = [...existingSlots];
-      const existingSlotsByDate = new Map();
+      // For hourly properties, keep slots from different dates
+      const datesToUpdate = new Set();
       
-      // Group existing slots by date
-      existingSlots.forEach(slot => {
-        const dateKey = normalizeDate(slot.start_date).getTime();
-        if (!existingSlotsByDate.has(dateKey)) {
-          existingSlotsByDate.set(dateKey, []);
-        }
-        existingSlotsByDate.get(dateKey).push(slot);
+      // Get all dates from new slots
+      slots.forEach(slot => {
+        datesToUpdate.add(normalizeDate(slot.start_date).getTime());
+      });
+
+      // Keep existing slots that don't match the new dates
+      updatedSlots = existingSlots.filter(existing => {
+        const existingDate = normalizeDate(existing.start_date).getTime();
+        return !datesToUpdate.has(existingDate);
       });
     }
 
@@ -1298,17 +1299,7 @@ exports.updateUnavailableSlots = async (req, res) => {
         const normalizedStartTime = normalizeTimeString(slot.start_time);
         const normalizedEndTime = normalizeTimeString(slot.end_time);
 
-        const dateKey = normalizeDate(startDate).getTime();
-        
-        // Remove any existing slots for this exact time range
-        updatedSlots = updatedSlots.filter(existing => {
-          if (normalizeDate(existing.start_date).getTime() !== dateKey) return true;
-          const existingStart = existing.start_time ? normalizeTimeString(existing.start_time) : null;
-          const existingEnd = existing.end_time ? normalizeTimeString(existing.end_time) : null;
-          return !(existingStart === normalizedStartTime && existingEnd === normalizedEndTime);
-        });
-
-        // Add the new slot
+        // Add the new slot (existing slots for same date were already filtered out)
         updatedSlots.push({
           start_date: startDate,
           end_date: endDate,
@@ -1317,7 +1308,6 @@ exports.updateUnavailableSlots = async (req, res) => {
         });
       } else {
         // For non-hourly properties, just add to the new slots array
-        // (we'll completely replace existing slots later)
         updatedSlots.push({
           start_date: startDate,
           end_date: endDate,
