@@ -14,6 +14,7 @@ const Settings = require("../../models/admin/Settings");
 const updateRevenue = require("./updateRevenue");
 const { translateText } = require("../../services/translateService");
 const { getSuperAdminId } = require("../../services/getSuperAdminId");
+const { activateOngoingBookings } = require('../../jobs/bookingCron');
 
 const normalizeTime = (time) => {
   let date = new Date(`1970-01-01 ${time}`);
@@ -330,6 +331,7 @@ exports.bookProperty = async (req, res) => {
   }
 };
 
+
 exports.confirmPropertyBooking = async (req, res) => {
   try {
     const { booking_id, payment_detail } = req.body;
@@ -404,7 +406,7 @@ exports.confirmPropertyBooking = async (req, res) => {
 
     await logPaymentHistory(booking, payment_detail, "booking_property");
     // ------------------------------------------------------------------------
-
+    await activateOngoingBookings();
     res.status(200).json({
       message: "Booking confirmed successfully",
       booking,
