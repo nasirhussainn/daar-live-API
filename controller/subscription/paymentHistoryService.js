@@ -44,7 +44,6 @@ const logPaymentHistory = async ({
 
     await paymentEntry.save();
     console.log("✅ Payment logged successfully!");
-
   } catch (error) {
     console.error("❌ Error logging payment:", error);
   }

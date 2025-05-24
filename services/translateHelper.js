@@ -9,7 +9,9 @@ async function translateText(text, targetLang) {
 
     const prompt = `Translate the following text to ${targetLang === "ar" ? "Arabic" : "English"}:\n\n"${text}"`;
 
-    const result = await model.generateContent({ contents: [{ parts: [{ text: prompt }] }] });
+    const result = await model.generateContent({
+      contents: [{ parts: [{ text: prompt }] }],
+    });
     const translatedText = result.response.text();
 
     return translatedText.trim();
@@ -19,12 +21,13 @@ async function translateText(text, targetLang) {
   }
 }
 
-
 async function deepTranslate(object, targetLang) {
   if (typeof object === "string") {
     return await translateText(object, targetLang);
   } else if (Array.isArray(object)) {
-    return await Promise.all(object.map(async (item) => deepTranslate(item, targetLang)));
+    return await Promise.all(
+      object.map(async (item) => deepTranslate(item, targetLang)),
+    );
   } else if (typeof object === "object" && object !== null) {
     const translatedObject = {};
     for (const [key, value] of Object.entries(object)) {

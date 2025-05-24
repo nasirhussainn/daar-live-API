@@ -79,8 +79,12 @@ const subscribeRealtor = async (req, res) => {
     // ----------------- Update Subscription Revenue -----------------
     // Get the current date in YYYY-MM-DD format
     const currentDate = new Date().toISOString().split("T")[0];
-    await updateAdminRevenue(plan.planAmount, "subscription_revenue", currentDate);
-    await updateAdminRevenue(plan.planAmount, "total_revenue", currentDate)
+    await updateAdminRevenue(
+      plan.planAmount,
+      "subscription_revenue",
+      currentDate,
+    );
+    await updateAdminRevenue(plan.planAmount, "total_revenue", currentDate);
 
     // ----------------------------------------------------------------
 
@@ -98,7 +102,7 @@ const subscribeRealtor = async (req, res) => {
 // 📌 Controller to get all active subscriptions (with plan details)
 const getAllSubscriptions = async (req, res) => {
   try {
-    const subscriptions = await Subscription.find({ status: "active" })
+    const subscriptions = await Subscription.find({ status: "active" });
 
     res.status(200).json(subscriptions);
   } catch (error) {
@@ -109,7 +113,7 @@ const getAllSubscriptions = async (req, res) => {
 
 const getAllSubscriptionsFull = async (req, res) => {
   try {
-    const subscriptions = await Subscription.find()
+    const subscriptions = await Subscription.find();
 
     res.status(200).json(subscriptions);
   } catch (error) {
@@ -127,15 +131,14 @@ const getRealtorSubscriptions = async (req, res) => {
     const subscriptions = await Subscription.find({
       realtor_id,
       status: "active",
-    })
-      .populate({
-        path: "realtor_id",
-        select: "business_name is_subscribed user_id",
-        populate: {
-          path: "user_id",
-          select: "full_name email",
-        },
-      })
+    }).populate({
+      path: "realtor_id",
+      select: "business_name is_subscribed user_id",
+      populate: {
+        path: "user_id",
+        select: "full_name email",
+      },
+    });
 
     if (!subscriptions.length) {
       return res
@@ -191,26 +194,30 @@ const updateSubscriptionDates = async (req, res) => {
 
   try {
     const subscription = await Subscription.findOneAndUpdate(
-      { realtor_id: realtorId, status: 'active' },
+      { realtor_id: realtorId, status: "active" },
       {
         start_date: new Date(start_date),
         end_date: new Date(end_date),
         updated_at: new Date(),
       },
-      { new: true } // return the updated document
+      { new: true }, // return the updated document
     );
 
     if (!subscription) {
-      return res.status(404).json({ message: 'Active subscription not found for this realtor.' });
+      return res
+        .status(404)
+        .json({ message: "Active subscription not found for this realtor." });
     }
 
     res.status(200).json({
-      message: 'Subscription dates updated successfully.',
+      message: "Subscription dates updated successfully.",
       subscription,
     });
   } catch (error) {
-    console.error('Error updating subscription:', error);
-    res.status(500).json({ message: 'Server error while updating subscription.' });
+    console.error("Error updating subscription:", error);
+    res
+      .status(500)
+      .json({ message: "Server error while updating subscription." });
   }
 };
 

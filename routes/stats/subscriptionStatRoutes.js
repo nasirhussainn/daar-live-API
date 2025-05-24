@@ -1,5 +1,8 @@
 const express = require("express");
-const { getTopSubscriptions, getPaidUsers } = require("../../controller/stats/subscriptionStatController");
+const {
+  getTopSubscriptions,
+  getPaidUsers,
+} = require("../../controller/stats/subscriptionStatController");
 
 const router = express.Router();
 

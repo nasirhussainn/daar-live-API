@@ -15,7 +15,7 @@ const updateUserStatus = async (req, res) => {
     const user = await User.findByIdAndUpdate(
       userId,
       { account_status: status },
-      { new: true }
+      { new: true },
     );
 
     if (!user) {
@@ -30,9 +30,10 @@ const updateUserStatus = async (req, res) => {
       user,
     });
   } catch (error) {
-    return res.status(500).json({ message: "Error updating user status", error: error.message });
+    return res
+      .status(500)
+      .json({ message: "Error updating user status", error: error.message });
   }
 };
-
 
 module.exports = { updateUserStatus };

@@ -1,5 +1,8 @@
 const express = require("express");
-const { login, firebaseLogin } = require("../../controller/auth/authLoginController");
+const {
+  login,
+  firebaseLogin,
+} = require("../../controller/auth/authLoginController");
 
 const router = express.Router();
 

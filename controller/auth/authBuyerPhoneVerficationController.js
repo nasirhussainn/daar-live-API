@@ -45,7 +45,7 @@ The Daar Live Team
         phone_otp: otp.toString(),
         phone_otp_expiry: otpExpiry,
       },
-      { upsert: true, new: true }
+      { upsert: true, new: true },
     );
 
     return res
@@ -103,7 +103,7 @@ exports.verifyOTPBuyer = async (req, res) => {
     if (!user.login_token || user.login_token_expiry <= now) {
       user.login_token = generateTokenPhone(user);
       user.login_token_expiry = new Date(
-        now.getTime() + 7 * 24 * 60 * 60 * 1000
+        now.getTime() + 7 * 24 * 60 * 60 * 1000,
       ); // 7 days
     }
 

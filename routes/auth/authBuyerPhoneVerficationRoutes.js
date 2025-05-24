@@ -1,11 +1,11 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const authController = require('../../controller/auth/authBuyerPhoneVerficationController');
+const authController = require("../../controller/auth/authBuyerPhoneVerficationController");
 
 // Send OTP
-router.post('/buyer-send-otp', authController.sendOTPBuyer);
+router.post("/buyer-send-otp", authController.sendOTPBuyer);
 
 // Verify OTP
-router.post('/buyer-verify-otp', authController.verifyOTPBuyer);
+router.post("/buyer-verify-otp", authController.verifyOTPBuyer);
 
 module.exports = router;

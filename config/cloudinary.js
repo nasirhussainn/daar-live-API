@@ -23,9 +23,9 @@ const uploadToCloudinary = async (buffer, folder) => {
         } else {
           resolve(result.secure_url);
         }
-      }
+      },
     );
-    
+
     if (!buffer) {
       return reject(new Error("File buffer is empty"));
     }
@@ -36,7 +36,6 @@ const uploadToCloudinary = async (buffer, folder) => {
 
 // Upload multiple files (images or videos) to Cloudinary
 const uploadMultipleToCloudinary = async (files, folderName) => {
-
   const mediaUrls = {
     images: [],
     videos: [],
@@ -48,13 +47,13 @@ const uploadMultipleToCloudinary = async (files, folderName) => {
 
     const updatedFolderName = `${folderName}/${fieldname}`;
     // If it's an image
-    if (fieldname === 'images') {
+    if (fieldname === "images") {
       const imageUrl = await uploadToCloudinary(buffer, updatedFolderName);
       mediaUrls.images.push(imageUrl);
     }
 
     // If it's a video
-    if (fieldname === 'videos') {
+    if (fieldname === "videos") {
       const videoUrl = await uploadToCloudinary(buffer, updatedFolderName);
       mediaUrls.videos.push(videoUrl);
     }
@@ -71,19 +70,18 @@ const uploadToCloudinaryChat = async (buffer, folderName = "uploads") => {
       (error, result) => {
         if (error) reject(error);
         else resolve(result.secure_url);
-      }
+      },
     );
     streamifier.createReadStream(buffer).pipe(stream);
   });
 };
 
-
 const deleteFromCloudinary = async (fileUrl) => {
   try {
     // Extract public_id from the file URL
-    const urlParts = fileUrl.split('/');
+    const urlParts = fileUrl.split("/");
     const fileName = urlParts[urlParts.length - 1]; // e.g., 'sample.jpg'
-    const publicId = fileName.split('.')[0]; // Remove extension
+    const publicId = fileName.split(".")[0]; // Remove extension
 
     // Delete the file from Cloudinary
     await cloudinary.uploader.destroy(publicId);
@@ -92,12 +90,21 @@ const deleteFromCloudinary = async (fileUrl) => {
   }
 };
 
-
 // Separate function for chat media uploads
 const uploadChatMedia = async (buffer, messageType) => {
-  let folderName = messageType === "image" ? "chat_images" : messageType === "voice" ? "chat_voice" : "chat_media";
+  let folderName =
+    messageType === "image"
+      ? "chat_images"
+      : messageType === "voice"
+        ? "chat_voice"
+        : "chat_media";
   return uploadToCloudinaryChat(buffer, folderName);
 };
 
-
-module.exports = { uploadToCloudinary, uploadMultipleToCloudinary, uploadChatMedia, uploadToCloudinaryChat, deleteFromCloudinary };
+module.exports = {
+  uploadToCloudinary,
+  uploadMultipleToCloudinary,
+  uploadChatMedia,
+  uploadToCloudinaryChat,
+  deleteFromCloudinary,
+};

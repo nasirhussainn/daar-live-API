@@ -1,5 +1,7 @@
 const express = require("express");
-const { updateUserStatus } = require("../../controller/admin/userApprovalController");
+const {
+  updateUserStatus,
+} = require("../../controller/admin/userApprovalController");
 
 const router = express.Router();
 

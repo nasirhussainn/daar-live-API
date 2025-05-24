@@ -10,10 +10,10 @@ const PropertySchema = new Schema({
     required: true,
   },
 
-  created_by: { 
-    type: String, 
+  created_by: {
+    type: String,
     enum: ["User", "Admin"], // Must match the actual model names
-    required: true, 
+    required: true,
   },
 
   title: {
@@ -21,7 +21,7 @@ const PropertySchema = new Schema({
     of: String,
     required: true,
   },
-  description:  {
+  description: {
     type: Map,
     of: String,
     required: true,
@@ -38,19 +38,27 @@ const PropertySchema = new Schema({
 
   charge_per: { type: String },
 
-  property_type: { type: Schema.Types.ObjectId, ref: "PropertyType", required: true },
-  property_subtype: { type: Schema.Types.ObjectId, ref: "PropertySubtype", required: true },
+  property_type: {
+    type: Schema.Types.ObjectId,
+    ref: "PropertyType",
+    required: true,
+  },
+  property_subtype: {
+    type: Schema.Types.ObjectId,
+    ref: "PropertySubtype",
+    required: true,
+  },
 
   // Location fields
-  country:  {
+  country: {
     type: Map,
     of: String,
   },
-  state:  {
+  state: {
     type: Map,
     of: String,
   },
-  city:  {
+  city: {
     type: Map,
     of: String,
   },
@@ -61,7 +69,7 @@ const PropertySchema = new Schema({
 
   area_size: { type: String, required: true }, // Changed from String to Number
   price: { type: Number, required: true },
-  price_YER: {type: Number, required: false},
+  price_YER: { type: Number, required: false },
 
   bedrooms: { type: Number, required: true },
   bathrooms: { type: Number, required: true },
@@ -91,8 +99,8 @@ const PropertySchema = new Schema({
 
   currency: {
     type: String,
-    enum: ['USD', 'YER'],
-    default: 'USD', 
+    enum: ["USD", "YER"],
+    default: "USD",
   },
 
   //unavailable slots
@@ -102,9 +110,8 @@ const PropertySchema = new Schema({
       end_date: { type: Date, required: true },
       start_time: { type: String, default: null },
       end_time: { type: String, default: null },
-    }
-  ],  
-  
+    },
+  ],
 
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now },

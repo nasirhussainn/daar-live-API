@@ -6,9 +6,9 @@ const translate = new Translate({
 });
 
 // Parse languages from env or fallback to defaults
-const defaultLanguages = ['en', 'ar'];
+const defaultLanguages = ["en", "ar"];
 const envLangs = process.env.TRANSLATION_TARGET_LANGUAGES;
-const targetLanguages = envLangs ? envLangs.split(',') : defaultLanguages;
+const targetLanguages = envLangs ? envLangs.split(",") : defaultLanguages;
 
 async function translateText(text, langs = targetLanguages) {
   const translations = {};
@@ -63,4 +63,8 @@ async function simpleTranslateToEnglish(userInput) {
   }
 }
 
-module.exports = { translateText, translateToEnglish, simpleTranslateToEnglish };
+module.exports = {
+  translateText,
+  translateToEnglish,
+  simpleTranslateToEnglish,
+};

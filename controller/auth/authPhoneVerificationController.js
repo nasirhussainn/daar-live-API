@@ -24,16 +24,24 @@ exports.sendOTP = async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
 
     if (user.role !== "realtor") {
-      return res.status(403).json({ message: "Phone verification is only for realtors" });
+      return res
+        .status(403)
+        .json({ message: "Phone verification is only for realtors" });
     }
 
     if (!phone_number) {
       return res.status(400).json({ message: "Phone number is required" });
     }
 
-    const existingUser = await User.findOne({ phone_number, role, email: { $ne: email } });
+    const existingUser = await User.findOne({
+      phone_number,
+      role,
+      email: { $ne: email },
+    });
     if (existingUser) {
-      return res.status(400).json({ message: "Phone number is already in use by another realtor" });
+      return res
+        .status(400)
+        .json({ message: "Phone number is already in use by another realtor" });
     }
 
     if (!user.email_verified) {
@@ -41,7 +49,11 @@ exports.sendOTP = async (req, res) => {
     }
 
     if (user.phone_otp_expiry && user.phone_otp_expiry > new Date()) {
-      return res.status(400).json({ message: "OTP already sent, please wait before requesting a new one" });
+      return res
+        .status(400)
+        .json({
+          message: "OTP already sent, please wait before requesting a new one",
+        });
     }
 
     const otp = generateOTP();
@@ -79,7 +91,9 @@ exports.verifyOTP = async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
 
     if (user.role !== "realtor") {
-      return res.status(403).json({ message: "Phone verification is only for realtors" });
+      return res
+        .status(403)
+        .json({ message: "Phone verification is only for realtors" });
     }
 
     if (!user.email_verified) {
@@ -91,7 +105,9 @@ exports.verifyOTP = async (req, res) => {
     }
 
     if (user.phone_otp_expiry < new Date()) {
-      return res.status(400).json({ message: "OTP expired, request a new one" });
+      return res
+        .status(400)
+        .json({ message: "OTP expired, request a new one" });
     }
 
     user.phone_verified = true;

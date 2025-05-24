@@ -17,7 +17,8 @@ async function getSuperAdminId() {
 
 exports.sendAdminDirectMessage = async (req, res, next, io) => {
   try {
-    const { senderId, senderType, text, chatId, message_type, audio_duration } = req.body;
+    const { senderId, senderType, text, chatId, message_type, audio_duration } =
+      req.body;
     let mediaUrl = null;
 
     // Ensure senderType is valid
@@ -41,15 +42,21 @@ exports.sendAdminDirectMessage = async (req, res, next, io) => {
 
     // Validate message content
     if (message_type === "text" && !text) {
-      return res.status(400).json({ message: "Text message must contain content" });
+      return res
+        .status(400)
+        .json({ message: "Text message must contain content" });
     }
     if ((message_type === "image" || message_type === "audio") && !mediaUrl) {
-      return res.status(400).json({ message: "Media message must contain a file" });
+      return res
+        .status(400)
+        .json({ message: "Media message must contain a file" });
     }
 
-    if(message_type === "audio" && !audio_duration) {
-      return res.status(400).json({ message: "Audio message must contain a duration" });
-      }
+    if (message_type === "audio" && !audio_duration) {
+      return res
+        .status(400)
+        .json({ message: "Audio message must contain a duration" });
+    }
 
     let chat;
 
@@ -100,12 +107,12 @@ exports.sendAdminDirectMessage = async (req, res, next, io) => {
 
     // **Update unread count for the receiver**
     const receiverId = chat.participants.find(
-      (p) => p.participant_id.toString() !== senderId.toString()
+      (p) => p.participant_id.toString() !== senderId.toString(),
     ).participant_id;
     const receiverIdStr = receiverId.toString();
     chat.unreadCount.set(
       receiverIdStr,
-      (chat.unreadCount.get(receiverIdStr) || 0) + 1
+      (chat.unreadCount.get(receiverIdStr) || 0) + 1,
     );
 
     await chat.save();
@@ -119,7 +126,7 @@ exports.sendAdminDirectMessage = async (req, res, next, io) => {
       senderId,
       senderType,
       message_type === "text" ? text : "New media message",
-      chat._id
+      chat._id,
     );
 
     res.status(200).json({ message: "Message sent", chat });
@@ -153,7 +160,7 @@ exports.getAdminChatsByParticipant = async (req, res) => {
         if (!chat.participants || chat.participants.length !== 2) {
           console.warn(
             `Chat ${chat._id} has invalid participants:`,
-            chat.participants
+            chat.participants,
           );
           return null;
         }
@@ -161,7 +168,7 @@ exports.getAdminChatsByParticipant = async (req, res) => {
         // Determine the other participant (receiver)
         const receiver = chat.participants.find(
           (p) =>
-            p.participant_id && p.participant_id.toString() !== participantId
+            p.participant_id && p.participant_id.toString() !== participantId,
         );
 
         if (!receiver) {
@@ -201,7 +208,7 @@ exports.getAdminChatsByParticipant = async (req, res) => {
         let senderDetails = null;
         const sender = chat.participants.find(
           (p) =>
-            p.participant_id && p.participant_id.toString() === participantId
+            p.participant_id && p.participant_id.toString() === participantId,
         );
 
         if (sender) {
@@ -274,7 +281,7 @@ exports.getAdminChatsByParticipant = async (req, res) => {
             : chat.updatedAt,
           unread_count: unreadCount,
         };
-      })
+      }),
     );
 
     // Filter out null values
@@ -306,8 +313,7 @@ exports.getChatByIdForUser = async (req, res) => {
       }
     } else {
       return res.status(400).json({
-        message:
-          "Invalid request. Provide chatId or (referenceId).",
+        message: "Invalid request. Provide chatId or (referenceId).",
       });
     }
 
@@ -368,8 +374,7 @@ exports.getChatByIdForAdmin = async (req, res) => {
       }
     } else {
       return res.status(400).json({
-        message:
-          "Invalid request. Provide chatId or (referenceId).",
+        message: "Invalid request. Provide chatId or (referenceId).",
       });
     }
 

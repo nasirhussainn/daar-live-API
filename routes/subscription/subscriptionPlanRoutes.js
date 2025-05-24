@@ -1,22 +1,22 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
 const {
-    createPlan,
-    getAllPlans,
-    getPlanById,
-    updatePlan,
-    deletePlan
-} = require('../../controller/subscription/subscriptionPlanController');
+  createPlan,
+  getAllPlans,
+  getPlanById,
+  updatePlan,
+  deletePlan,
+} = require("../../controller/subscription/subscriptionPlanController");
 
 // const { authMiddleware, isSuperAdmin } = require('../middlewares/authMiddleware');
 
 // Public Routes
-router.get('/', getAllPlans);
-router.get('/:id', getPlanById);
+router.get("/", getAllPlans);
+router.get("/:id", getPlanById);
 
 // Admin-Only Routes (Should be protected by authMiddleware)
-router.post('/', createPlan);
-router.put('/:plan_id', updatePlan);
-router.delete('/:id', deletePlan);
+router.post("/", createPlan);
+router.put("/:plan_id", updatePlan);
+router.delete("/:id", deletePlan);
 
 module.exports = router;

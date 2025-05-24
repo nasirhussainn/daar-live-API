@@ -26,8 +26,22 @@ const PaymentHistorySchema = new Schema({
 
   transaction_id: { type: String, required: true, unique: true }, // Unique transaction identifier
   amount: { type: Number, required: true }, // Amount paid
-  status: { type: String, enum: ["pending", "completed", "failed"], default: "pending" }, // Payment status
-  entity_type: { type: String, enum: ["subscription", "featured_event", "featured_property", "booking_event", "booking_property"], required: true }, // Payment category
+  status: {
+    type: String,
+    enum: ["pending", "completed", "failed"],
+    default: "pending",
+  }, // Payment status
+  entity_type: {
+    type: String,
+    enum: [
+      "subscription",
+      "featured_event",
+      "featured_property",
+      "booking_event",
+      "booking_property",
+    ],
+    required: true,
+  }, // Payment category
   entity_id: { type: Schema.Types.ObjectId, required: true }, // ID of Subscription, Booking, or FeaturedEntity
   created_at: { type: Date, default: Date.now }, // Payment date
 });

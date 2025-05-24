@@ -1,8 +1,8 @@
-const Contact = require('../../models/admin/Contact');
-const About = require('../../models/admin/About');
-const Faq = require('../../models/admin/Faq');
-const Settings = require('../../models/admin/Settings');
-const { translateText } = require('../../services/translateService');
+const Contact = require("../../models/admin/Contact");
+const About = require("../../models/admin/About");
+const Faq = require("../../models/admin/Faq");
+const Settings = require("../../models/admin/Settings");
+const { translateText } = require("../../services/translateService");
 
 // Contact Us CRUD Operations
 exports.createContact = async (req, res) => {
@@ -12,9 +12,9 @@ exports.createContact = async (req, res) => {
     const contact = new Contact({
       title: title,
       description: description,
-      });
-      await contact.save();
-      res.status(201).json(contact);
+    });
+    await contact.save();
+    res.status(201).json(contact);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -46,17 +46,18 @@ exports.updateContact = async (req, res) => {
       updateData.description = await translateText(req.body.description);
     }
 
-    const contact = await Contact.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    const contact = await Contact.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+    });
     res.json(contact);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 };
 
-
 exports.deleteContact = async (req, res) => {
   await Contact.findByIdAndDelete(req.params.id);
-  res.json({ message: 'Contact deleted' });
+  res.json({ message: "Contact deleted" });
 };
 
 // About Us CRUD Operations
@@ -81,11 +82,11 @@ exports.getAbout = async (req, res) => {
   res.json(await About.find());
 };
 
-
 exports.getAboutById = async (req, res) => {
   try {
     const about = await About.findById(req.params.id);
-    if (!about) return res.status(404).json({ message: "About section not found" });
+    if (!about)
+      return res.status(404).json({ message: "About section not found" });
     res.json(about);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -104,17 +105,18 @@ exports.updateAbout = async (req, res) => {
       updateData.paragraph = await translateText(req.body.paragraph);
     }
 
-    const about = await About.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    const about = await About.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+    });
     res.json(about);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 };
 
-
 exports.deleteAbout = async (req, res) => {
   await About.findByIdAndDelete(req.params.id);
-  res.json({ message: 'About Us deleted' });
+  res.json({ message: "About Us deleted" });
 };
 
 // FAQ CRUD Operations
@@ -161,43 +163,46 @@ exports.updateFaq = async (req, res) => {
       updateData.answer = await translateText(req.body.answer);
     }
 
-    const faq = await Faq.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    const faq = await Faq.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+    });
     res.json(faq);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 };
 
-
 exports.deleteFaq = async (req, res) => {
   await Faq.findByIdAndDelete(req.params.id);
-  res.json({ message: 'FAQ deleted' });
+  res.json({ message: "FAQ deleted" });
 };
 
 exports.getSettings = async (req, res) => {
   try {
-      const { field } = req.query; // Get the requested field (optional)
+    const { field } = req.query; // Get the requested field (optional)
 
-      // Fetch the settings document
-      const settings = await Settings.findOne();
+    // Fetch the settings document
+    const settings = await Settings.findOne();
 
-      if (!settings) return res.status(404).json({ message: "Settings not found" });
+    if (!settings)
+      return res.status(404).json({ message: "Settings not found" });
 
-      // If a field is provided, return only that field
-      if (field) {
-          if (settings[field] === undefined) {
-              return res.status(400).json({ message: `Field '${field}' not found in settings` });
-          }
-          return res.status(200).json({ [field]: settings[field] });
+    // If a field is provided, return only that field
+    if (field) {
+      if (settings[field] === undefined) {
+        return res
+          .status(400)
+          .json({ message: `Field '${field}' not found in settings` });
       }
+      return res.status(200).json({ [field]: settings[field] });
+    }
 
-      // If no field is specified, return the full settings document
-      res.status(200).json(settings);
+    // If no field is specified, return the full settings document
+    res.status(200).json(settings);
   } catch (error) {
-      res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
-
 
 exports.addOrUpdateSettings = async (req, res) => {
   try {
@@ -219,7 +224,7 @@ exports.addOrUpdateSettings = async (req, res) => {
       playstore_link,
       appstore_link,
       phone_no,
-      location
+      location,
     } = req.body;
 
     // Translate only if provided
@@ -250,7 +255,7 @@ exports.addOrUpdateSettings = async (req, res) => {
       playstore_link,
       appstore_link,
       phone_no,
-      location
+      location,
     };
 
     if (translatedPrivacyPolicy !== undefined) {
@@ -264,14 +269,13 @@ exports.addOrUpdateSettings = async (req, res) => {
     const settings = await Settings.findOneAndUpdate(
       {}, // Find any existing settings
       updateData,
-      { new: true, upsert: true, setDefaultsOnInsert: true }
+      { new: true, upsert: true, setDefaultsOnInsert: true },
     );
 
-    res.status(200).json({ message: "Settings updated successfully", settings });
+    res
+      .status(200)
+      .json({ message: "Settings updated successfully", settings });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
-
-
-

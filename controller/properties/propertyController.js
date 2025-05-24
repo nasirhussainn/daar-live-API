@@ -109,7 +109,7 @@ exports.addProperty = async (req, res) => {
     const validAmenities = await Amenities.find({
       _id: {
         $in: amenitiesArray.map((id) =>
-          mongoose.Types.ObjectId.createFromHexString(id)
+          mongoose.Types.ObjectId.createFromHexString(id),
         ),
       },
     });
@@ -122,7 +122,7 @@ exports.addProperty = async (req, res) => {
 
     // Translate the location address (a string)
     const translatedLocationAddress = await translateText(
-      req.body.location.location_address
+      req.body.location.location_address,
     );
 
     // Ensure nearbyLocations is always an array
@@ -132,7 +132,7 @@ exports.addProperty = async (req, res) => {
 
     // Translate each nearby location (returns array of translation maps)
     const translatedNearbyList = await Promise.all(
-      nearbyLocationsArray.map((loc) => translateText(loc))
+      nearbyLocationsArray.map((loc) => translateText(loc)),
     );
 
     // Merge into a single map: { en: [...], ar: [...] }
@@ -287,12 +287,12 @@ exports.addProperty = async (req, res) => {
           "Property",
           savedProperty._id,
           notificationTitle,
-          notificationMessage
+          notificationMessage,
         );
       } catch (notifyErr) {
         console.error(
           "Failed to send approval notification to admin:",
-          notifyErr.message
+          notifyErr.message,
         );
       }
     }
@@ -386,7 +386,7 @@ exports.getAllProperties = async (req, res) => {
           realtorAvgRating = await getAvgRating(property.owner_id._id);
           reatorReviewCount = await getReviewCount(
             property.owner_id._id,
-            "User"
+            "User",
           );
         }
 
@@ -401,7 +401,7 @@ exports.getAllProperties = async (req, res) => {
           realtor_review_count: reatorReviewCount,
           realtor_avg_rating: realtorAvgRating,
         };
-      })
+      }),
     );
 
     res.status(200).json({
@@ -544,7 +544,7 @@ exports.getAllPropertiesByOwnerId = async (req, res) => {
           realtor_review_count: reatorReviewCount,
           realtor_avg_rating: realtorAvgRating,
         };
-      })
+      }),
     );
 
     res.status(200).json({
@@ -582,7 +582,7 @@ exports.deleteProperty = async (req, res) => {
     // Step 3: Delete associated Media (if exists)
     await Media.deleteMany(
       { entity: property._id, entity_type: "property" },
-      { session }
+      { session },
     );
 
     // Step 4: Delete the property itself
@@ -670,7 +670,7 @@ exports.featureProperty = async (req, res) => {
     await updateAdminRevenue(
       transaction_price,
       "featured_revenue",
-      currentDate
+      currentDate,
     );
     await updateAdminRevenue(transaction_price, "total_revenue", currentDate);
     // ------------------------------------------------------------
@@ -702,7 +702,7 @@ exports.featureProperty = async (req, res) => {
       "Property",
       property._id,
       "Your Property is Now Featured",
-      `Congratulations! Your property "${property.title}" has been successfully featured for ${no_of_days} days.`
+      `Congratulations! Your property "${property.title}" has been successfully featured for ${no_of_days} days.`,
     );
     // -------------------------------------------------
 
@@ -745,9 +745,8 @@ exports.updateProperty = async (req, res) => {
     } = req.body;
 
     // Step 1: Find the existing property
-    const existingProperty = await Property.findById(propertyId).session(
-      session
-    );
+    const existingProperty =
+      await Property.findById(propertyId).session(session);
     if (!existingProperty) {
       return res.status(404).json({ message: "Property not found" });
     }
@@ -813,7 +812,7 @@ exports.updateProperty = async (req, res) => {
       validAmenities = await Amenities.find({
         _id: {
           $in: amenitiesArray.map((id) =>
-            mongoose.Types.ObjectId.createFromHexString(id)
+            mongoose.Types.ObjectId.createFromHexString(id),
           ),
         },
       }).session(session);
@@ -830,16 +829,16 @@ exports.updateProperty = async (req, res) => {
     // Step 5: Handle location update
     if (req.body.location) {
       const nearbyLocationsArray = Array.isArray(
-        req.body.location?.nearbyLocations
+        req.body.location?.nearbyLocations,
       )
         ? req.body.location.nearbyLocations
         : JSON.parse(req.body.location?.nearbyLocations || "[]");
 
       const translatedLocationAddress = await translateText(
-        req.body.location.location_address
+        req.body.location.location_address,
       );
       const translatedNearbyLocations = await Promise.all(
-        nearbyLocationsArray.map((loc) => translateText(loc))
+        nearbyLocationsArray.map((loc) => translateText(loc)),
       );
 
       // Merge into a single map: { en: [...], ar: [...] }
@@ -862,7 +861,7 @@ exports.updateProperty = async (req, res) => {
       await Location.findByIdAndUpdate(
         existingProperty.location,
         locationUpdate,
-        { session }
+        { session },
       );
     }
 
@@ -873,7 +872,7 @@ exports.updateProperty = async (req, res) => {
 
     if (existingProperty.media) {
       existingMedia = await Media.findById(existingProperty.media).session(
-        session
+        session,
       );
     }
 
@@ -882,13 +881,19 @@ exports.updateProperty = async (req, res) => {
 
       if (req.files.images) {
         req.files.images.forEach((img) =>
-          newMediaFiles.images.push({ buffer: img.buffer, fieldname: "images" })
+          newMediaFiles.images.push({
+            buffer: img.buffer,
+            fieldname: "images",
+          }),
         );
       }
 
       if (req.files.videos) {
         req.files.videos.forEach((vid) =>
-          newMediaFiles.videos.push({ buffer: vid.buffer, fieldname: "videos" })
+          newMediaFiles.videos.push({
+            buffer: vid.buffer,
+            fieldname: "videos",
+          }),
         );
       }
 
@@ -896,7 +901,7 @@ exports.updateProperty = async (req, res) => {
       if (newMediaFiles.images.length > 0) {
         const uploadedImages = await uploadMultipleToCloudinary(
           newMediaFiles.images,
-          folderName
+          folderName,
         );
         if (existingMedia.images) {
           for (let image of existingMedia.images)
@@ -910,7 +915,7 @@ exports.updateProperty = async (req, res) => {
       if (newMediaFiles.videos.length > 0) {
         const uploadedVideos = await uploadMultipleToCloudinary(
           newMediaFiles.videos,
-          folderName
+          folderName,
         );
         if (existingMedia.videos) {
           for (let video of existingMedia.videos)
@@ -932,7 +937,7 @@ exports.updateProperty = async (req, res) => {
     const updatedProperty = await Property.findByIdAndUpdate(
       propertyId,
       { $set: updateData },
-      { new: true, session }
+      { new: true, session },
     );
 
     await session.commitTransaction();
@@ -1050,7 +1055,7 @@ exports.getFilteredProperties = async (req, res) => {
       const validIds = amenityIds.filter(
         (id) =>
           mongoose.Types.ObjectId.isValid(id) &&
-          new mongoose.Types.ObjectId(id).toString() === id
+          new mongoose.Types.ObjectId(id).toString() === id,
       );
 
       if (validIds.length > 0) {
@@ -1181,7 +1186,7 @@ exports.trackPropertyView = async (req, res) => {
       {
         $addToSet: { unique_views: new mongoose.Types.ObjectId(user_id) },
         $inc: { view_count: 1 },
-      }
+      },
     );
 
     res.status(200).json({
@@ -1228,13 +1233,15 @@ exports.updateUnavailableSlots = async (req, res) => {
     };
 
     const normalizeTimeString = (time) => {
-      return time.trim().replace(/\s+/g, ' '); // Normalize spacing
+      return time.trim().replace(/\s+/g, " "); // Normalize spacing
     };
 
     const timeToMinutes = (time) => {
       if (!time) return 0;
       const normalizedTime = normalizeTimeString(time);
-      const [hour, minute, period] = normalizedTime.match(/(\d+):(\d+) (\w{2})/).slice(1);
+      const [hour, minute, period] = normalizedTime
+        .match(/(\d+):(\d+) (\w{2})/)
+        .slice(1);
       let hours = parseInt(hour, 10);
       if (period === "PM" && hours !== 12) hours += 12;
       if (period === "AM" && hours === 12) hours = 0;
@@ -1248,14 +1255,14 @@ exports.updateUnavailableSlots = async (req, res) => {
     if (property.charge_per === "per_hour") {
       // For hourly properties, keep slots from different dates
       const datesToUpdate = new Set();
-      
+
       // Get all dates from new slots
-      slots.forEach(slot => {
+      slots.forEach((slot) => {
         datesToUpdate.add(normalizeDate(slot.start_date).getTime());
       });
 
       // Keep existing slots that don't match the new dates
-      updatedSlots = existingSlots.filter(existing => {
+      updatedSlots = existingSlots.filter((existing) => {
         const existingDate = normalizeDate(existing.start_date).getTime();
         return !datesToUpdate.has(existingDate);
       });
@@ -1289,7 +1296,10 @@ exports.updateUnavailableSlots = async (req, res) => {
           });
         }
 
-        if (normalizeDate(startDate).getTime() !== normalizeDate(endDate).getTime()) {
+        if (
+          normalizeDate(startDate).getTime() !==
+          normalizeDate(endDate).getTime()
+        ) {
           return res.status(400).json({
             message: "Hourly slots must be on the same day",
           });
@@ -1304,7 +1314,7 @@ exports.updateUnavailableSlots = async (req, res) => {
           start_date: startDate,
           end_date: endDate,
           start_time: normalizedStartTime,
-          end_time: normalizedEndTime
+          end_time: normalizedEndTime,
         });
       } else {
         // For non-hourly properties, just add to the new slots array
@@ -1312,7 +1322,7 @@ exports.updateUnavailableSlots = async (req, res) => {
           start_date: startDate,
           end_date: endDate,
           start_time: null,
-          end_time: null
+          end_time: null,
         });
       }
     }
@@ -1330,7 +1340,7 @@ exports.updateUnavailableSlots = async (req, res) => {
         slot.end_date,
         slot.start_time,
         slot.end_time,
-        property.charge_per
+        property.charge_per,
       );
 
       if (bookingConflict.exists) {
@@ -1365,7 +1375,7 @@ async function checkBookingConflicts(
   endDate,
   startTime,
   endTime,
-  chargePer
+  chargePer,
 ) {
   const normalizedStart = new Date(startDate);
   normalizedStart.setUTCHours(0, 0, 0, 0);
@@ -1441,15 +1451,15 @@ exports.clearUnavailableSlots = async (req, res) => {
     // Handle both comma-separated string and array input
     let idsToRemove = [];
     if (slot_ids) {
-      idsToRemove = Array.isArray(slot_ids) 
-        ? slot_ids 
-        : slot_ids.split(',').map(id => id.trim());
+      idsToRemove = Array.isArray(slot_ids)
+        ? slot_ids
+        : slot_ids.split(",").map((id) => id.trim());
     }
 
     if (idsToRemove.length > 0) {
       // Remove specific slots by IDs
       property.unavailable_slots = property.unavailable_slots.filter(
-        (slot) => !idsToRemove.includes(slot._id.toString())
+        (slot) => !idsToRemove.includes(slot._id.toString()),
       );
     } else {
       // Clear all slots if no IDs provided
@@ -1459,12 +1469,16 @@ exports.clearUnavailableSlots = async (req, res) => {
     await property.save();
 
     res.status(200).json({
-      message: idsToRemove.length > 0 
-        ? "Selected unavailable slots removed successfully" 
-        : "All unavailable slots cleared successfully",
-      removed_count: idsToRemove.length > 0 ? idsToRemove.length : property.unavailable_slots.length,
+      message:
+        idsToRemove.length > 0
+          ? "Selected unavailable slots removed successfully"
+          : "All unavailable slots cleared successfully",
+      removed_count:
+        idsToRemove.length > 0
+          ? idsToRemove.length
+          : property.unavailable_slots.length,
       remaining_slots: property.unavailable_slots.length,
-      property
+      property,
     });
   } catch (error) {
     res.status(500).json({

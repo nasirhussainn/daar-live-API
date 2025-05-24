@@ -22,7 +22,7 @@ async function determineCreatedBy(owner_id) {
 
 const validateSubscriptionLimits = async ({ userId, entityType, session }) => {
   console.log(
-    `\n--- Starting validation for ${entityType} by user ${userId} ---`
+    `\n--- Starting validation for ${entityType} by user ${userId} ---`,
   );
 
   // Step 1: Check if user is an Admin
@@ -40,7 +40,7 @@ const validateSubscriptionLimits = async ({ userId, entityType, session }) => {
     throw new Error("Realtor profile not found.");
   }
   console.log(
-    `Realtor found: ${realtor._id}, Subscribed: ${realtor.is_subscribed}`
+    `Realtor found: ${realtor._id}, Subscribed: ${realtor.is_subscribed}`,
   );
 
   console.log("Fetching platform settings...");
@@ -56,7 +56,7 @@ const validateSubscriptionLimits = async ({ userId, entityType, session }) => {
     if (realtor.has_used_free_trial) {
       console.error("Free trial already used - no access allowed");
       throw new Error(
-        "Your free trial has expired. Please subscribe to a plan to continue."
+        "Your free trial has expired. Please subscribe to a plan to continue.",
       );
     }
 
@@ -90,7 +90,7 @@ const validateSubscriptionLimits = async ({ userId, entityType, session }) => {
         ? subscription.plan_details.noOfPropertyListing
         : subscription.plan_details.noOfEventListing;
     console.log(
-      `Plan limits (from subscription) - ${entityType}: ${maxAllowed}`
+      `Plan limits (from subscription) - ${entityType}: ${maxAllowed}`,
     );
   }
 
@@ -117,7 +117,7 @@ const validateSubscriptionLimits = async ({ userId, entityType, session }) => {
     throw new Error(
       `You've reached your limit of ${maxAllowed} ${entityType}s. ${
         !realtor.is_subscribed ? "Upgrade your subscription to add more." : ""
-      }`
+      }`,
     );
   }
 

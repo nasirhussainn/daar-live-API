@@ -115,7 +115,9 @@ exports.getRealtors = async (req, res) => {
 
     const realtorData = await Promise.all(
       realtors.map(async (user) => {
-        const realtorDetails = await Realtor.findOne({ user_id: user._id }).lean();
+        const realtorDetails = await Realtor.findOne({
+          user_id: user._id,
+        }).lean();
         let subscription = null;
 
         if (realtorDetails) {
@@ -136,7 +138,7 @@ exports.getRealtors = async (req, res) => {
           reviews: reviewData || [],
           stats: stats || null,
         };
-      })
+      }),
     );
 
     if (!realtorData.length) {

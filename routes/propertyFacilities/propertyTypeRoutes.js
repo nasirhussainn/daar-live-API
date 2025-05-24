@@ -1,12 +1,12 @@
 const express = require("express");
 const {
-    createPropertyType,
-    getAllPropertyTypes,
-    getPropertyTypeById,
-    updatePropertyType,
-    deletePropertyType,
-    deactivatePropertyType,
-    reactivatePropertyType
+  createPropertyType,
+  getAllPropertyTypes,
+  getPropertyTypeById,
+  updatePropertyType,
+  deletePropertyType,
+  deactivatePropertyType,
+  reactivatePropertyType,
 } = require("../../controller/propertyFacilities/propertyTypeController");
 
 const router = express.Router();

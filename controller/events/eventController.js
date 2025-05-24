@@ -11,7 +11,11 @@ const Realtor = require("../../models/Realtor");
 const User = require("../../models/User");
 const AdminRevenue = require("../../models/admin/AdminRevenue"); // AdminRevenue model
 const { updateAdminRevenue } = require("../../services/updateAdminRevenue"); // AdminRevenue service
-const { translateText, translateToEnglish, simpleTranslateToEnglish } = require("../../services/translateService");
+const {
+  translateText,
+  translateToEnglish,
+  simpleTranslateToEnglish,
+} = require("../../services/translateService");
 
 const { getHostsStats } = require("../stats/getHostStats"); // Import the function
 const {
@@ -57,7 +61,9 @@ exports.addEvent = async (req, res) => {
     const title = await translateText(req.body.title);
     const description = await translateText(req.body.description);
 
-    const country = req.body.country ? await translateText(req.body.country) : null;
+    const country = req.body.country
+      ? await translateText(req.body.country)
+      : null;
     const state = req.body.state ? await translateText(req.body.state) : null;
     const city = req.body.city ? await translateText(req.body.city) : null;
 
@@ -83,24 +89,28 @@ exports.addEvent = async (req, res) => {
     const validEventTypes = await EventType.find({
       _id: {
         $in: eventTypesArray.map((id) =>
-          mongoose.Types.ObjectId.createFromHexString(id)
+          mongoose.Types.ObjectId.createFromHexString(id),
         ),
       },
     });
 
     if (validEventTypes.length !== eventTypesArray.length) {
-      return res.status(400).json({ message: "One or more event types are invalid" });
+      return res
+        .status(400)
+        .json({ message: "One or more event types are invalid" });
     }
 
     // Step 5: Translate and handle location and nearbyLocations
-    const translatedLocationAddress = await translateText(location.location_address);
+    const translatedLocationAddress = await translateText(
+      location.location_address,
+    );
 
     let nearbyLocationsArray = Array.isArray(location.nearbyLocations)
       ? location.nearbyLocations
       : JSON.parse(location.nearbyLocations || "[]");
 
     const translatedNearbyList = await Promise.all(
-      nearbyLocationsArray.map((loc) => translateText(loc))
+      nearbyLocationsArray.map((loc) => translateText(loc)),
     );
 
     const mergedNearbyLocations = {};
@@ -228,7 +238,8 @@ exports.addEvent = async (req, res) => {
 
     res.status(201).json({
       message:
-        "Event added successfully!" + (featureMessage ? ` ${featureMessage}` : ""),
+        "Event added successfully!" +
+        (featureMessage ? ` ${featureMessage}` : ""),
       event: savedEvent,
       mediaUrls: mediaUrls,
     });
@@ -237,10 +248,11 @@ exports.addEvent = async (req, res) => {
     session.endSession();
 
     console.error(error);
-    res.status(500).json({ message: "Error adding event", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error adding event", error: error.message });
   }
 };
-
 
 // ✅ Fetch all events with optional filters (featured, created_by) + Host Stats
 exports.getAllEvents = async (req, res) => {
@@ -307,7 +319,7 @@ exports.getAllEvents = async (req, res) => {
             hostReviewCount[event.host_id._id.toString()] || null,
           host_avg_rating: hostAvgRating[event.host_id._id.toString()] || null,
         };
-      })
+      }),
     );
 
     res.status(200).json({
@@ -414,7 +426,7 @@ exports.getAllEventsByHostId = async (req, res) => {
           host_review_count: hostReviewCount || null, // Added review count
           host_avg_rating: hostAvgRating || null, // Added average rating
         };
-      })
+      }),
     );
 
     res.status(200).json({
@@ -504,10 +516,12 @@ exports.updateEvent = async (req, res) => {
     const updateData = {};
 
     if (req.body.title) updateData.title = await translateText(req.body.title);
-    if (req.body.description) updateData.description = await translateText(req.body.description);
+    if (req.body.description)
+      updateData.description = await translateText(req.body.description);
     if (req.body.city) updateData.city = await translateText(req.body.city);
     if (req.body.state) updateData.state = await translateText(req.body.state);
-    if (req.body.country) updateData.country = await translateText(req.body.country);
+    if (req.body.country)
+      updateData.country = await translateText(req.body.country);
 
     // Step 3: Validate entry price for paid events
     if (entry_type === "paid" && (!entry_price || Number(entry_price) <= 0)) {
@@ -529,7 +543,8 @@ exports.updateEvent = async (req, res) => {
     if (payment_date) updateData.payment_date = payment_date;
     if (transaction_price) updateData.transaction_price = transaction_price;
     if (typeof is_feature !== "undefined") updateData.is_feature = is_feature;
-    if (typeof allow_booking !== "undefined") updateData.allow_booking = allow_booking;
+    if (typeof allow_booking !== "undefined")
+      updateData.allow_booking = allow_booking;
     if (price_YER) updateData.price_YER = price_YER;
     if (currency) updateData.currency = currency;
 
@@ -542,13 +557,15 @@ exports.updateEvent = async (req, res) => {
       const validEventTypes = await EventType.find({
         _id: {
           $in: eventTypeArray.map((id) =>
-            mongoose.Types.ObjectId.createFromHexString(id)
+            mongoose.Types.ObjectId.createFromHexString(id),
           ),
         },
       });
 
       if (validEventTypes.length !== eventTypeArray.length) {
-        return res.status(400).json({ message: "One or more event types are invalid" });
+        return res
+          .status(400)
+          .json({ message: "One or more event types are invalid" });
       }
 
       updateData.event_type = validEventTypes.map((et) => et._id);
@@ -562,7 +579,7 @@ exports.updateEvent = async (req, res) => {
 
       const translatedAddress = await translateText(location.location_address);
       const translatedNearbyLocations = await Promise.all(
-        nearbyLocationsArray.map((loc) => translateText(loc))
+        nearbyLocationsArray.map((loc) => translateText(loc)),
       );
 
       const mergedNearbyLocations = {};
@@ -592,7 +609,9 @@ exports.updateEvent = async (req, res) => {
     let existingMedia = {};
 
     if (existingEvent.media) {
-      existingMedia = await Media.findById(existingEvent.media).session(session);
+      existingMedia = await Media.findById(existingEvent.media).session(
+        session,
+      );
     }
 
     if (req.files) {
@@ -600,20 +619,26 @@ exports.updateEvent = async (req, res) => {
 
       if (req.files.images) {
         req.files.images.forEach((img) =>
-          newMediaFiles.images.push({ buffer: img.buffer, fieldname: "images" })
+          newMediaFiles.images.push({
+            buffer: img.buffer,
+            fieldname: "images",
+          }),
         );
       }
 
       if (req.files.videos) {
         req.files.videos.forEach((vid) =>
-          newMediaFiles.videos.push({ buffer: vid.buffer, fieldname: "videos" })
+          newMediaFiles.videos.push({
+            buffer: vid.buffer,
+            fieldname: "videos",
+          }),
         );
       }
 
       if (newMediaFiles.images.length > 0) {
         const uploadedImages = await uploadMultipleToCloudinary(
           newMediaFiles.images,
-          folderName
+          folderName,
         );
         if (existingMedia.images) {
           for (let image of existingMedia.images)
@@ -627,7 +652,7 @@ exports.updateEvent = async (req, res) => {
       if (newMediaFiles.videos.length > 0) {
         const uploadedVideos = await uploadMultipleToCloudinary(
           newMediaFiles.videos,
-          folderName
+          folderName,
         );
         if (existingMedia.videos) {
           for (let video of existingMedia.videos)
@@ -649,7 +674,7 @@ exports.updateEvent = async (req, res) => {
     const updatedEvent = await Event.findByIdAndUpdate(
       eventId,
       { $set: updateData },
-      { new: true, session }
+      { new: true, session },
     );
 
     await session.commitTransaction();
@@ -670,7 +695,6 @@ exports.updateEvent = async (req, res) => {
     });
   }
 };
-
 
 exports.featureEvent = async (req, res) => {
   const session = await mongoose.startSession();
@@ -727,8 +751,12 @@ exports.featureEvent = async (req, res) => {
 
     // --------------Update Featured Listing Revenue-----------------
     const currentDate = new Date().toISOString().split("T")[0];
-    await updateAdminRevenue(transaction_price, "featured_revenue", currentDate);
-    await updateAdminRevenue(transaction_price, "total_revenue", currentDate)
+    await updateAdminRevenue(
+      transaction_price,
+      "featured_revenue",
+      currentDate,
+    );
+    await updateAdminRevenue(transaction_price, "total_revenue", currentDate);
     // ------------------------------------------------------------
 
     // Commit transaction
@@ -787,7 +815,7 @@ exports.getFilteredEvents = async (req, res) => {
       entry_type,
       //new search
       title,
-      realtor
+      realtor,
     } = req.query;
 
     const filter = {
@@ -843,7 +871,9 @@ exports.getFilteredEvents = async (req, res) => {
 
     if (event_types) {
       filter.event_type = {
-        $in: event_types.split(",").map((id) => new mongoose.Types.ObjectId(id)),
+        $in: event_types
+          .split(",")
+          .map((id) => new mongoose.Types.ObjectId(id)),
       };
     }
 
@@ -853,18 +883,20 @@ exports.getFilteredEvents = async (req, res) => {
     // Location filters
     if (city) {
       const englishCity = await simpleTranslateToEnglish(city);
-      filter['city.en'] = { $regex: new RegExp(englishCity, "i") };
+      filter["city.en"] = { $regex: new RegExp(englishCity, "i") };
     }
-    
+
     if (state) {
       const englishState = await simpleTranslateToEnglish(state);
-      filter['state.en'] = { $regex: new RegExp(englishState, "i") };
+      filter["state.en"] = { $regex: new RegExp(englishState, "i") };
     }
-    
+
     if (country) {
       const translatedCountry = await translateToEnglish(country);
-      console.log(translatedCountry)
-      filter["country.en"] = { $regex: new RegExp(`^${translatedCountry}$`, "i") };
+      console.log(translatedCountry);
+      filter["country.en"] = {
+        $regex: new RegExp(`^${translatedCountry}$`, "i"),
+      };
     }
     if (min_rating) filter.avg_rating = { $gte: Number(min_rating) };
     if (host_id) filter.host_id = new mongoose.Types.ObjectId(host_id);
@@ -878,17 +910,16 @@ exports.getFilteredEvents = async (req, res) => {
 
     if (title) {
       const translatedTitle = await simpleTranslateToEnglish(title);
-      filter['title.en'] = { $regex: translatedTitle, $options: 'i' }; 
+      filter["title.en"] = { $regex: translatedTitle, $options: "i" };
     }
-    
 
     if (realtor) {
       const translatedRealtor = await simpleTranslateToEnglish(realtor);
       const users = await User.find({
-        full_name: { $regex: translatedRealtor, $options: 'i' }
-      }).select('_id'); 
+        full_name: { $regex: translatedRealtor, $options: "i" },
+      }).select("_id");
       if (users.length > 0) {
-        filter.host_id = { $in: users.map(user => user._id) };
+        filter.host_id = { $in: users.map((user) => user._id) };
       } else {
         return res.status(200).json({
           totalEvents: 0,
@@ -936,10 +967,11 @@ exports.getFilteredEvents = async (req, res) => {
           ...event,
           reviews,
           host_stats: hostStats[event.host_id._id.toString()] || null,
-          host_review_count: hostReviewCount[event.host_id._id.toString()] || null,
+          host_review_count:
+            hostReviewCount[event.host_id._id.toString()] || null,
           host_avg_rating: hostAvgRating[event.host_id._id.toString()] || null,
         };
-      })
+      }),
     );
 
     res.status(200).json({
@@ -956,4 +988,3 @@ exports.getFilteredEvents = async (req, res) => {
     });
   }
 };
-

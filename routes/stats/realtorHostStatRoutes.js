@@ -1,7 +1,11 @@
 const express = require("express");
-const { getRealtorStats } = require("../../controller/stats/realtorStatsController");
+const {
+  getRealtorStats,
+} = require("../../controller/stats/realtorStatsController");
 const { getHostStats } = require("../../controller/stats/hostStatsController");
-const { getTotalRevenue } = require("../../controller/stats/userOverallStatsController");
+const {
+  getTotalRevenue,
+} = require("../../controller/stats/userOverallStatsController");
 
 const router = express.Router();
 

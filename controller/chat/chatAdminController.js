@@ -14,7 +14,8 @@ async function getSuperAdminId() {
 
 exports.sendAdminDirectMessage1 = async (req, res, next, io) => {
   try {
-    const { senderId, senderType, text, chatId, message_type, audio_duration } = req.body;
+    const { senderId, senderType, text, chatId, message_type, audio_duration } =
+      req.body;
     let mediaUrl = null;
 
     // Validate senderType
@@ -62,7 +63,10 @@ exports.sendAdminDirectMessage1 = async (req, res, next, io) => {
         referenceId: superAdminId,
         referenceType: "Admin",
         participants: {
-          $elemMatch: { participant_id: senderId, participant_type: senderType },
+          $elemMatch: {
+            participant_id: senderId,
+            participant_type: senderType,
+          },
         },
       });
 
@@ -97,7 +101,10 @@ exports.sendAdminDirectMessage1 = async (req, res, next, io) => {
     chat.participants.forEach((participant) => {
       const participantId = participant.participant_id.toString();
       if (participantId !== senderId) {
-        chat.unreadCount.set(participantId, (chat.unreadCount.get(participantId) || 0) + 1);
+        chat.unreadCount.set(
+          participantId,
+          (chat.unreadCount.get(participantId) || 0) + 1,
+        );
       }
     });
 
@@ -109,6 +116,8 @@ exports.sendAdminDirectMessage1 = async (req, res, next, io) => {
     res.status(200).json({ message: "Message sent", chat });
   } catch (error) {
     console.error("Error sending direct message:", error);
-    res.status(500).json({ message: "Error sending message", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error sending message", error: error.message });
   }
 };

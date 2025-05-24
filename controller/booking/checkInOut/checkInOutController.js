@@ -76,7 +76,7 @@ exports.getAllCheckInOutLogsWithDetails = async (req, res) => {
       .populate("user_id", "full_name email") // Populate user details if needed
       .populate("owner_id", "full_name email") // Populate owner details if needed
       .select(
-        "check_in_out_logs booking_type property_id event_id user_id owner_id"
+        "check_in_out_logs booking_type property_id event_id user_id owner_id",
       );
 
     if (!bookings || bookings.length === 0) {
@@ -196,7 +196,7 @@ exports.getAllCheckLogs = async (req, res) => {
         },
       ])
       .select(
-        "booking_type property_id event_id user_id owner_id owner_type check_in_out_logs"
+        "booking_type property_id event_id user_id owner_id owner_type check_in_out_logs",
       );
 
     const checkIns = [];

@@ -21,7 +21,9 @@ const activateOngoingBookings = async () => {
       await booking.save();
 
       // Mark property as booked
-      await Property.findByIdAndUpdate(booking.property_id, { is_booked: true });
+      await Property.findByIdAndUpdate(booking.property_id, {
+        is_booked: true,
+      });
     }
 
     console.log(`✅ Activated ${startingBookings.length} bookings.`);
@@ -55,7 +57,9 @@ const expireCompletedBookings = async () => {
       });
 
       if (!activeBooking) {
-        await Property.findByIdAndUpdate(booking.property_id, { is_booked: false });
+        await Property.findByIdAndUpdate(booking.property_id, {
+          is_booked: false,
+        });
       }
     }
 
@@ -97,12 +101,13 @@ const updateCancellableBookings = async () => {
       await booking.save();
     }
 
-    console.log(`✅ Updated ${allBookings.length} bookings to non-cancellable.`);
+    console.log(
+      `✅ Updated ${allBookings.length} bookings to non-cancellable.`,
+    );
   } catch (error) {
     console.error("❌ Error updating cancellable bookings:", error);
   }
 };
-
 
 // Delete bookings with pending status for more than 2 hours
 const deleteExpiredPendingBookings = async () => {
@@ -111,7 +116,7 @@ const deleteExpiredPendingBookings = async () => {
   try {
     const now = new Date();
     const yemenNow = new Date(now.getTime() + 3 * 60 * 60 * 1000);
-    const twoHoursAgo = new Date(yemenNow.getTime() - 3 * 60 * 60 * 1000); 
+    const twoHoursAgo = new Date(yemenNow.getTime() - 3 * 60 * 60 * 1000);
 
     // Find and delete bookings that are pending for more than 2 hours
     const deletedBookings = await Booking.deleteMany({
@@ -119,7 +124,9 @@ const deleteExpiredPendingBookings = async () => {
       updated_at: { $lte: twoHoursAgo }, // Created more than 2 hours ago
     });
 
-    console.log(`✅ Deleted ${deletedBookings.deletedCount} expired pending bookings.`);
+    console.log(
+      `✅ Deleted ${deletedBookings.deletedCount} expired pending bookings.`,
+    );
   } catch (error) {
     console.error("❌ Error deleting expired pending bookings:", error);
   }
@@ -142,7 +149,7 @@ cron.schedule(
   },
   {
     timezone: "Asia/Aden",
-  }
+  },
 );
 
 module.exports = {
@@ -151,4 +158,3 @@ module.exports = {
   updateCancellableBookings,
   deleteExpiredPendingBookings,
 };
-

@@ -4,13 +4,25 @@ const realtorController = require("../../controller/realtor/realtorController");
 
 // Add or update bank details
 router.post("/bank-details", realtorController.addBankDetails);
-router.put("/update-bank-details/:bank_id", realtorController.updateBankDetails);
+router.put(
+  "/update-bank-details/:bank_id",
+  realtorController.updateBankDetails,
+);
 // Get bank details by user ID
-router.get("/bank-details-viaUserId/:user_id", realtorController.getBankDetailsByUserId);
-router.get("/bank-details-viaBankId/:bank_id", realtorController.getBankDetailsById);
+router.get(
+  "/bank-details-viaUserId/:user_id",
+  realtorController.getBankDetailsByUserId,
+);
+router.get(
+  "/bank-details-viaBankId/:bank_id",
+  realtorController.getBankDetailsById,
+);
 
 // Delete bank details by user ID
-router.delete("/bank-details/:user_id/:bank_id", realtorController.deleteBankDetailById);
+router.delete(
+  "/bank-details/:user_id/:bank_id",
+  realtorController.deleteBankDetailById,
+);
 router.delete("/bank-details/:user_id", realtorController.deleteAllBankDetails);
 
 // Get all realtors' bank details

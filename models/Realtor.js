@@ -7,7 +7,7 @@ const realtorSchema = new Schema({
     ref: "User",
     required: true,
   }, // Link to the User model
-  business_name: {type: Map, of: String, required: false, default: null }, // Realtor's business name
+  business_name: { type: Map, of: String, required: false, default: null }, // Realtor's business name
   business_type: { type: String, required: true }, // Realtor's business type
   tax_id_image: { type: String, required: false }, // Realtor's tax ID
   verification_doc_image: { type: String, required: false }, // Realtor's verification document
@@ -28,7 +28,7 @@ const realtorSchema = new Schema({
         account_number: { type: String, required: false }, // Bank account number
         branch_name: { type: String, required: false }, // Branch name (optional)
       },
-      { _id: true } // Ensures each bank detail has an auto-generated ObjectId
+      { _id: true }, // Ensures each bank detail has an auto-generated ObjectId
     ),
   ],
 

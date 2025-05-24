@@ -1,21 +1,17 @@
-const sendNotification = require("../../notification/sendNotification"); 
+const sendNotification = require("../../notification/sendNotification");
 
 /**
  * Logs check-in/out notifications for both the booking user and the owner (User/Admin)
  */
-const sendCheckInOutNotifications = async ({ 
-  booking, 
-  action, 
-  timestamp 
-}) => {
+const sendCheckInOutNotifications = async ({ booking, action, timestamp }) => {
   const capitalizedAction = action === "check_in" ? "Check-In" : "Check-Out";
   const formattedTime = new Date(timestamp).toLocaleString();
 
   const userTitle = `${capitalizedAction} Successful`;
-  const userMessage = `You have successfully ${action.replace('_', ' ')}ed at ${formattedTime}.`;
+  const userMessage = `You have successfully ${action.replace("_", " ")}ed at ${formattedTime}.`;
 
   const ownerTitle = `${capitalizedAction} Alert`;
-  const ownerMessage = `A guest has ${action.replace('_', ' ')}ed for your ${booking.booking_type} at ${formattedTime}.`;
+  const ownerMessage = `A guest has ${action.replace("_", " ")}ed for your ${booking.booking_type} at ${formattedTime}.`;
 
   const ownerType = booking.booking_type === "event" ? "Event" : "Property";
 
@@ -25,18 +21,18 @@ const sendCheckInOutNotifications = async ({
       "Booking",
       booking._id,
       userTitle,
-      userMessage
+      userMessage,
     ),
     sendNotification(
       booking.owner_id,
       ownerType,
       booking[`${booking.booking_type}_id`],
       ownerTitle,
-      ownerMessage
-    )
+      ownerMessage,
+    ),
   ]);
 };
 
 module.exports = {
-  sendCheckInOutNotifications
+  sendCheckInOutNotifications,
 };

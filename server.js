@@ -2,11 +2,10 @@ const express = require("express");
 const connectDB = require("./config/db");
 const cors = require("cors");
 const { getAuth } = require("firebase-admin/auth");
-const { initializeSocket } = require("./config/socket"); 
-// const redisSubscriber = require("./config/redisSubscriber");
+const { initializeSocket } = require("./config/socket");
 const http = require("http");
 require("./jobs/bookingCron");
-require("./jobs/subscriptionCron"); // This will execute the cron job from the imported file
+require("./jobs/subscriptionCron");
 require("./jobs/eventCron");
 
 const app = express();
@@ -69,32 +68,32 @@ const subscriptionRoute = require("./routes/subscription/subscriptionRoute");
 const adminSettingRoute = require("./routes/admin/adminSettingRoutes");
 const admin = require("./routes/admin/adminRoutes");
 
-const locationRoute = require('./routes/location');
-const subscriptionPlanRoutes = require('./routes/subscription/subscriptionPlanRoutes');
+const locationRoute = require("./routes/location");
+const subscriptionPlanRoutes = require("./routes/subscription/subscriptionPlanRoutes");
 
 const chatRoutes = require("./routes/chat/chatRoutes")(io);
 
 const contactUsRoutes = require("./routes/admin/contactUsRoutes");
 
-const approvalRoutes = require("./routes/approval/approvalRoutes")
+const approvalRoutes = require("./routes/approval/approvalRoutes");
 
-const propertyBookingRoutes = require("./routes/booking/propertyBookingRoutes")
-const eventBookingRoutes = require("./routes/booking/eventBookingRoutes")
-const checkInOutRoutes = require("./routes/booking/checkInOutRoutes")
+const propertyBookingRoutes = require("./routes/booking/propertyBookingRoutes");
+const eventBookingRoutes = require("./routes/booking/eventBookingRoutes");
+const checkInOutRoutes = require("./routes/booking/checkInOutRoutes");
 
 const realtorHostStatRoutes = require("./routes/stats/realtorHostStatRoutes");
 const subscriptionStatRoutes = require("./routes/stats/subscriptionStatRoutes");
 
 const notificationRoutes = require("./routes/notification/notificationRoutes");
-const paymentHistoryRoutes = require("./routes/payment/paymentHistoryRoutes")
+const paymentHistoryRoutes = require("./routes/payment/paymentHistoryRoutes");
 
 const userApprovalRoutes = require("./routes/admin/userApprovalRoutes");
 
-const realtorRoutes = require("./routes/realtor/realtorRoutes")
+const realtorRoutes = require("./routes/realtor/realtorRoutes");
 
-const withdrawRoutes = require("./routes/withdraw/withdrawRoutes")
+const withdrawRoutes = require("./routes/withdraw/withdrawRoutes");
 
-const analyticRoutes = require("./routes/analytic/analyticRoutes")
+const analyticRoutes = require("./routes/analytic/analyticRoutes");
 
 app.use("/auth", [
   authLoginRoutes,
@@ -102,15 +101,10 @@ app.use("/auth", [
   authPasswordRoutes,
   authPhoneVerificationRoutes,
   authSignupRoutes,
-  authBuyerPhoneVerficationRoutes
+  authBuyerPhoneVerficationRoutes,
 ]);
 
-app.use("/crud-users", 
-  [
-    userGetRoutes,
-    userUpdateRoutes,
-
-  ]);
+app.use("/crud-users", [userGetRoutes, userUpdateRoutes]);
 
 app.use("/property-facilities", [
   propertyTypeRoutes,
@@ -119,7 +113,11 @@ app.use("/property-facilities", [
   amenitiesRoutes,
 ]);
 
-app.use("/property", [propertyRoutes, savedPropertyRoutes, propertyBookingRoutes]);
+app.use("/property", [
+  propertyRoutes,
+  savedPropertyRoutes,
+  propertyBookingRoutes,
+]);
 
 app.use("/event", [eventRoutes, eventBookingRoutes, checkInOutRoutes]);
 
@@ -128,7 +126,7 @@ app.use("/review", [reviewRoutes]);
 app.use("/realtor", [subscriptionRoute, realtorRoutes]);
 
 app.use("/admin-settings", [adminSettingRoute]);
-app.use("/admin", [admin])
+app.use("/admin", [admin]);
 
 app.use("/location-search", locationRoute);
 
@@ -137,7 +135,6 @@ app.use("/plan", subscriptionPlanRoutes);
 app.use("/chat", chatRoutes);
 
 app.use("/contact-admin", contactUsRoutes);
-// redisSubscriber(io);
 
 app.use("/approval", [approvalRoutes, userApprovalRoutes]);
 
@@ -150,9 +147,8 @@ app.use("/withdraw", withdrawRoutes);
 
 app.use("/analytic", analyticRoutes);
 
-app.use("/check-in-out", checkInOutRoutes)
+app.use("/check-in-out", checkInOutRoutes);
 // Start the Server
 server.listen(PORT, () => {
   console.log(`🚀 Server running at: http://localhost:${PORT}/`);
 });
-

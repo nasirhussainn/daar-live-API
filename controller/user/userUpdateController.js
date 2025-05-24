@@ -60,7 +60,7 @@ exports.updateUser = async (req, res) => {
       // Upload new image
       imageUrl = await uploadToCloudinary(
         req.files["profile_picture"][0].buffer,
-        folderName
+        folderName,
       );
 
       // Delete old image if exists
@@ -92,7 +92,7 @@ exports.updateUser = async (req, res) => {
         if (req.files["tax_id_image"]) {
           taxIdImageUrl = await uploadToCloudinary(
             req.files["tax_id_image"][0].buffer,
-            "realtors_documents"
+            "realtors_documents",
           );
           if (realtor.tax_id_image)
             await deleteFromCloudinary(realtor.tax_id_image);
@@ -100,7 +100,7 @@ exports.updateUser = async (req, res) => {
         if (req.files["verification_doc_image"]) {
           verificationDocImageUrl = await uploadToCloudinary(
             req.files["verification_doc_image"][0].buffer,
-            "realtors_documents"
+            "realtors_documents",
           );
           if (realtor.verification_doc_image)
             await deleteFromCloudinary(realtor.verification_doc_image);
@@ -110,7 +110,7 @@ exports.updateUser = async (req, res) => {
       // Update realtor details
       if (business_name !== null) {
         realtor.business_name = business_name;
-      }      
+      }
       realtor.business_type = business_type || realtor.business_type;
       realtor.tax_id_image = taxIdImageUrl;
       realtor.verification_doc_image = verificationDocImageUrl;

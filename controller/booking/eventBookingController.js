@@ -2,14 +2,17 @@ const Booking = require("../../models/Booking");
 const Event = require("../../models/Events");
 const User = require("../../models/User");
 const Review = require("../../models/Review");
-const { sendEventBookingConfirmationEmail, sendEventBookingCancellationEmail } = require("../../config/mailer");
+const {
+  sendEventBookingConfirmationEmail,
+  sendEventBookingCancellationEmail,
+} = require("../../config/mailer");
 const Notification = require("../../models/Notification");
 const { logPaymentHistory } = require("./paymentHistoryService");
 const sendNotification = require("../notification/sendNotification");
 const updateRevenue = require("./updateRevenue");
 const Settings = require("../../models/admin/Settings");
-const { translateText } = require("../../services/translateService")
-const { getSuperAdminId } = require('../../services/getSuperAdminId'); 
+const { translateText } = require("../../services/translateService");
+const { getSuperAdminId } = require("../../services/getSuperAdminId");
 
 // ✅ Book an Event
 const generateTickets = (numTickets) => {
@@ -30,7 +33,16 @@ const generateTickets = (numTickets) => {
 
 exports.bookEvent = async (req, res) => {
   try {
-    const { event_id, user_id, number_of_tickets, event_dates, guest_name, guest_email, guest_phone, id_number } = req.body;
+    const {
+      event_id,
+      user_id,
+      number_of_tickets,
+      event_dates,
+      guest_name,
+      guest_email,
+      guest_phone,
+      id_number,
+    } = req.body;
 
     // Check if event exists
     const event = await Event.findById(event_id);
@@ -91,8 +103,8 @@ exports.bookEvent = async (req, res) => {
       booking_type: "event",
       event_id,
       user_id,
-      owner_type: ownerType, 
-      owner_id: owner._id, 
+      owner_type: ownerType,
+      owner_id: owner._id,
       number_of_tickets,
       status: "pending",
       event_dates: event_dates || [],
@@ -162,7 +174,7 @@ exports.confirmEventBooking = async (req, res) => {
       "Booking",
       booking._id,
       "Event Booking Confirmed",
-      `Your booking has been confirmed! Your confirmation ticket is ${booking.confirmation_ticket}.`
+      `Your booking has been confirmed! Your confirmation ticket is ${booking.confirmation_ticket}.`,
     );
 
     // ✅ Notify the event owner
@@ -171,21 +183,18 @@ exports.confirmEventBooking = async (req, res) => {
       "Booking",
       booking._id,
       "Event Booking Confirmed",
-      "A booking for your event has been confirmed."
+      "A booking for your event has been confirmed.",
     );
 
     // ✅ Notify the super admin (only if not same as event owner)
     const superAdminId = await getSuperAdminId();
-    if (
-      superAdminId &&
-      String(superAdminId) !== String(booking.owner_id)
-    ) {
+    if (superAdminId && String(superAdminId) !== String(booking.owner_id)) {
       await sendNotification(
         superAdminId,
         "Booking",
         booking._id,
         "New Event Booking Confirmed",
-        `A new booking has been confirmed for event ID: ${booking.event_id}.`
+        `A new booking has been confirmed for event ID: ${booking.event_id}.`,
       );
     }
 
@@ -199,7 +208,6 @@ exports.confirmEventBooking = async (req, res) => {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
-
 
 // ✅ Cancel Event Booking
 exports.cancelEventBooking = async (req, res) => {
@@ -219,7 +227,11 @@ exports.cancelEventBooking = async (req, res) => {
 
     // Ensure cancellation is allowed
     if (new Date(booking.start_date) <= now) {
-      return res.status(400).json({ message: "This booking has already started and cannot be canceled." });
+      return res
+        .status(400)
+        .json({
+          message: "This booking has already started and cannot be canceled.",
+        });
     }
 
     // Check if admin is canceling or if user is canceling within the 72-hour window
@@ -249,7 +261,7 @@ exports.cancelEventBooking = async (req, res) => {
         "Booking",
         booking._id,
         "Event Booking Canceled",
-        `Your booking has been canceled ${cancelByMessage}!`
+        `Your booking has been canceled ${cancelByMessage}!`,
       );
 
       // ✅ Send Notification to Realtor
@@ -258,19 +270,22 @@ exports.cancelEventBooking = async (req, res) => {
         "Booking",
         booking._id,
         "Event Booking Canceled",
-        `A booking for your event has been canceled by ${cancel_by}.`
+        `A booking for your event has been canceled by ${cancel_by}.`,
       );
       //---------------------------------------------------------
 
-      res.status(200).json({ message: "Event booking canceled successfully", booking });
+      res
+        .status(200)
+        .json({ message: "Event booking canceled successfully", booking });
     } else {
-      res.status(400).json({ message: "This booking cannot be canceled at this time" });
+      res
+        .status(400)
+        .json({ message: "This booking cannot be canceled at this time" });
     }
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
-
 
 // ✅ Get All Event Bookings (With Optional Status Filter)
 exports.getAllEventBookings = async (req, res) => {
@@ -299,7 +314,7 @@ exports.getAllEventBookings = async (req, res) => {
       .populate({
         path: "user_id",
         select: "full_name email profile_picture", // Only required user fields
-      })
+      });
 
     // Fetch reviews for each event
     const bookingsWithReviews = await Promise.all(
@@ -324,7 +339,7 @@ exports.getAllEventBookings = async (req, res) => {
             reviews, // Attach event reviews
           },
         };
-      })
+      }),
     );
 
     if (!bookingsWithReviews.length) {
@@ -369,8 +384,7 @@ exports.getEventBookingById = async (req, res) => {
       .populate({
         path: "user_id",
         select: "full_name email profile_picture", // Get only required user fields
-      })
-
+      });
 
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
@@ -388,7 +402,7 @@ exports.getEventBookingById = async (req, res) => {
           select: "full_name email profile_picture",
         }) // Fetch reviewer details
         .select("review_description review_rating createdAt")
-        .lean()
+        .lean();
     }
 
     // Attach reviews to the event
@@ -441,7 +455,7 @@ exports.getBookingsByEntitiesId = async (req, res) => {
       .populate({
         path: "user_id",
         select: "full_name email profile_picture", // User details
-      })
+      });
 
     if (bookings.length === 0) {
       return res
@@ -475,7 +489,7 @@ exports.getBookingsByEntitiesId = async (req, res) => {
               }
             : null, // Handle case where event_id is null
         };
-      })
+      }),
     );
 
     res.status(200).json({

@@ -4,8 +4,8 @@ const User = require("../../models/User");
 const Realtor = require("../../models/Realtor");
 const Event = require("../../models/Events");
 const Property = require("../../models/Properties");
-const Notification = require("../../models/Notification"); 
-const { translateText } = require("../../services/translateService")
+const Notification = require("../../models/Notification");
+const { translateText } = require("../../services/translateService");
 const sendNotification = require("../notification/sendNotification");
 
 const mongoose = require("mongoose");
@@ -15,7 +15,7 @@ const recalculateAvgRating = async (
   model,
   modelId,
   session,
-  review_for_type
+  review_for_type,
 ) => {
   try {
     // Find all reviews for the given modelId
@@ -24,7 +24,7 @@ const recalculateAvgRating = async (
     // Calculate total rating and average rating
     const totalRating = reviews.reduce(
       (acc, review) => acc + review.review_rating,
-      0
+      0,
     );
     const avgRating = reviews.length > 0 ? totalRating / reviews.length : 0;
 
@@ -33,13 +33,13 @@ const recalculateAvgRating = async (
       await model.findOneAndUpdate(
         { user_id: modelId }, // Use user_id instead of _id for Realtor
         { avg_rating: avgRating },
-        { session }
+        { session },
       );
     } else {
       await model.findByIdAndUpdate(
         modelId,
         { avg_rating: avgRating },
-        { session }
+        { session },
       );
     }
   } catch (error) {
@@ -52,12 +52,7 @@ exports.addReview = async (req, res) => {
   session.startTransaction();
 
   try {
-    const {
-      review_for,
-      review_for_type,
-      review_by,
-      review_rating,
-    } = req.body;
+    const { review_for, review_for_type, review_by, review_rating } = req.body;
 
     if (!["User", "Event", "Property"].includes(review_for_type)) {
       return res.status(400).json({ message: "Invalid review type" });
@@ -76,7 +71,9 @@ exports.addReview = async (req, res) => {
     if (review_for_type === "User") {
       target = await Realtor.findOne({ user_id: review_for }).session(session);
       if (!target)
-        return res.status(404).json({ message: "Realtor not found for the given User" });
+        return res
+          .status(404)
+          .json({ message: "Realtor not found for the given User" });
       model = Realtor;
       recipientUserId = target.user_id; // Notify the realtor
     } else if (review_for_type === "Event") {
@@ -86,7 +83,8 @@ exports.addReview = async (req, res) => {
       recipientUserId = target.host_id; // Notify the event organizer
     } else if (review_for_type === "Property") {
       target = await Property.findById(review_for).session(session);
-      if (!target) return res.status(404).json({ message: "Property not found" });
+      if (!target)
+        return res.status(404).json({ message: "Property not found" });
       model = Property;
       recipientUserId = target.owner_id; // Notify the property owner
     }
@@ -121,88 +119,94 @@ exports.addReview = async (req, res) => {
       const message = isNewReview
         ? `You have received a new review with a rating of ${review_rating}.`
         : `Your review has been updated with a new rating of ${review_rating}.`;
-    
+
       await sendNotification(
         recipientUserId,
         "Review",
         review._id,
         title,
-        message
+        message,
       );
-    }    
+    }
 
     await session.commitTransaction();
     res.status(200).json({ message: "Review added successfully!", review });
-
   } catch (error) {
     await session.abortTransaction();
     console.error(error);
-    res.status(500).json({ message: "Error adding review", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error adding review", error: error.message });
   } finally {
     session.endSession();
   }
 };
 
-
-
 exports.updateReview = async (req, res) => {
-    const session = await mongoose.startSession(); // Start session
-    session.startTransaction(); // Begin transaction
-  
-    try {
-      const { id } = req.params; // Get review ID from URL params
-      const { review_description, review_rating } = req.body;
-  
-      // Validate inputs
-      if (!review_description && review_rating === undefined) {
-        return res.status(400).json({ message: "No valid fields provided for update" });
-      }
-  
-      // Find the existing review
-      const review = await Review.findById(id).session(session);
-      if (!review) return res.status(404).json({ message: "Review not found" });
-  
-      // Update only the allowed fields
-      if (review_description) review.review_description = review_description;
-      if (review_rating !== undefined) review.review_rating = review_rating;
-  
-      await review.save({ session }); // Save changes within transaction
-  
-      // Recalculate avg_rating for the entity (User, Event, or Property)
-      let model;
-      if (review.review_for_type === "User") {
-        model = Realtor;
-      } else if (review.review_for_type === "Event") {
-        model = Event;
-      } else if (review.review_for_type === "Property") {
-        model = Property;
-      }
-  
-      await recalculateAvgRating(model, review.review_for, session, review.review_for_type);
-  
-      await session.commitTransaction(); // Commit transaction
-  
-      res.status(200).json({ message: "Review updated successfully!", review });
-    } catch (error) {
-      await session.abortTransaction(); // Abort transaction on error
-      console.error(error);
-      res.status(500).json({ message: "Error updating review", error: error.message });
-    } finally {
-      session.endSession(); // End the session
+  const session = await mongoose.startSession(); // Start session
+  session.startTransaction(); // Begin transaction
+
+  try {
+    const { id } = req.params; // Get review ID from URL params
+    const { review_description, review_rating } = req.body;
+
+    // Validate inputs
+    if (!review_description && review_rating === undefined) {
+      return res
+        .status(400)
+        .json({ message: "No valid fields provided for update" });
     }
-  };
-  
+
+    // Find the existing review
+    const review = await Review.findById(id).session(session);
+    if (!review) return res.status(404).json({ message: "Review not found" });
+
+    // Update only the allowed fields
+    if (review_description) review.review_description = review_description;
+    if (review_rating !== undefined) review.review_rating = review_rating;
+
+    await review.save({ session }); // Save changes within transaction
+
+    // Recalculate avg_rating for the entity (User, Event, or Property)
+    let model;
+    if (review.review_for_type === "User") {
+      model = Realtor;
+    } else if (review.review_for_type === "Event") {
+      model = Event;
+    } else if (review.review_for_type === "Property") {
+      model = Property;
+    }
+
+    await recalculateAvgRating(
+      model,
+      review.review_for,
+      session,
+      review.review_for_type,
+    );
+
+    await session.commitTransaction(); // Commit transaction
+
+    res.status(200).json({ message: "Review updated successfully!", review });
+  } catch (error) {
+    await session.abortTransaction(); // Abort transaction on error
+    console.error(error);
+    res
+      .status(500)
+      .json({ message: "Error updating review", error: error.message });
+  } finally {
+    session.endSession(); // End the session
+  }
+};
 
 exports.getAllReviews = async (req, res) => {
   try {
-   const reviews = await Review.find()
-  .populate("review_for") // Populate the reference to the review_for entity
-  .populate({
-    path: 'review_by',
-    select: 'full_name email profile_picture'
-  }); // Populate the reference to the review_by entity with specific fields
+    const reviews = await Review.find()
+      .populate("review_for") // Populate the reference to the review_for entity
+      .populate({
+        path: "review_by",
+        select: "full_name email profile_picture",
+      }); // Populate the reference to the review_by entity with specific fields
 
-    
     res.status(200).json({ reviews });
   } catch (error) {
     console.error(error);
@@ -225,8 +229,8 @@ exports.getReviewsByEntity = async (req, res) => {
       review_for: entityId,
       review_for_type: entityType,
     }).populate({
-      path: 'review_by',
-      select: 'full_name email profile_picture'
+      path: "review_by",
+      select: "full_name email profile_picture",
     });
 
     if (reviews.length === 0) {
@@ -270,8 +274,8 @@ exports.getReviewById = async (req, res) => {
 
     // Find the review by ID and populate the reviewer details
     const review = await Review.findById(id).populate({
-      path: 'review_by',
-      select: 'full_name email profile_picture'
+      path: "review_by",
+      select: "full_name email profile_picture",
     });
 
     if (!review) {

@@ -4,10 +4,10 @@ const redisSubscriber = redis.duplicate(); // Create a separate Redis instance f
 
 module.exports = (io) => {
   io.on("connection", (socket) => {
-
     socket.on("joinRoom", async (data) => {
       try {
-        const { propertyId } = typeof data === "string" ? JSON.parse(data) : data;
+        const { propertyId } =
+          typeof data === "string" ? JSON.parse(data) : data;
         if (!propertyId) {
           console.log("⚠️ Invalid propertyId received");
           return;
@@ -38,7 +38,9 @@ module.exports = (io) => {
       const propertyId = channel.replace("chat:", "");
       const parsedMessage = JSON.parse(message);
       io.to(propertyId).emit("newMessage", parsedMessage);
-      console.log(`📩 New message sent to room ${propertyId} as ${parsedMessage}`);
+      console.log(
+        `📩 New message sent to room ${propertyId} as ${parsedMessage}`,
+      );
     } catch (error) {
       console.error("❌ Error processing Redis message:", error.message);
     }

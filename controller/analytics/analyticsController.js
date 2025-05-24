@@ -329,28 +329,28 @@ exports.getAnalytics = async (req, res) => {
       soldProperties: calculateGrowth(soldProperties, prevSoldProperties),
       rentedProperties: calculateGrowth(
         rentedBookings.length,
-        prevRentedBookings.length
+        prevRentedBookings.length,
       ),
       // Admin revenue growth metrics
       totalRevenue: calculateGrowth(
         currentRevenueData.total_revenue,
-        prevRevenueData.total_revenue
+        prevRevenueData.total_revenue,
       ),
       adminBookingRevenue: calculateGrowth(
         currentRevenueData.admin_booking_revenue,
-        prevRevenueData.admin_booking_revenue
+        prevRevenueData.admin_booking_revenue,
       ),
       totalBookingRevenue: calculateGrowth(
         currentRevenueData.total_booking_revenue,
-        prevRevenueData.total_booking_revenue
+        prevRevenueData.total_booking_revenue,
       ),
       percentageRevenue: calculateGrowth(
         currentRevenueData.total_percentage_revenue,
-        prevRevenueData.total_percentage_revenue
+        prevRevenueData.total_percentage_revenue,
       ),
       featuredRevenue: calculateGrowth(
         currentRevenueData.featured_revenue,
-        prevRevenueData.featured_revenue
+        prevRevenueData.featured_revenue,
       ),
       // New growth metrics for bookings counts
       totalBookingCount: calculateGrowth(totalBookingCount, 0), // no previous data; defaulting prev=0
@@ -387,7 +387,7 @@ exports.getAnalytics = async (req, res) => {
           rented: {
             unique_properties: rentedBookings.length,
             all_bookings: currentBookings.filter(
-              (b) => b.booking_type === "property"
+              (b) => b.booking_type === "property",
             ).length,
           },
         },
@@ -417,38 +417,38 @@ exports.getAnalytics = async (req, res) => {
           buyers: parseFloat(growthPercentages.buyers.toFixed(2)),
           realtors: parseFloat(growthPercentages.realtors.toFixed(2)),
           sold_properties: parseFloat(
-            growthPercentages.soldProperties.toFixed(2)
+            growthPercentages.soldProperties.toFixed(2),
           ),
           rented_properties: parseFloat(
-            growthPercentages.rentedProperties.toFixed(2)
+            growthPercentages.rentedProperties.toFixed(2),
           ),
           total_revenue: parseFloat(growthPercentages.totalRevenue.toFixed(2)),
           admin_booking_revenue: parseFloat(
-            growthPercentages.adminBookingRevenue.toFixed(2)
+            growthPercentages.adminBookingRevenue.toFixed(2),
           ),
           total_booking_revenue: parseFloat(
-            growthPercentages.totalBookingRevenue.toFixed(2)
+            growthPercentages.totalBookingRevenue.toFixed(2),
           ),
           percentage_revenue: parseFloat(
-            growthPercentages.percentageRevenue.toFixed(2)
+            growthPercentages.percentageRevenue.toFixed(2),
           ),
           featured_revenue: parseFloat(
-            growthPercentages.featuredRevenue.toFixed(2)
+            growthPercentages.featuredRevenue.toFixed(2),
           ),
           total_booking_count: parseFloat(
-            growthPercentages.totalBookingCount.toFixed(2)
+            growthPercentages.totalBookingCount.toFixed(2),
           ),
           canceled_booking_count: parseFloat(
-            growthPercentages.canceledBookingCount.toFixed(2)
+            growthPercentages.canceledBookingCount.toFixed(2),
           ),
           confirmed_booking_count: parseFloat(
-            growthPercentages.confirmedBookingCount.toFixed(2)
+            growthPercentages.confirmedBookingCount.toFixed(2),
           ),
           live_booking_count: parseFloat(
-            growthPercentages.liveBookingCount.toFixed(2)
+            growthPercentages.liveBookingCount.toFixed(2),
           ),
           completed_booking_count: parseFloat(
-            growthPercentages.completedBookingCount.toFixed(2)
+            growthPercentages.completedBookingCount.toFixed(2),
           ),
         },
         all_time: {

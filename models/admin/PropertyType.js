@@ -23,7 +23,7 @@ const PropertyTypeSchema = new mongoose.Schema(
       default: true, // By default, all property types are active
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("PropertyType", PropertyTypeSchema);

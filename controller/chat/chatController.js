@@ -15,9 +15,9 @@ exports.sendMessage = async (req, res, next, io) => {
       senderType,
       text,
       message_type, // Now directly from req.body
-      audio_duration
+      audio_duration,
     } = req.body;
-    
+
     let mediaUrl = null;
 
     if (!["User", "Realtor", "Admin"].includes(senderType)) {
@@ -45,9 +45,9 @@ exports.sendMessage = async (req, res, next, io) => {
       return res.status(400).json({ message: "Media file is required" });
     }
 
-    if( message_type === "audio" && !audio_duration) {
+    if (message_type === "audio" && !audio_duration) {
       return res.status(400).json({ message: "Audio duration is required" });
-      }
+    }
 
     let chat;
 
@@ -119,7 +119,7 @@ exports.sendMessage = async (req, res, next, io) => {
       if (participantId !== senderId) {
         chat.unreadCount.set(
           participantId,
-          (chat.unreadCount.get(participantId) || 0) + 1
+          (chat.unreadCount.get(participantId) || 0) + 1,
         );
       }
     });
@@ -136,7 +136,6 @@ exports.sendMessage = async (req, res, next, io) => {
       .json({ message: "Error sending message", error: error.message });
   }
 };
-
 
 // Get Chat by ID
 exports.getChatById = async (req, res) => {
@@ -245,13 +244,20 @@ exports.getChatsByParticipant = async (req, res) => {
     const formattedChats = await Promise.all(
       chats.map(async (chat) => {
         if (!chat.participants || chat.participants.length !== 2) {
-          console.warn(`Chat ${chat._id} has invalid participants:`, chat.participants);
+          console.warn(
+            `Chat ${chat._id} has invalid participants:`,
+            chat.participants,
+          );
           return null;
         }
 
         // Determine sender and receiver
-        const sender = chat.participants.find((p) => p.participant_id.toString() === participantId);
-        const receiver = chat.participants.find((p) => p.participant_id.toString() !== participantId);
+        const sender = chat.participants.find(
+          (p) => p.participant_id.toString() === participantId,
+        );
+        const receiver = chat.participants.find(
+          (p) => p.participant_id.toString() !== participantId,
+        );
 
         if (!receiver) {
           console.warn(`Chat ${chat._id} is missing a receiver`);
@@ -268,7 +274,10 @@ exports.getChatsByParticipant = async (req, res) => {
         }
 
         // Extract last message
-        const lastMessage = chat.messages.length > 0 ? chat.messages[chat.messages.length - 1] : null;
+        const lastMessage =
+          chat.messages.length > 0
+            ? chat.messages[chat.messages.length - 1]
+            : null;
         const unreadCount = chat.unreadCount?.get(participantId) || 0;
 
         let lastMessageText = null;
@@ -298,10 +307,12 @@ exports.getChatsByParticipant = async (req, res) => {
           reference_id: chat.referenceId || null,
           reference_type: chat.referenceType || null,
           last_message: lastMessageText,
-          last_message_time: lastMessage ? lastMessage.timestamp : chat.updatedAt,
+          last_message_time: lastMessage
+            ? lastMessage.timestamp
+            : chat.updatedAt,
           unread_count: unreadCount,
         };
-      })
+      }),
     );
 
     // Filter out null values
@@ -310,10 +321,11 @@ exports.getChatsByParticipant = async (req, res) => {
     res.status(200).json(filteredChats);
   } catch (error) {
     console.error("Error fetching chats:", error);
-    res.status(500).json({ message: "Error fetching chats", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching chats", error: error.message });
   }
 };
-
 
 exports.getChatHeadersByReferenceId = async (req, res) => {
   try {
@@ -365,7 +377,7 @@ exports.getChatHeadersByReferenceId = async (req, res) => {
                   participant_type: participant.participant_type,
                 }
               : null;
-          })
+          }),
         );
 
         return {
@@ -374,7 +386,7 @@ exports.getChatHeadersByReferenceId = async (req, res) => {
           reference_type: chat.referenceType || null,
           participants: participants.filter((p) => p !== null), // Filter out null values
         };
-      })
+      }),
     );
 
     return res.status(200).json(formattedChats);
@@ -432,7 +444,7 @@ exports.getChatDetailsById = async (req, res) => {
               participant_type: participant.participant_type,
             }
           : null;
-      })
+      }),
     );
 
     // Mark all messages as read

@@ -15,7 +15,6 @@ const {
 } = require("../../controller/reviews/getReviewsWithCount"); // Import the function
 const { getAvgRating } = require("../user/getAvgRating"); // Import the function
 
-
 // async function getCityFromCoords(lat, lon) {
 //   const apiKey = process.env.GOOGLE_MAPS_API_KEY; // Replace with your actual key
 
@@ -173,14 +172,23 @@ const { getAvgRating } = require("../user/getAvgRating"); // Import the function
 
 exports.findNearbyProperties = async (req, res) => {
   try {
-    let { latitude, longitude, maxDistance = 30, page, limit, user_id } = req.query;
+    let {
+      latitude,
+      longitude,
+      maxDistance = 30,
+      page,
+      limit,
+      user_id,
+    } = req.query;
     page = parseInt(page) || 1;
     limit = parseInt(limit) || 10;
     maxDistance = parseFloat(maxDistance); // make sure it's number
     const skip = (page - 1) * limit;
 
     if (!latitude || !longitude) {
-      return res.status(400).json({ error: "Latitude and Longitude are required" });
+      return res
+        .status(400)
+        .json({ error: "Latitude and Longitude are required" });
     }
 
     const maxDistanceInMeters = maxDistance * 1000; // 30 km → 30000 meters
@@ -259,7 +267,10 @@ exports.findNearbyProperties = async (req, res) => {
         if (property.owner_id) {
           realtorStats = await getRealtorStats(property.owner_id._id);
           realtorAvgRating = await getAvgRating(property.owner_id._id);
-          realtorReviewCount = await getReviewCount(property.owner_id._id, "User");
+          realtorReviewCount = await getReviewCount(
+            property.owner_id._id,
+            "User",
+          );
         }
 
         const { unique_views, ...propertyWithoutUniqueViews } = property;
@@ -272,7 +283,7 @@ exports.findNearbyProperties = async (req, res) => {
           realtor_review_count: realtorReviewCount,
           realtor_avg_rating: realtorAvgRating,
         };
-      })
+      }),
     );
 
     // Step 5: Send the final response
@@ -294,7 +305,9 @@ exports.findNearbyEvents = async (req, res) => {
     let { latitude, longitude, maxDistance = 30, page, limit } = req.query;
 
     if (!latitude || !longitude) {
-      return res.status(400).json({ message: "Latitude and Longitude are required" });
+      return res
+        .status(400)
+        .json({ message: "Latitude and Longitude are required" });
     }
 
     const maxDistanceInMeters = maxDistance * 1000; // 30 km → 30000 meters
@@ -319,7 +332,9 @@ exports.findNearbyEvents = async (req, res) => {
     ]);
 
     if (!nearbyLocations.length) {
-      return res.status(200).json({ message: "No nearby events found", events: [] });
+      return res
+        .status(200)
+        .json({ message: "No nearby events found", events: [] });
     }
 
     // Extract nearby location IDs
@@ -375,7 +390,7 @@ exports.findNearbyEvents = async (req, res) => {
             hostReviewCount[event.host_id._id.toString()] || null,
           host_avg_rating: hostAvgRating[event.host_id._id.toString()] || null,
         };
-      })
+      }),
     );
 
     return res.status(200).json({
@@ -384,12 +399,10 @@ exports.findNearbyEvents = async (req, res) => {
       totalPages: Math.ceil(totalEvents / limit),
       events: eventsWithDetails,
     });
-
   } catch (error) {
     console.error("Error finding nearby events:", error);
-    return res.status(500).json({ message: "Internal Server Error", error: error.message });
+    return res
+      .status(500)
+      .json({ message: "Internal Server Error", error: error.message });
   }
 };
-
-
-

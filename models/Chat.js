@@ -1,41 +1,61 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
 const ChatSchema = new Schema(
   {
-    referenceId: { type: Schema.Types.ObjectId, required: true }, 
-    referenceType: { 
-      type: String, 
-      enum: ['Property', 'Event', 'Admin'],
-      required: true 
+    referenceId: { type: Schema.Types.ObjectId, required: true },
+    referenceType: {
+      type: String,
+      enum: ["Property", "Event", "Admin"],
+      required: true,
     },
 
     participants: [
       {
-        participant_id: { type: Schema.Types.ObjectId, required: true, refPath: "participants.participant_type" },
-        participant_type: { type: String, enum: ['User', 'Realtor', 'Admin'], required: true }
-      }
+        participant_id: {
+          type: Schema.Types.ObjectId,
+          required: true,
+          refPath: "participants.participant_type",
+        },
+        participant_type: {
+          type: String,
+          enum: ["User", "Realtor", "Admin"],
+          required: true,
+        },
+      },
     ],
 
     messages: [
       {
-        sender_id: { type: Schema.Types.ObjectId, required: true, refPath: "messages.sender_type" },
-        sender_type: { type: String, enum: ['User', 'Realtor', 'Admin'], required: true },
+        sender_id: {
+          type: Schema.Types.ObjectId,
+          required: true,
+          refPath: "messages.sender_type",
+        },
+        sender_type: {
+          type: String,
+          enum: ["User", "Realtor", "Admin"],
+          required: true,
+        },
         content: { type: String, required: true }, // Text or media URL
-        message_type: { type: String, enum: ['text', 'audio', 'image'], required: true }, // New field
+        message_type: {
+          type: String,
+          enum: ["text", "audio", "image"],
+          required: true,
+        }, // New field
         audio_duration: { type: Number }, // New field
         timestamp: { type: Date, default: Date.now },
-        is_read: { type: Boolean, default: false }
-      }
+        is_read: { type: Boolean, default: false },
+      },
     ],
     unreadCount: {
       type: Map,
-      of: Number, 
+      of: Number,
       default: {},
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-const Chat = mongoose.model('Chat', ChatSchema);
+const Chat = mongoose.model("Chat", ChatSchema);
 module.exports = Chat;

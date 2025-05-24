@@ -16,15 +16,30 @@ exports.forgotPassword = async (req, res) => {
     const user = await User.findOne({ email, role });
 
     if (!user || user.account_type !== "manual") {
-      return res.status(400).json({ message: "No user found with this email, role & account type combination." });
+      return res
+        .status(400)
+        .json({
+          message:
+            "No user found with this email, role & account type combination.",
+        });
     }
 
     if (!user.email_verified) {
-      return res.status(403).json({ message: "Email not verified. Please verify your email before requesting a password reset." });
+      return res
+        .status(403)
+        .json({
+          message:
+            "Email not verified. Please verify your email before requesting a password reset.",
+        });
     }
 
     if (role === "realtor" && !user.phone_verified) {
-      return res.status(403).json({ message: "Phone number not verified. Please verify your phone number before requesting a password reset." });
+      return res
+        .status(403)
+        .json({
+          message:
+            "Phone number not verified. Please verify your phone number before requesting a password reset.",
+        });
     }
 
     const resetToken = crypto.randomBytes(32).toString("hex");
@@ -38,7 +53,9 @@ exports.forgotPassword = async (req, res) => {
 
     await sendPasswordResetEmail(email, resetLink);
 
-    return res.status(200).json({ message: "Password reset link sent to your email." });
+    return res
+      .status(200)
+      .json({ message: "Password reset link sent to your email." });
   } catch (error) {
     console.error("Forgot Password Error:", error);
     return res.status(500).json({ message: "Server error. Please try again." });
@@ -74,7 +91,12 @@ exports.resetPassword = async (req, res) => {
       const resetLink = `https://whale-app-4nsg6.ondigitalocean.app/auth/reset-password-page/${newResetToken}`;
       await sendPasswordResetEmail(user.email, resetLink);
 
-      return res.status(400).json({ message: "Your password reset token expired. A new link has been sent to your email." });
+      return res
+        .status(400)
+        .json({
+          message:
+            "Your password reset token expired. A new link has been sent to your email.",
+        });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -84,7 +106,9 @@ exports.resetPassword = async (req, res) => {
     user.password_reset_token_expiry = undefined;
     await user.save();
 
-    return res.status(200).json({ message: "Password has been successfully reset." });
+    return res
+      .status(200)
+      .json({ message: "Password has been successfully reset." });
   } catch (error) {
     console.error("Reset Password Error:", error);
     return res.status(500).json({ message: "Server error. Please try again." });

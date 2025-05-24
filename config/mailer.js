@@ -80,7 +80,6 @@ async function sendPasswordResetEmail(email, resetLink) {
   await transporter.sendMail(mailOptions);
 }
 
-
 async function sendPropertyBookingConfirmationEmail(booking) {
   try {
     // Fetch buyer (user) details
@@ -108,8 +107,8 @@ async function sendPropertyBookingConfirmationEmail(booking) {
       <p>Your booking has been successfully confirmed.</p>
       <p><strong>Booking Details:</strong></p>
       <ul>
-        <li><strong>Property:</strong> ${property.title.get('en')}</li>
-        <li><strong>Location:</strong> ${property.city.get('en')}, ${property.state.get('en')}, ${property.country.get('en')}</li>
+        <li><strong>Property:</strong> ${property.title.get("en")}</li>
+        <li><strong>Location:</strong> ${property.city.get("en")}, ${property.state.get("en")}, ${property.country.get("en")}</li>
         <li><strong>Booking Start Date:</strong> ${new Date(booking.start_date).toLocaleDateString()}</li>
         <li><strong>Booking End Date:</strong> ${new Date(booking.end_date).toLocaleDateString()}</li>
         <li><strong>Security Deposit:</strong> $${booking.security_deposit || "N/A"}</li>
@@ -135,7 +134,7 @@ async function sendPropertyBookingConfirmationEmail(booking) {
       subject: "New Booking Confirmation",
       html: `
         <p>Dear ${realtor.full_name},</p>
-        <p>Your property <strong>${property.title.get('en')}</strong> has been booked.</p>
+        <p>Your property <strong>${property.title.get("en")}</strong> has been booked.</p>
         <p>Booking details:</p>
         ${emailBody} <!-- Reusing the same email content -->
         <p>Best regards,</p>
@@ -145,15 +144,15 @@ async function sendPropertyBookingConfirmationEmail(booking) {
 
     // If the owner is not Admin, send an email to Admin as well
     if (booking.owner_type !== "Admin") {
-      const admin = await Admin.findOne();  // Assuming there's only one Admin or fetching the relevant Admin
+      const admin = await Admin.findOne(); // Assuming there's only one Admin or fetching the relevant Admin
       if (admin) {
         await transporter.sendMail({
           from: process.env.EMAIL_USER,
           to: admin.email,
-          subject: `New Booking for Property: ${property.title.get('en')}`,
+          subject: `New Booking for Property: ${property.title.get("en")}`,
           html: `
             <p>Dear Admin,</p>
-            <p>A new booking has been made for the property <strong>${property.title.get('en')}</strong>.</p>
+            <p>A new booking has been made for the property <strong>${property.title.get("en")}</strong>.</p>
             <p>Booking details:</p>
             ${emailBody} <!-- Reusing the same email content -->
             <p>Best regards,</p>
@@ -161,7 +160,9 @@ async function sendPropertyBookingConfirmationEmail(booking) {
           `,
         });
       } else {
-        console.error("Admin not found. Booking confirmation email not sent to Admin.");
+        console.error(
+          "Admin not found. Booking confirmation email not sent to Admin.",
+        );
       }
     }
 
@@ -170,7 +171,6 @@ async function sendPropertyBookingConfirmationEmail(booking) {
     console.error("Error sending booking confirmation emails:", error.message);
   }
 }
-
 
 async function sendEventBookingConfirmationEmail(booking) {
   try {
@@ -204,14 +204,14 @@ async function sendEventBookingConfirmationEmail(booking) {
 
     const emailBody = `
       <p>Dear ${buyer.full_name},</p>
-      <p>Your booking for the event <strong>${event.title.get('en')}</strong> has been successfully confirmed.</p>
+      <p>Your booking for the event <strong>${event.title.get("en")}</strong> has been successfully confirmed.</p>
       <p><strong>Event Details:</strong></p>
       <ul>
-        <li><strong>Event:</strong> ${event.title.get('en')}</li>
+        <li><strong>Event:</strong> ${event.title.get("en")}</li>
         <li><strong>Date:</strong> ${new Date(event.start_date).toLocaleDateString()}</li>
-        <li><strong>Location:</strong> ${event.location.address}, ${
-      event.city.get('en')
-    }, ${event.state.get('en')}</li>
+        <li><strong>Location:</strong> ${event.location.address}, ${event.city.get(
+          "en",
+        )}, ${event.state.get("en")}</li>
         <li><strong>Number of Tickets:</strong> ${booking.tickets.length}</li>
         <li><strong>Guest Name:</strong> ${booking.guest_name || buyer.full_name}</li>
         <li><strong>Guest Email:</strong> ${booking.guest_email || buyer.email}</li>
@@ -254,7 +254,7 @@ async function sendEventBookingConfirmationEmail(booking) {
     } catch (error) {
       console.error(
         "Error sending event booking confirmation email:",
-        error.message
+        error.message,
       );
     }
 
@@ -265,7 +265,7 @@ async function sendEventBookingConfirmationEmail(booking) {
       subject: "New Event Booking Confirmation",
       html: `
         <p>Dear ${host.full_name},</p>
-        <p>Your event <strong>${event.title.get('en')}</strong> has been booked by <strong>${buyer.full_name}</strong>.</p>
+        <p>Your event <strong>${event.title.get("en")}</strong> has been booked by <strong>${buyer.full_name}</strong>.</p>
         <p>Booking details:</p>
         ${emailBody}
         <p>Best regards,</p>
@@ -275,15 +275,15 @@ async function sendEventBookingConfirmationEmail(booking) {
 
     // If the owner is not Admin, send an email to Admin as well
     if (booking.owner_type !== "Admin") {
-      const admin = await Admin.findOne();  // Assuming there's only one Admin or fetching the relevant Admin
+      const admin = await Admin.findOne(); // Assuming there's only one Admin or fetching the relevant Admin
       if (admin) {
         await transporter.sendMail({
           from: process.env.EMAIL_USER,
           to: admin.email,
-          subject: `New Booking for Event: ${event.title.get('en')}`,
+          subject: `New Booking for Event: ${event.title.get("en")}`,
           html: `
             <p>Dear Admin,</p>
-            <p>A new booking has been made for the event <strong>${event.title.get('en')}</strong>.</p>
+            <p>A new booking has been made for the event <strong>${event.title.get("en")}</strong>.</p>
             <p>Booking details:</p>
             ${emailBody} <!-- Reusing the same email content -->
             <p>Best regards,</p>
@@ -291,7 +291,9 @@ async function sendEventBookingConfirmationEmail(booking) {
           `,
         });
       } else {
-        console.error("Admin not found. Booking confirmation email not sent to Admin.");
+        console.error(
+          "Admin not found. Booking confirmation email not sent to Admin.",
+        );
       }
     }
 
@@ -299,11 +301,10 @@ async function sendEventBookingConfirmationEmail(booking) {
   } catch (error) {
     console.error(
       "Error sending event booking confirmation emails:",
-      error.message
+      error.message,
     );
   }
 }
-
 
 async function sendPropertyBookingCancellationEmail(booking) {
   try {
@@ -334,12 +335,12 @@ async function sendPropertyBookingCancellationEmail(booking) {
       <p>We regret to inform you that your booking has been canceled.</p>
       <p><strong>Booking Details:</strong></p>
       <ul>
-        <li><strong>Property:</strong> ${property.title.get('en')}</li>
-        <li><strong>Location:</strong> ${property.city.get('en')}, ${property.state.get('en')}, ${property.country.get('en')}</li>
+        <li><strong>Property:</strong> ${property.title.get("en")}</li>
+        <li><strong>Location:</strong> ${property.city.get("en")}, ${property.state.get("en")}, ${property.country.get("en")}</li>
         <li><strong>Booking Start Date:</strong> ${new Date(booking.start_date).toLocaleDateString()}</li>
         <li><strong>Booking End Date:</strong> ${new Date(booking.end_date).toLocaleDateString()}</li>
         <li><strong>Security Deposit Refund:</strong> ${booking.security_deposit ? `$${booking.security_deposit}` : "N/A"}</li>
-        <li><strong>Cancellation Reason:</strong> ${booking.cancelation_reason.get('en') || "Not provided"}</li>
+        <li><strong>Cancellation Reason:</strong> ${booking.cancelation_reason.get("en") || "Not provided"}</li>
       </ul>
       <p>For any further assistance, feel free to contact us.</p>
       <p>Thank you for choosing our service.</p>
@@ -351,11 +352,11 @@ async function sendPropertyBookingCancellationEmail(booking) {
       <p>A booking for your property has been canceled.</p>
       <p><strong>Booking Details:</strong></p>
       <ul>
-        <li><strong>Property:</strong> ${property.title.get('en')}</li>
+        <li><strong>Property:</strong> ${property.title.get("en")}</li>
         <li><strong>Booked by:</strong> ${buyer.full_name} (${buyer.email})</li>
         <li><strong>Booking Start Date:</strong> ${new Date(booking.start_date).toLocaleDateString()}</li>
         <li><strong>Booking End Date:</strong> ${new Date(booking.end_date).toLocaleDateString()}</li>
-        <li><strong>Cancellation Reason:</strong> ${booking.cancelation_reason.get('en') || "Not provided"}</li>
+        <li><strong>Cancellation Reason:</strong> ${booking.cancelation_reason.get("en") || "Not provided"}</li>
       </ul>
       <p>The property is now available for new bookings.</p>
       <p>Best regards,</p>
@@ -368,11 +369,11 @@ async function sendPropertyBookingCancellationEmail(booking) {
       <p>A booking has been canceled.</p>
       <p><strong>Booking Details:</strong></p>
       <ul>
-        <li><strong>Property:</strong> ${property.title.get('en')}</li>
+        <li><strong>Property:</strong> ${property.title.get("en")}</li>
         <li><strong>Booked by:</strong> ${buyer.full_name} (${buyer.email})</li>
         <li><strong>Booking Start Date:</strong> ${new Date(booking.start_date).toLocaleDateString()}</li>
         <li><strong>Booking End Date:</strong> ${new Date(booking.end_date).toLocaleDateString()}</li>
-        <li><strong>Cancellation Reason:</strong> ${booking.cancelation_reason.get('en') || "Not provided"}</li>
+        <li><strong>Cancellation Reason:</strong> ${booking.cancelation_reason.get("en") || "Not provided"}</li>
       </ul>
       <p>Regards,</p>
       <p>Daar Live</p>
@@ -410,7 +411,6 @@ async function sendPropertyBookingCancellationEmail(booking) {
   }
 }
 
-
 async function sendEventBookingCancellationEmail(booking) {
   try {
     // Fetch buyer (user) details
@@ -443,16 +443,16 @@ async function sendEventBookingCancellationEmail(booking) {
 
     const emailBody = `
       <p>Dear ${buyer.full_name},</p>
-      <p>We regret to inform you that your booking for the event <strong>${event.title.get('en')}</strong> has been canceled.</p>
+      <p>We regret to inform you that your booking for the event <strong>${event.title.get("en")}</strong> has been canceled.</p>
       <p><strong>Event Details:</strong></p>
       <ul>
-        <li><strong>Event:</strong> ${event.title.get('en')}</li>
+        <li><strong>Event:</strong> ${event.title.get("en")}</li>
         <li><strong>Date:</strong> ${new Date(event.start_date).toLocaleDateString()}</li>
-        <li><strong>Location:</strong> ${event.location.address}, ${event.city.get('en')}, ${event.state.get('en')}</li>
+        <li><strong>Location:</strong> ${event.location.address}, ${event.city.get("en")}, ${event.state.get("en")}</li>
         <li><strong>Number of Tickets Canceled:</strong> ${booking.tickets.length}</li>
         <li><strong>Guest Name:</strong> ${booking.guest_name || buyer.full_name}</li>
         <li><strong>Guest Email:</strong> ${booking.guest_email || buyer.email}</li>
-        <li><strong>Cancellation Reason:</strong> ${booking.cancelation_reason.get('en') || "Not provided"}</li>
+        <li><strong>Cancellation Reason:</strong> ${booking.cancelation_reason.get("en") || "Not provided"}</li>
         ${ticketDetailsHTML}
       </ul>
       <p>${booking.refund_status ? "A refund will be processed as per our policy." : "Please contact support for refund-related queries."}</p>
@@ -476,10 +476,10 @@ async function sendEventBookingCancellationEmail(booking) {
       subject: "Event Booking Cancellation Notification",
       html: `
         <p>Dear ${host.full_name},</p>
-        <p>We would like to inform you that a booking for your event <strong>${event.title.get('en')}</strong> has been canceled.</p>
+        <p>We would like to inform you that a booking for your event <strong>${event.title.get("en")}</strong> has been canceled.</p>
         <p><strong>Canceled By:</strong> ${buyer.full_name} (${buyer.email})</p>
         <p><strong>Number of Tickets Canceled:</strong> ${booking.tickets.length}</p>
-        <p><strong>Cancellation Reason:</strong> ${booking.cancelation_reason.get('en') || "Not provided"}</p>
+        <p><strong>Cancellation Reason:</strong> ${booking.cancelation_reason.get("en") || "Not provided"}</p>
         ${ticketDetailsHTML}
         <p>Best regards,</p>
         <p>Daar Live</p>
@@ -494,11 +494,11 @@ async function sendEventBookingCancellationEmail(booking) {
         subject: "Event Booking Cancellation - Admin Notification",
         html: `
           <p>Dear Admin,</p>
-          <p>A booking for the event <strong>${event.title.get('en')}</strong> has been canceled.</p>
+          <p>A booking for the event <strong>${event.title.get("en")}</strong> has been canceled.</p>
           <p><strong>Buyer:</strong> ${buyer.full_name} (${buyer.email})</p>
           <p><strong>Host:</strong> ${host.full_name} (${host.email})</p>
           <p><strong>Number of Tickets Canceled:</strong> ${booking.tickets.length}</p>
-          <p><strong>Cancellation Reason:</strong> ${booking.cancelation_reason.get('en') || "Not provided"}</p>
+          <p><strong>Cancellation Reason:</strong> ${booking.cancelation_reason.get("en") || "Not provided"}</p>
           ${ticketDetailsHTML}
           <p>Best regards,</p>
           <p>Daar Live System</p>
@@ -508,11 +508,12 @@ async function sendEventBookingCancellationEmail(booking) {
 
     console.log("Event booking cancellation emails sent successfully.");
   } catch (error) {
-    console.error("Error sending event booking cancellation emails:", error.message);
+    console.error(
+      "Error sending event booking cancellation emails:",
+      error.message,
+    );
   }
 }
-
-
 
 /**
  * Generates a PDF file with ticket details
@@ -532,10 +533,12 @@ async function generateBookingPDF(booking, buyer, event) {
       .moveDown();
 
     // Event details
-    doc.fontSize(14).text(`Event: ${event.title.get('en')}`);
+    doc.fontSize(14).text(`Event: ${event.title.get("en")}`);
     doc.text(`Date: ${new Date(event.start_date).toLocaleDateString()}`);
     doc
-      .text(`Location: ${event.venue}, ${event.city.get('en')}, ${event.state.get('en')}`)
+      .text(
+        `Location: ${event.venue}, ${event.city.get("en")}, ${event.state.get("en")}`,
+      )
       .moveDown();
 
     // Booking details
@@ -585,9 +588,9 @@ async function sendPropertyStatusEmail(
   email,
   propertyTitle,
   status,
-  reason = ""
+  reason = "",
 ) {
-  console.log(propertyTitle)
+  console.log(propertyTitle);
   try {
     const subject =
       status === "approved"
@@ -678,7 +681,7 @@ async function sendWithdrawalRequestEmail(withdrawRequest, realtor) {
   } catch (error) {
     console.error(
       "Error sending withdrawal request notification emails:",
-      error
+      error,
     );
   }
 }

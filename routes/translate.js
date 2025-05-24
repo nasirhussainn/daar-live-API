@@ -17,7 +17,7 @@ router.post("/translate", async (req, res) => {
     }
 
     // Define the target languages
-    const targetLanguages = ['en', 'ar'];
+    const targetLanguages = ["en", "ar"];
 
     // Create a map to store translations
     const translations = {};
@@ -28,7 +28,7 @@ router.post("/translate", async (req, res) => {
       translations[lang] = translation;
     }
 
-    res.json(translations);  // Returning translations as a map (object)
+    res.json(translations); // Returning translations as a map (object)
   } catch (err) {
     console.error("Translation Error:", err.message);
     res.status(500).json({ error: "Translation failed", details: err.message });

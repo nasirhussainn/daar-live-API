@@ -1,12 +1,14 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User'); // User model
+const jwt = require("jsonwebtoken");
+const User = require("../models/User"); // User model
 
 // Middleware to verify JWT token
 const verifyToken = (req, res, next) => {
-  const token = req.headers['authorization']?.split(' ')[1]; // Get token from Authorization header
+  const token = req.headers["authorization"]?.split(" ")[1]; // Get token from Authorization header
 
   if (!token) {
-    return res.status(403).json({ message: "Access denied. No token provided." });
+    return res
+      .status(403)
+      .json({ message: "Access denied. No token provided." });
   }
 
   try {

@@ -15,7 +15,7 @@ const BASE_URL = process.env.BASE_URL;
 
 admin.initializeApp({
   credential: admin.credential.cert(
-    require("../../config/firebaseServiceAccount.json")
+    require("../../config/firebaseServiceAccount.json"),
   ),
 });
 
@@ -67,7 +67,7 @@ exports.signup = async (req, res) => {
         role === "realtor" ? "realtors_profiles" : "buyers_profiles";
       imageUrl = await uploadToCloudinary(
         req.files["profile_picture"][0].buffer,
-        folderName
+        folderName,
       );
     }
 
@@ -79,13 +79,13 @@ exports.signup = async (req, res) => {
       if (req.files["tax_id_image"]) {
         taxIdImageUrl = await uploadToCloudinary(
           req.files["tax_id_image"][0].buffer,
-          "realtors_documents"
+          "realtors_documents",
         );
       }
       if (req.files["verification_doc_image"]) {
         verificationDocImageUrl = await uploadToCloudinary(
           req.files["verification_doc_image"][0].buffer,
-          "realtors_documents"
+          "realtors_documents",
         );
       }
     }
@@ -138,7 +138,7 @@ exports.signup = async (req, res) => {
           "User",
           newUser._id,
           "New Realtor Signup",
-          `${newUser.full_name} has signed up as a Realtor and is awaiting account approval.`
+          `${newUser.full_name} has signed up as a Realtor and is awaiting account approval.`,
         );
       } catch (error) {
         console.error("Error sending notification:", error);
@@ -199,7 +199,7 @@ exports.firebaseSignup = async (req, res) => {
         const userJwt = generateToken(existingUser);
         existingUser.login_token = userJwt;
         existingUser.login_token_expiry = new Date(
-          Date.now() + 7 * 24 * 60 * 60 * 1000
+          Date.now() + 7 * 24 * 60 * 60 * 1000,
         );
         await existingUser.save();
 
@@ -299,7 +299,7 @@ exports.socialAuth = async (req, res) => {
       const folderName = "buyers_profiles";
       imageUrl = await uploadToCloudinary(
         req.files["profile_picture"][0].buffer,
-        folderName
+        folderName,
       );
     }
 

@@ -7,7 +7,7 @@ exports.getUserNotifications = async (req, res) => {
   try {
     let { user_id, page, limit } = req.query; // Get pagination params from query
 
-    const userId = user_id; 
+    const userId = user_id;
     // Set default values for page & limit if not provided
     page = parseInt(page) || 1;
     limit = parseInt(limit) || 10;
@@ -20,7 +20,9 @@ exports.getUserNotifications = async (req, res) => {
       .limit(limit);
 
     // Count total notifications for the user
-    const totalNotifications = await Notification.countDocuments({ user: userId });
+    const totalNotifications = await Notification.countDocuments({
+      user: userId,
+    });
 
     res.status(200).json({
       success: true,
@@ -31,6 +33,8 @@ exports.getUserNotifications = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching notifications:", error);
-    res.status(500).json({ success: false, message: "Error fetching notifications" });
+    res
+      .status(500)
+      .json({ success: false, message: "Error fetching notifications" });
   }
 };

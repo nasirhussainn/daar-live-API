@@ -1,16 +1,17 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const SubscriptionPlanSchema = new mongoose.Schema(
   {
-    productId: { // Stripe Product ID
+    productId: {
+      // Stripe Product ID
       type: String,
       required: true,
       unique: true,
-      trim: true
+      trim: true,
     },
     days: {
       type: Number,
-      required: true
+      required: true,
     },
     months: {
       type: String,
@@ -19,29 +20,32 @@ const SubscriptionPlanSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
-      trim: true
+      trim: true,
     },
     planDescription: {
       type: Map,
       of: String,
-      required: true
+      required: true,
     },
     noOfPropertyListing: {
       type: Number,
-      required: true
+      required: true,
     },
     noOfEventListing: {
       type: Number,
-      required: true
+      required: true,
     },
     planAmount: {
       type: Number,
-      required: true
-    }
+      required: true,
+    },
   },
-  { timestamps: true } // Enables createdAt and updatedAt fields
+  { timestamps: true }, // Enables createdAt and updatedAt fields
 );
 
-const SubscriptionPlan = mongoose.model('SubscriptionPlan', SubscriptionPlanSchema);
+const SubscriptionPlan = mongoose.model(
+  "SubscriptionPlan",
+  SubscriptionPlanSchema,
+);
 
 module.exports = SubscriptionPlan;

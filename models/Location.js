@@ -8,11 +8,11 @@ const LocationSchema = new Schema(
     postal_code: { type: String },
     latitude: { type: Number, min: -90, max: 90, required: true },
     longitude: { type: Number, min: -180, max: 180, required: true },
-    location_address: { 
+    location_address: {
       type: Map,
       of: String,
-     },
-     nearbyLocations: {
+    },
+    nearbyLocations: {
       type: Map,
       of: [String],
     },
@@ -33,7 +33,7 @@ const LocationSchema = new Schema(
       },
     },
   },
-  { timestamps: true } // ✅ Automatically adds createdAt & updatedAt
+  { timestamps: true }, // ✅ Automatically adds createdAt & updatedAt
 );
 
 // ✅ Add 2dsphere index for geospatial queries

@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
 const userSchema = new Schema(
@@ -8,12 +8,12 @@ const userSchema = new Schema(
     password: { type: String },
     phone_number: { type: String },
     profile_picture: { type: String },
-    role: { type: String, enum: ['buyer', 'realtor'], required: true },
+    role: { type: String, enum: ["buyer", "realtor"], required: true },
     account_type: {
       type: String,
-      enum: ['manual', 'google', 'apple', 'phone'],
-      required: true
-    },    
+      enum: ["manual", "google", "apple", "phone"],
+      required: true,
+    },
     email_verified: { type: Boolean, default: false },
     email_verification_token: { type: String }, // Token for email verification
     email_verification_token_expiry: { type: Date }, // Expiry of verification token
@@ -26,12 +26,12 @@ const userSchema = new Schema(
     login_token_expiry: { type: Date }, // Expiry of OTP
     account_status: {
       type: String,
-      enum: ['pending', 'approved', 'declined', 'active'],
-      default: 'pending',
-    }, 
+      enum: ["pending", "approved", "declined", "active"],
+      default: "pending",
+    },
   },
-  { timestamps: true } // Automatically adds `createdAt` and `updatedAt` timestamps
+  { timestamps: true }, // Automatically adds `createdAt` and `updatedAt` timestamps
 );
 
-const User = mongoose.model('User', userSchema);
+const User = mongoose.model("User", userSchema);
 module.exports = User;

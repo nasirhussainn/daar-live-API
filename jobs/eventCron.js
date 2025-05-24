@@ -11,17 +11,18 @@ const updateEventStatuses = async () => {
     // 1️⃣ Change "upcoming" → "live" if the event start date has arrived
     const liveEvents = await Event.updateMany(
       { status: "upcoming", start_date: { $lt: now } },
-      { status: "live" }
+      { status: "live" },
     );
     console.log(`✅ Updated ${liveEvents.modifiedCount} events to "live".`);
 
     // 2️⃣ Change "live" → "completed" if the event end date has passed
     const completedEvents = await Event.updateMany(
       { status: "live", end_date: { $lt: now } },
-      { status: "completed", allow_booking: false } // Also disable booking
+      { status: "completed", allow_booking: false }, // Also disable booking
     );
-    console.log(`✅ Updated ${completedEvents.modifiedCount} events to "completed" and disabled booking.`);
-
+    console.log(
+      `✅ Updated ${completedEvents.modifiedCount} events to "completed" and disabled booking.`,
+    );
   } catch (error) {
     console.error("❌ Error updating event statuses:", error);
   }
@@ -41,7 +42,7 @@ cron.schedule(
   },
   {
     timezone: "Asia/Aden",
-  }
+  },
 );
 
 module.exports = { updateEventStatuses };

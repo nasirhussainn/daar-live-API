@@ -16,7 +16,10 @@ const updateRevenue = async (booking_id, isCanceled = false) => {
 
     // Extract booking amount
     const amount = booking.payment_detail?.amount || 0;
-    const bookingPercentage = await Settings.findOne({}, "booking_percentage").lean();
+    const bookingPercentage = await Settings.findOne(
+      {},
+      "booking_percentage",
+    ).lean();
     const adminPercentage = bookingPercentage?.booking_percentage;
     if (amount <= 0) {
       console.error(`Invalid payment amount for booking ${booking_id}.`);
@@ -28,14 +31,20 @@ const updateRevenue = async (booking_id, isCanceled = false) => {
 
     if (booking.owner_type === "Admin") {
       const revenueAmount = isCanceled ? -amount : amount;
-      
+
       // Update admin's direct revenue
       await updateAdminRevenue(revenueAmount, "admin_booking_revenue", period);
       await updateAdminRevenue(revenueAmount, "total_booking_revenue", period);
       await updateAdminRevenue(revenueAmount, "total_revenue", period);
 
-      console.log(`Updated AdminRevenue for direct admin booking by ${revenueAmount}.`);
-      return { success: true, message: `Admin revenue ${isCanceled ? "deducted" : "updated"}`, admin_revenue: revenueAmount };
+      console.log(
+        `Updated AdminRevenue for direct admin booking by ${revenueAmount}.`,
+      );
+      return {
+        success: true,
+        message: `Admin revenue ${isCanceled ? "deducted" : "updated"}`,
+        admin_revenue: revenueAmount,
+      };
     }
 
     if (booking.owner_type === "User") {
@@ -56,20 +65,32 @@ const updateRevenue = async (booking_id, isCanceled = false) => {
       const adminCut = (amount * adminPercentage) / 100;
       const realtorRevenue = amount - adminCut;
       const adminCutAmount = isCanceled ? -adminCut : adminCut;
-      const realtorRevenueAmount = isCanceled ? -realtorRevenue : realtorRevenue;
+      const realtorRevenueAmount = isCanceled
+        ? -realtorRevenue
+        : realtorRevenue;
 
       // Update Realtor revenue
-      realtor.total_revenue = (realtor.total_revenue || 0) + realtorRevenueAmount;
-      realtor.available_revenue = (realtor.available_revenue || 0) + realtorRevenueAmount;
+      realtor.total_revenue =
+        (realtor.total_revenue || 0) + realtorRevenueAmount;
+      realtor.available_revenue =
+        (realtor.available_revenue || 0) + realtorRevenueAmount;
       await realtor.save();
 
       // Update AdminRevenue
       await updateAdminRevenue(adminCutAmount, "total_booking_revenue", period);
-      await updateAdminRevenue(adminCutAmount, "total_percentage_revenue", period);
+      await updateAdminRevenue(
+        adminCutAmount,
+        "total_percentage_revenue",
+        period,
+      );
       await updateAdminRevenue(adminCutAmount, "total_revenue", period);
 
-      console.log(`Updated Realtor ${realtor._id} revenue by ${realtorRevenueAmount}.`);
-      console.log(`Updated AdminRevenue for admin’s percentage cut by ${adminCutAmount}.`);
+      console.log(
+        `Updated Realtor ${realtor._id} revenue by ${realtorRevenueAmount}.`,
+      );
+      console.log(
+        `Updated AdminRevenue for admin’s percentage cut by ${adminCutAmount}.`,
+      );
 
       return {
         success: true,
@@ -79,14 +100,14 @@ const updateRevenue = async (booking_id, isCanceled = false) => {
       };
     }
 
-    console.error(`Invalid owner_type: ${booking.owner_type} for booking ${booking_id}`);
+    console.error(
+      `Invalid owner_type: ${booking.owner_type} for booking ${booking_id}`,
+    );
     return { success: false, message: "Invalid owner type" };
-
   } catch (error) {
     console.error("Error updating revenues:", error);
     return { success: false, message: "Server error", error: error.message };
   }
 };
-
 
 module.exports = updateRevenue;

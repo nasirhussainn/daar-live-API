@@ -1,7 +1,11 @@
 const express = require("express");
 const router = express.Router();
-const { signup, firebaseSignup, socialAuth } = require("../../controller/auth/authSignupController");
-const { uploadSignup } = require("../../middlewares/multerConfig")
+const {
+  signup,
+  firebaseSignup,
+  socialAuth,
+} = require("../../controller/auth/authSignupController");
+const { uploadSignup } = require("../../middlewares/multerConfig");
 
 // Signup Route (Manual)
 router.post("/signup", uploadSignup, signup);

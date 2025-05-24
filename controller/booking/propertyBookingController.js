@@ -28,10 +28,16 @@ const normalizeTime = (time) => {
 };
 
 // Updated conflict checker with exclusion support
-async function hasBookingConflict(propertyId, startDate, endDate, slots, excludeBookingId = null) {
+async function hasBookingConflict(
+  propertyId,
+  startDate,
+  endDate,
+  slots,
+  excludeBookingId = null,
+) {
   const normalizedStart = new Date(startDate);
   normalizedStart.setUTCHours(0, 0, 0, 0);
-  
+
   const normalizedEnd = new Date(endDate);
   normalizedEnd.setUTCHours(23, 59, 59, 999);
 
@@ -39,7 +45,10 @@ async function hasBookingConflict(propertyId, startDate, endDate, slots, exclude
     property_id: propertyId,
     status: { $in: ["active", "confirmed", "pending"] },
     $or: [
-      { start_date: { $lt: normalizedEnd }, end_date: { $gt: normalizedStart } },
+      {
+        start_date: { $lt: normalizedEnd },
+        end_date: { $gt: normalizedStart },
+      },
     ],
   };
 
@@ -51,9 +60,9 @@ async function hasBookingConflict(propertyId, startDate, endDate, slots, exclude
 
   if (!slots || !slots.length) return conflictingBookings.length > 0;
 
-  return conflictingBookings.some(booking => {
-    return booking.slots.some(bookedSlot => {
-      return slots.some(newSlot => {
+  return conflictingBookings.some((booking) => {
+    return booking.slots.some((bookedSlot) => {
+      return slots.some((newSlot) => {
         const bookedStart = normalizeTime(bookedSlot.start_time);
         const bookedEnd = normalizeTime(bookedSlot.end_time);
         const newStart = normalizeTime(newSlot.start_time);
@@ -70,17 +79,23 @@ async function hasBookingConflict(propertyId, startDate, endDate, slots, exclude
 }
 
 // Updated unavailable slots checker with exclusion support
-async function hasUnavailableConflict(property, startDate, endDate, slots, excludeBookingId = null) {
+async function hasUnavailableConflict(
+  property,
+  startDate,
+  endDate,
+  slots,
+  excludeBookingId = null,
+) {
   if (!property.unavailable_slots?.length) return false;
 
   const normalizedStart = new Date(startDate);
   normalizedStart.setUTCHours(0, 0, 0, 0);
-  
+
   const normalizedEnd = new Date(endDate);
   normalizedEnd.setUTCHours(23, 59, 59, 999);
 
   // Filter unavailable slots for the date range
-  const unavailableSlots = property.unavailable_slots.filter(slot => {
+  const unavailableSlots = property.unavailable_slots.filter((slot) => {
     const slotStart = new Date(slot.start_date);
     const slotEnd = new Date(slot.end_date);
     return slotStart <= normalizedEnd && slotEnd >= normalizedStart;
@@ -92,11 +107,11 @@ async function hasUnavailableConflict(property, startDate, endDate, slots, exclu
   if (property.charge_per !== "per_hour") return true;
 
   // For hourly bookings, check each slot
-  return slots.some(slot => {
+  return slots.some((slot) => {
     const slotStart = normalizeTime(slot.start_time);
     const slotEnd = normalizeTime(slot.end_time);
 
-    return unavailableSlots.some(unavailable => {
+    return unavailableSlots.some((unavailable) => {
       const unavailableStart = normalizeTime(unavailable.start_time);
       const unavailableEnd = normalizeTime(unavailable.end_time);
 
@@ -112,13 +127,13 @@ async function hasUnavailableConflict(property, startDate, endDate, slots, exclu
 // Helper function to get property owner
 async function getPropertyOwner(property) {
   const isAdminOwner = property.created_by === "Admin";
-  const owner = await (isAdminOwner 
+  const owner = await (isAdminOwner
     ? Admin.findById(property.owner_id).lean()
     : User.findById(property.owner_id).lean());
-    
+
   return {
     owner,
-    ownerType: isAdminOwner ? "Admin" : "User"
+    ownerType: isAdminOwner ? "Admin" : "User",
   };
 }
 
@@ -139,7 +154,7 @@ exports.bookProperty = async (req, res) => {
 
     // Date normalization functions
     const normalizeDate = (dateStr) => {
-      const [year, month, day] = dateStr.split('-').map(Number);
+      const [year, month, day] = dateStr.split("-").map(Number);
       return new Date(Date.UTC(year, month - 1, day));
     };
 
@@ -158,7 +173,7 @@ exports.bookProperty = async (req, res) => {
     // Normalize dates based on property type
     let startDate = normalizeDate(start_date);
     let endDate = normalizeDate(end_date);
-    
+
     if (property.charge_per === "per_hour") {
       endDate = normalizeToEndOfDay(endDate); // Set to end of day
     }
@@ -197,31 +212,43 @@ exports.bookProperty = async (req, res) => {
         // For hourly, only check date portion
         const startOfDay = normalizeDate(start_date);
         const endOfDay = normalizeToEndOfDay(start_date);
-        
+
         // Check unavailable slots (date only)
         const unavailableConflict = await hasUnavailableConflict(
-          property, 
-          startOfDay, 
-          endOfDay, 
-          slots, 
+          property,
+          startOfDay,
+          endOfDay,
+          slots,
           excludeId,
         );
-        
+
         if (unavailableConflict) return true;
-        
+
         // Check booking conflicts (date only)
         return await hasBookingConflict(
-          property_id, 
-          startOfDay, 
-          endOfDay, 
-          slots, 
+          property_id,
+          startOfDay,
+          endOfDay,
+          slots,
           excludeId,
         );
       } else {
         // Regular date checking for non-hourly
         return (
-          await hasUnavailableConflict(property, startDate, endDate, slots, excludeId) ||
-          await hasBookingConflict(property_id, startDate, endDate, slots, excludeId)
+          (await hasUnavailableConflict(
+            property,
+            startDate,
+            endDate,
+            slots,
+            excludeId,
+          )) ||
+          (await hasBookingConflict(
+            property_id,
+            startDate,
+            endDate,
+            slots,
+            excludeId,
+          ))
         );
       }
     };
@@ -229,9 +256,10 @@ exports.bookProperty = async (req, res) => {
     if (existingPendingBooking) {
       if (await checkConflicts(existingPendingBooking._id)) {
         return res.status(400).json({
-          message: property.charge_per === "per_hour"
-            ? "Property is unavailable for the selected time slots"
-            : "Property is unavailable for the selected dates",
+          message:
+            property.charge_per === "per_hour"
+              ? "Property is unavailable for the selected time slots"
+              : "Property is unavailable for the selected dates",
         });
       }
 
@@ -257,9 +285,10 @@ exports.bookProperty = async (req, res) => {
     // Check for conflicts for new booking
     if (await checkConflicts()) {
       return res.status(400).json({
-        message: property.charge_per === "per_hour"
-          ? "Property is unavailable for the selected time slots"
-          : "Property is unavailable for the selected dates",
+        message:
+          property.charge_per === "per_hour"
+            ? "Property is unavailable for the selected time slots"
+            : "Property is unavailable for the selected dates",
       });
     }
 
@@ -294,9 +323,9 @@ exports.bookProperty = async (req, res) => {
       booking: newBooking,
     });
   } catch (error) {
-    res.status(500).json({ 
-      message: "Server Error", 
-      error: error.message 
+    res.status(500).json({
+      message: "Server Error",
+      error: error.message,
     });
   }
 };
@@ -316,6 +345,11 @@ exports.confirmPropertyBooking = async (req, res) => {
         .json({ message: "Booking is not in a pending state" });
     }
 
+    // Find associated property
+    const property = await Property.findById(booking.property_id);
+    if (!property)
+      return res.status(404).json({ message: "Property not found" });
+
     // Prevent overwriting existing confirmation ticket
     if (booking.confirmation_ticket) {
       return res.status(400).json({ message: "Booking already confirmed" });
@@ -330,12 +364,7 @@ exports.confirmPropertyBooking = async (req, res) => {
     booking.admin_percentage = booking_percentage;
     await booking.save(); // This will trigger the pre-validation hook to generate a ticket
 
-    const result = await updateRevenue(booking_id); // 10% admin fee
-
-    // Find associated property
-    const property = await Property.findById(booking.property_id);
-    if (!property)
-      return res.status(404).json({ message: "Property not found" });
+    const result = await updateRevenue(booking_id);
 
     await sendPropertyBookingConfirmationEmail(booking);
 
@@ -346,7 +375,7 @@ exports.confirmPropertyBooking = async (req, res) => {
       "Booking",
       booking._id,
       "Property Booking Confirmed",
-      `Your booking has been confirmed! Your confirmation ticket is ${booking.confirmation_ticket}.`
+      `Your booking has been confirmed! Your confirmation ticket is ${booking.confirmation_ticket}.`,
     );
 
     // ✅ Send Notification to Realtor/Owner
@@ -355,7 +384,7 @@ exports.confirmPropertyBooking = async (req, res) => {
       "Booking",
       booking._id,
       "Property Booking Confirmed",
-      "A booking for your property has been confirmed."
+      "A booking for your property has been confirmed.",
     );
 
     // ✅ Send Notification to Super Admin (avoid duplicate if owner is same admin)
@@ -369,7 +398,7 @@ exports.confirmPropertyBooking = async (req, res) => {
         "Booking",
         booking._id,
         "New Property Booking Confirmed",
-        `A new booking has been confirmed for property ID: ${booking.property_id}.`
+        `A new booking has been confirmed for property ID: ${booking.property_id}.`,
       );
     }
 
@@ -404,11 +433,9 @@ exports.cancelPropertyBooking = async (req, res) => {
 
     // If the booking has started, prevent cancellation
     if (new Date(booking.start_date) <= now) {
-      return res
-        .status(400)
-        .json({
-          message: "This booking has already started and cannot be canceled.",
-        });
+      return res.status(400).json({
+        message: "This booking has already started and cannot be canceled.",
+      });
     }
 
     // Check if admin is canceling or if user is canceling within the 72-hour window
@@ -440,7 +467,7 @@ exports.cancelPropertyBooking = async (req, res) => {
         "Booking",
         booking._id,
         "Booking Canceled",
-        `Your booking has been canceled ${cancelByMessage}!`
+        `Your booking has been canceled ${cancelByMessage}!`,
       );
 
       // ✅ Send Notification to Realtor
@@ -449,7 +476,7 @@ exports.cancelPropertyBooking = async (req, res) => {
         "Booking",
         booking._id,
         "Booking Canceled",
-        `A booking for your property has been canceled by ${cancel_by}`
+        `A booking for your property has been canceled by ${cancel_by}`,
       );
       //---------------------------------------------------------
 
@@ -525,7 +552,7 @@ exports.getAllPropertyBookings = async (req, res) => {
             reviews: propertyReviews, // Add reviews to property
           },
         };
-      })
+      }),
     );
 
     res.status(200).json({
@@ -664,7 +691,7 @@ exports.getBookingsByEntitiesId = async (req, res) => {
             reviews: propertyReviews, // Attach reviews to property details
           },
         };
-      })
+      }),
     );
 
     res.status(200).json({
@@ -694,7 +721,7 @@ exports.getBookedPropertyDetails = async (req, res) => {
 
         if (booking.owner_type === "User") {
           const user = await User.findById(booking.owner_id).select(
-            "full_name"
+            "full_name",
           );
           ownerName = user?.full_name || null;
         } else if (booking.owner_type === "Admin") {
@@ -707,7 +734,7 @@ exports.getBookedPropertyDetails = async (req, res) => {
           ...booking.toObject(),
           owner_name: ownerName,
         };
-      })
+      }),
     );
 
     res.status(200).json(enrichedBookings);
@@ -722,7 +749,9 @@ exports.getSlots = async (req, res) => {
 
     // Validate input
     if (!property_id || !date) {
-      return res.status(400).json({ message: "Property ID and date are required" });
+      return res
+        .status(400)
+        .json({ message: "Property ID and date are required" });
     }
 
     const selectedDate = new Date(date);
@@ -731,8 +760,9 @@ exports.getSlots = async (req, res) => {
     }
 
     // Find property
-    const property = await Property.findById(property_id)
-      .select('charge_per unavailable_slots');
+    const property = await Property.findById(property_id).select(
+      "charge_per unavailable_slots",
+    );
     if (!property) {
       return res.status(404).json({ message: "Property not found" });
     }
@@ -752,34 +782,34 @@ exports.getSlots = async (req, res) => {
       Booking.find({
         property_id,
         status: { $in: ["active", "confirmed", "pending"] },
-        start_date: { $gte: startOfDay, $lt: endOfDay }
+        start_date: { $gte: startOfDay, $lt: endOfDay },
       }).select("slots"),
-      
-      (property.unavailable_slots || []).filter(slot => {
+
+      (property.unavailable_slots || []).filter((slot) => {
         const slotStart = new Date(slot.start_date);
         const slotEnd = new Date(slot.end_date);
         return slotStart <= endOfDay && slotEnd >= startOfDay;
-      })
+      }),
     ]);
 
     // Generate ALL 24 hourly slots
     const allSlots = Array.from({ length: 24 }, (_, hour) => {
       const startHour = hour % 12 || 12;
       const endHour = (hour + 1) % 12 || 12;
-      const period = hour < 12 ? 'AM' : 'PM';
-      const nextPeriod = (hour + 1) < 12 ? 'AM' : 'PM';
-      
+      const period = hour < 12 ? "AM" : "PM";
+      const nextPeriod = hour + 1 < 12 ? "AM" : "PM";
+
       return {
         start_time: `${startHour}:00 ${period}`,
-        end_time: `${endHour}:00 ${nextPeriod}`
+        end_time: `${endHour}:00 ${nextPeriod}`,
       };
     });
 
     // Convert time to minutes (0-1439)
-    const timeToMinutes = timeStr => {
-      const [time, period] = timeStr.split(' ');
-      const [hours, minutes] = time.split(':').map(Number);
-      return (hours % 12 + (period === 'PM' ? 12 : 0)) * 60 + minutes;
+    const timeToMinutes = (timeStr) => {
+      const [time, period] = timeStr.split(" ");
+      const [hours, minutes] = time.split(":").map(Number);
+      return ((hours % 12) + (period === "PM" ? 12 : 0)) * 60 + minutes;
     };
 
     // Check if slot is blocked
@@ -788,7 +818,7 @@ exports.getSlots = async (req, res) => {
       for (const slot of unavailableSlots) {
         const blockStart = timeToMinutes(slot.start_time);
         const blockEnd = timeToMinutes(slot.end_time);
-        
+
         if (slotStart < blockEnd && slotEnd > blockStart) {
           return true;
         }
@@ -799,7 +829,7 @@ exports.getSlots = async (req, res) => {
         for (const bookedSlot of booking.slots) {
           const bookedStart = timeToMinutes(bookedSlot.start_time);
           const bookedEnd = timeToMinutes(bookedSlot.end_time);
-          
+
           if (slotStart < bookedEnd && slotEnd > bookedStart) {
             return true;
           }
@@ -810,29 +840,28 @@ exports.getSlots = async (req, res) => {
     };
 
     // Filter available slots
-    const availableSlots = allSlots.filter(slot => {
+    const availableSlots = allSlots.filter((slot) => {
       const slotStart = timeToMinutes(slot.start_time);
       const slotEnd = timeToMinutes(slot.end_time);
-      
+
       // Handle overnight slot (11PM-12AM)
       if (slotEnd < slotStart) {
         return !isBlocked(slotStart, 1440) && !isBlocked(0, slotEnd);
       }
-      
+
       return !isBlocked(slotStart, slotEnd);
     });
 
     res.status(200).json({
       message: "Slots fetched successfully",
       available_slots: availableSlots,
-      booked_slots: bookings.flatMap(b => b.slots),
-      unavailable_slots: unavailableSlots.map(s => ({
+      booked_slots: bookings.flatMap((b) => b.slots),
+      unavailable_slots: unavailableSlots.map((s) => ({
         start_time: s.start_time,
-        end_time: s.end_time
+        end_time: s.end_time,
       })),
-      date: date
+      date: date,
     });
-
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
